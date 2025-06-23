@@ -27,4 +27,76 @@ def dashboard_overview():
         'all_americans': all_american,
         'drafted_players': drafted
     }
-    return jsonify(overview) 
+    return jsonify(overview)
+
+@dashboard_bp.route('/dashboard', methods=['GET'])
+def dashboard():
+    # Get the user's team
+    team = Team.query.filter_by(is_user_controlled=True).first()
+    if not team:
+        return jsonify({"error": "No user-controlled team found"}), 404
+
+    # Get the latest season
+    season = Season.query.order_by(Season.year.desc()).first()
+    if not season:
+        return jsonify({"error": "No seasons found"}), 404
+
+    # Get this team's TeamSeason for the current season
+    team_season = TeamSeason.query.filter_by(team_id=team.team_id, season_id=season.season_id).first()
+
+    # Team record
+    record = f"{team_season.wins}-{team_season.losses}" if team_season else "-"
+
+    # Team prestige, ranking, etc.
+    prestige = team_season.prestige if team_season else "-"
+    national_ranking = team_season.final_rank if team_season else "-"
+    championships = "Conference Champions" if team_season and team_season.final_rank == 1 else "-"
+
+    # Active players
+    active_players = Player.query.filter_by(team_id=team.team_id).count()
+
+    # Recent activity: last 3 games for this team
+    recent_games = (
+        Game.query.filter(
+            ((Game.home_team_id == team.team_id) | (Game.away_team_id == team.team_id)) &
+            (Game.season_id == season.season_id)
+        )
+        .order_by(Game.week.desc())
+        .limit(3)
+        .all()
+    )
+    recent_activity = []
+    for game in recent_games:
+        opponent_id = game.away_team_id if game.home_team_id == team.team_id else game.home_team_id
+        # You may want to fetch the opponent name here
+        opponent = Team.query.get(opponent_id)
+        opponent_name = opponent.name if opponent else f"Team {opponent_id}"
+        result = "-"
+        if game.home_score is not None and game.away_score is not None:
+            if (game.home_team_id == team.team_id and game.home_score > game.away_score) or \
+               (game.away_team_id == team.team_id and game.away_score > game.home_score):
+                result = "Win"
+            else:
+                result = "Loss"
+        recent_activity.append({
+            "title": f"Game vs {opponent_name}",
+            "description": f"{result} ({game.home_score}-{game.away_score}) in week {game.week}",
+            "time_ago": f"Week {game.week}"
+        })
+
+    return jsonify({
+        "season": {
+            "year": season.year,
+            "dynasty_year": season.year - 2019  # Example: adjust base year as needed
+        },
+        "team": {
+            "record": record,
+            "championships": championships,
+            "prestige": prestige,
+            "national_ranking": national_ranking
+        },
+        "stats": {
+            "active_players": active_players
+        },
+        "recent_activity": recent_activity
+    }) 
