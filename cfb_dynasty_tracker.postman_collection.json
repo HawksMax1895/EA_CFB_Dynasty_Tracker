@@ -1,0 +1,558 @@
+{
+  "info": {
+    "name": "CFB Dynasty Tracker API",
+    "_postman_id": "cfb-dynasty-tracker-collection",
+    "description": "Postman collection for College Football Dynasty Tracker backend API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Seasons",
+      "item": [
+        {
+          "name": "Get all seasons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons"] }
+          }
+        },
+        {
+          "name": "Create season",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"year\": 2025\n}" },
+            "url": { "raw": "http://localhost:5000/api/seasons", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons"] }
+          }
+        },
+        {
+          "name": "Get season details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1"] }
+          }
+        },
+        {
+          "name": "Get teams in season",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/teams", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "teams"] }
+          }
+        },
+        {
+          "name": "Update team season info",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"wins\": 10,\n  \"losses\": 2\n}" },
+            "url": { "raw": "http://localhost:5000/api/seasons/1/teams/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "teams", "1"] }
+          }
+        },
+        {
+          "name": "Get season leaders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/leaders", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "leaders"] }
+          }
+        },
+        {
+          "name": "Get season standings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/standings", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "standings"] }
+          }
+        },
+        {
+          "name": "Get season bracket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/bracket", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "bracket"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Conferences",
+      "item": [
+        {
+          "name": "Get all conferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/conferences", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "conferences"] }
+          }
+        },
+        {
+          "name": "Create conference",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"SEC\",\n  \"tier\": 1\n}" },
+            "url": { "raw": "http://localhost:5000/api/conferences", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "conferences"] }
+          }
+        },
+        {
+          "name": "Get conference teams for season",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/conferences/1/teams?season_id=1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "conferences", "1", "teams"], "query": [{ "key": "season_id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Assign teams to conference",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_ids\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/conferences/1/teams",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "conferences", "1", "teams"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teams",
+      "item": [
+        {
+          "name": "Get all teams",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams"] }
+          }
+        },
+        {
+          "name": "Create team",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alabama Crimson Tide\",\n  \"abbreviation\": \"BAMA\"\n}" },
+            "url": { "raw": "http://localhost:5000/api/teams", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams"] }
+          }
+        },
+        {
+          "name": "Get team details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1"] }
+          }
+        },
+        {
+          "name": "Update team info",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alabama Crimson Tide\",\n  \"abbreviation\": \"BAMA\",\n  \"is_user_controlled\": true\n}" },
+            "url": { "raw": "http://localhost:5000/api/teams/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1"] }
+          }
+        },
+        {
+          "name": "Get team seasons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams/1/seasons", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1", "seasons"] }
+          }
+        },
+        {
+          "name": "Get team players",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams/1/players", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1", "players"] }
+          }
+        },
+        {
+          "name": "Get drafted players",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams/1/drafted", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1", "drafted"] }
+          }
+        },
+        {
+          "name": "Get drafted players for season",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams/1/drafted?season_id=1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1", "drafted"], "query": [{ "key": "season_id", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Get team history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/teams/1/history", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1", "history"] }
+          }
+        },
+        {
+          "name": "Upload team logo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "logo", "type": "file", "src": "" }
+              ]
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/teams/1/logo",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "teams", "1", "logo"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Players",
+      "item": [
+        {
+          "name": "Get player by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/players/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "players", "1"] }
+          }
+        },
+        {
+          "name": "Add player to team",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John QB\",\n  \"position\": \"QB\",\n  \"ovr_rating\": 85,\n  \"season_id\": 1\n}" },
+            "url": { "raw": "http://localhost:5000/api/teams/1/players", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "teams", "1", "players"] }
+          }
+        },
+        {
+          "name": "Add player season",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"season_id\": 1,\n  \"team_id\": 1,\n  \"ovr_rating\": 86\n}" },
+            "url": { "raw": "http://localhost:5000/api/players/1/seasons", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "players", "1", "seasons"] }
+          }
+        },
+        {
+          "name": "Delete player",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/players/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "players", "1"] }
+          }
+        },
+        {
+          "name": "Get team roster for season",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/teams/1/players", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "teams", "1", "players"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Games",
+      "item": [
+        {
+          "name": "Get all games in season",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/games", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "games"] }
+          }
+        },
+        {
+          "name": "Get game by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/games/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "games", "1"] }
+          }
+        },
+        {
+          "name": "Create game",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"season_id\": 1,\n  \"week\": 1,\n  \"home_team_id\": 1,\n  \"away_team_id\": 2\n}" },
+            "url": { "raw": "http://localhost:5000/api/games", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "games"] }
+          }
+        },
+        {
+          "name": "Update game",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"home_score\": 35,\n  \"away_score\": 28,\n  \"game_type\": \"Playoff\",\n  \"playoff_round\": \"Semifinal\"\n}" },
+            "url": { "raw": "http://localhost:5000/api/games/1", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "games", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Awards",
+      "item": [
+        {
+          "name": "Get all awards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/awards", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "awards"] }
+          }
+        },
+        {
+          "name": "Create award",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Heisman Trophy\",\n  \"description\": \"Best player in college football\"\n}" },
+            "url": { "raw": "http://localhost:5000/api/awards", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "awards"] }
+          }
+        },
+        {
+          "name": "Get award winners by season",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:5000/api/seasons/1/awards", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "seasons", "1", "awards"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Honors",
+      "item": [
+        {
+          "name": "Add honors (All-Conference/All-American)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"honors\": [\n    {\n      \"player_id\": 1,\n      \"honor_type\": \"All-Conference\"\n    },\n    {\n      \"player_id\": 2,\n      \"honor_type\": \"All-American\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/seasons/1/teams/1/honors",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "seasons", "1", "teams", "1", "honors"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recruiting & Transfers",
+      "item": [
+        {
+          "name": "Add recruiting class",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_id\": 1,\n  \"season_id\": 1,\n  \"recruits\": [\n    {\n      \"name\": \"John Recruit\",\n      \"position\": \"QB\",\n      \"recruit_stars\": 4,\n      \"recruit_rank_nat\": 100\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/recruiting-class",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "recruiting-class"]
+            }
+          }
+        },
+        {
+          "name": "Add transfer portal class",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_id\": 1,\n  \"season_id\": 1,\n  \"transfers\": [\n    {\n      \"name\": \"Transfer Player\",\n      \"position\": \"RB\",\n      \"previous_school\": \"Old U\",\n      \"ovr_rating\": 85\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/transfer-portal",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "transfer-portal"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Player Career",
+      "item": [
+        {
+          "name": "Update player career progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ratings_by_year\": [\n    {\n      \"season_id\": 1,\n      \"team_id\": 1,\n      \"ovr_rating\": 85,\n      \"player_class\": \"FR\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/players/1/career-progress",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "players", "1", "career-progress"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Playoff",
+      "item": [
+        {
+          "name": "Create or update playoff bracket",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"games\": [\n    {\n      \"home_team_id\": 1,\n      \"away_team_id\": 2,\n      \"week\": 15,\n      \"playoff_round\": \"Quarterfinal\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/seasons/1/bracket",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "seasons", "1", "bracket"]
+            }
+          }
+        },
+        {
+          "name": "Add playoff result",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"game_id\": 1,\n  \"home_score\": 35,\n  \"away_score\": 28,\n  \"playoff_round\": \"Quarterfinal\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/seasons/1/playoff-result",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "seasons", "1", "playoff-result"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Promotion & Draft",
+      "item": [
+        {
+          "name": "Add promotion/relegation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"season_id\": 1,\n  \"promoted\": [1,2],\n  \"relegated\": [3,4]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/promotion-relegation",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "promotion-relegation"]
+            }
+          }
+        },
+        {
+          "name": "Add drafted players",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"season_id\": 1,\n  \"drafted_players\": [\n    {\n      \"player_id\": 1,\n      \"draft_round\": 7\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/drafted-players",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "drafted-players"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recruiting Rankings",
+      "item": [
+        {
+          "name": "Update recruiting rankings",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"season_id\": 1,\n  \"rankings\": [\n    {\n      \"team_id\": 1,\n      \"recruiting_rank\": 1\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "http://localhost:5000/api/recruiting-rankings",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "recruiting-rankings"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+} 
