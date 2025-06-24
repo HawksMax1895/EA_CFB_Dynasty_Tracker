@@ -55,17 +55,22 @@ def delete_player(player_id):
 
 @players_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/players', methods=['GET'])
 def get_team_roster_for_season(season_id, team_id):
-    roster = PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).all()
-    from models import Player
+    # Join PlayerSeason with Player to fetch player info in a single query
+    query = (
+        db.session.query(PlayerSeason, Player)
+        .join(Player, PlayerSeason.player_id == Player.player_id)
+        .filter(PlayerSeason.season_id == season_id, PlayerSeason.team_id == team_id)
+    )
+
     return jsonify([
         {
             'player_id': ps.player_id,
-            'name': Player.query.get(ps.player_id).name,
-            'position': Player.query.get(ps.player_id).position,
+            'name': player.name,
+            'position': player.position,
             'class': ps.player_class,
             'ovr_rating': ps.ovr_rating
         }
-        for ps in roster
+        for ps, player in query.all()
     ])
 
 @players_bp.route('/players/<int:player_id>/career', methods=['GET'])

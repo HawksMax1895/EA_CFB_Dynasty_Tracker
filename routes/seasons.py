@@ -101,15 +101,19 @@ def get_season_leaders(season_id):
 
 @seasons_bp.route('/seasons/<int:season_id>/standings', methods=['GET'])
 def get_season_standings(season_id):
-    # Group by conference
-    team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
+    # Group by conference with a join to avoid repeated conference lookups
+    query = (
+        db.session.query(TeamSeason, Conference.name)
+        .outerjoin(Conference, TeamSeason.conference_id == Conference.conference_id)
+        .filter(TeamSeason.season_id == season_id)
+    )
+
     standings = {}
-    for ts in team_seasons:
-        conf = Conference.query.get(ts.conference_id)
-        conf_name = conf.name if conf else str(ts.conference_id)
-        if conf_name not in standings:
-            standings[conf_name] = []
-        standings[conf_name].append({
+    for ts, conf_name in query.all():
+        conf_key = conf_name if conf_name else str(ts.conference_id)
+        if conf_key not in standings:
+            standings[conf_key] = []
+        standings[conf_key].append({
             'team_id': ts.team_id,
             'wins': ts.wins,
             'losses': ts.losses,
@@ -157,14 +161,22 @@ def get_promotion_relegation(season_id):
     current = TeamSeason.query.filter_by(season_id=season_id).all()
     previous = TeamSeason.query.filter_by(season_id=prev_season.season_id).all()
     prev_conf = {ts.team_id: ts.conference_id for ts in previous}
+
+    # Prefetch conference names to avoid repeated lookups
+    conf_ids = {ts.conference_id for ts in current} | set(prev_conf.values())
+    conf_map = {
+        c.conference_id: c.name
+        for c in Conference.query.filter(Conference.conference_id.in_(conf_ids)).all()
+    }
+
     changes = []
     for ts in current:
         prev_cid = prev_conf.get(ts.team_id)
         if prev_cid and prev_cid != ts.conference_id:
             changes.append({
                 'team_id': ts.team_id,
-                'from_conference': Conference.query.get(prev_cid).name if Conference.query.get(prev_cid) else prev_cid,
-                'to_conference': Conference.query.get(ts.conference_id).name if Conference.query.get(ts.conference_id) else ts.conference_id
+                'from_conference': conf_map.get(prev_cid, prev_cid),
+                'to_conference': conf_map.get(ts.conference_id, ts.conference_id)
             })
     return jsonify(changes)
 
