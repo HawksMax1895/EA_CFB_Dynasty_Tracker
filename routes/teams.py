@@ -124,58 +124,106 @@ def get_team_stat_leaders(season_id, team_id):
     ]
     leaders = {}
     for field, label in stat_fields:
-        top = PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).order_by(getattr(PlayerSeason, field).desc()).limit(3).all()
+        query = (
+            db.session.query(PlayerSeason, Player.name)
+            .join(Player, PlayerSeason.player_id == Player.player_id)
+            .filter(PlayerSeason.season_id == season_id, PlayerSeason.team_id == team_id)
+            .order_by(getattr(PlayerSeason, field).desc())
+            .limit(3)
+        )
         leaders[label] = [
             {
                 'player_id': ps.player_id,
-                'name': Player.query.get(ps.player_id).name,
+                'name': name,
                 'value': getattr(ps, field, 0)
-            } for ps in top if getattr(ps, field, None) is not None
+            }
+            for ps, name in query.all()
+            if getattr(ps, field, None) is not None
         ]
     return jsonify(leaders)
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/awards', methods=['GET'])
 def get_team_awards(season_id, team_id):
     from models import AwardWinner, Award, Player
-    winners = AwardWinner.query.filter_by(season_id=season_id, team_id=team_id).all()
+    query = (
+        db.session.query(AwardWinner, Award.name, Player.name)
+        .join(Award, AwardWinner.award_id == Award.award_id)
+        .join(Player, AwardWinner.player_id == Player.player_id)
+        .filter(AwardWinner.season_id == season_id, AwardWinner.team_id == team_id)
+    )
     return jsonify([
         {
-            'award': Award.query.get(w.award_id).name,
-            'player': Player.query.get(w.player_id).name
-        } for w in winners
+            'award': award_name,
+            'player': player_name
+        }
+        for _, award_name, player_name in query.all()
     ])
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/recruits', methods=['GET'])
 def get_team_recruits(season_id, team_id):
-    # Placeholder: return all players whose first PlayerSeason is for this team and season
+    # Players whose first PlayerSeason entry is for this team/season
     from models import Player, PlayerSeason
-    recruits = []
-    for p in Player.query.all():
-        first_ps = PlayerSeason.query.filter_by(player_id=p.player_id).order_by(PlayerSeason.season_id).first()
-        if first_ps and first_ps.season_id == season_id and first_ps.team_id == team_id:
-            recruits.append({
-                'player_id': p.player_id,
-                'name': p.name,
-                'position': p.position,
-                'recruit_stars': p.recruit_stars,
-                'recruit_rank_nat': p.recruit_rank_nat
-            })
+    first_season_sub = (
+        db.session.query(
+            PlayerSeason.player_id,
+            db.func.min(PlayerSeason.season_id).label('first_season')
+        )
+        .group_by(PlayerSeason.player_id)
+        .subquery()
+    )
+
+    query = (
+        db.session.query(Player)
+        .join(first_season_sub, Player.player_id == first_season_sub.c.player_id)
+        .filter(
+            Player.team_id == team_id,
+            Player.current_year == 'FR',
+            first_season_sub.c.first_season == season_id
+        )
+    )
+
+    recruits = [
+        {
+            'player_id': p.player_id,
+            'name': p.name,
+            'position': p.position,
+            'recruit_stars': p.recruit_stars,
+            'recruit_rank_nat': p.recruit_rank_nat
+        }
+        for p in query.all()
+    ]
     return jsonify(recruits)
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/transfers', methods=['GET'])
 def get_team_transfers(season_id, team_id):
-    # Placeholder: return players whose PlayerSeason for this season/team is not their first PlayerSeason
+    # Players who transferred in for this season (not their first PlayerSeason)
     from models import Player, PlayerSeason
-    transfers = []
-    for ps in PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).all():
-        all_ps = PlayerSeason.query.filter_by(player_id=ps.player_id).order_by(PlayerSeason.season_id).all()
-        if len(all_ps) > 1 and all_ps[0].season_id != season_id:
-            p = Player.query.get(ps.player_id)
-            transfers.append({
-                'player_id': p.player_id,
-                'name': p.name,
-                'position': p.position
-            })
+    first_season_sub = (
+        db.session.query(
+            PlayerSeason.player_id,
+            db.func.min(PlayerSeason.season_id).label('first_season')
+        )
+        .group_by(PlayerSeason.player_id)
+        .subquery()
+    )
+
+    query = (
+        db.session.query(Player)
+        .join(PlayerSeason, (Player.player_id == PlayerSeason.player_id) &
+                             (PlayerSeason.season_id == season_id) &
+                             (PlayerSeason.team_id == team_id))
+        .join(first_season_sub, Player.player_id == first_season_sub.c.player_id)
+        .filter(first_season_sub.c.first_season != season_id)
+    )
+
+    transfers = [
+        {
+            'player_id': p.player_id,
+            'name': p.name,
+            'position': p.position
+        }
+        for p in query.all()
+    ]
     return jsonify(transfers)
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/bulk_stats', methods=['POST'])

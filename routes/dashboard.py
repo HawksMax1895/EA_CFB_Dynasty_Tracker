@@ -65,12 +65,20 @@ def dashboard():
         .limit(3)
         .all()
     )
+
+    # Prefetch opponent team names in one query to avoid an N+1 pattern
+    opponent_ids = [
+        g.away_team_id if g.home_team_id == team.team_id else g.home_team_id
+        for g in recent_games
+    ]
+    opponents = {
+        t.team_id: t.name for t in Team.query.filter(Team.team_id.in_(opponent_ids)).all()
+    }
+
     recent_activity = []
     for game in recent_games:
         opponent_id = game.away_team_id if game.home_team_id == team.team_id else game.home_team_id
-        # You may want to fetch the opponent name here
-        opponent = Team.query.get(opponent_id)
-        opponent_name = opponent.name if opponent else f"Team {opponent_id}"
+        opponent_name = opponents.get(opponent_id, f"Team {opponent_id}")
         result = "-"
         if game.home_score is not None and game.away_score is not None:
             if (game.home_team_id == team.team_id and game.home_score > game.away_score) or \
