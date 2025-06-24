@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
-from models import Honor
+from models import Honor, Player, Team, Season
 
 honors_bp = Blueprint('honors', __name__)
 
@@ -28,5 +28,22 @@ def get_honors(season_id, team_id):
     honors = Honor.query.filter_by(season_id=season_id, team_id=team_id).all()
     return jsonify([
         {'honor_id': h.honor_id, 'player_id': h.player_id, 'honor_type': h.honor_type}
+        for h in honors
+    ])
+
+@honors_bp.route('/honors', methods=['GET'])
+def get_all_honors():
+    honors = Honor.query.all()
+    return jsonify([
+        {
+            'honor_id': h.honor_id,
+            'player_id': h.player_id,
+            'player_name': Player.query.get(h.player_id).name if h.player_id else None,
+            'team_id': h.team_id,
+            'team_name': Team.query.get(h.team_id).name if h.team_id else None,
+            'season_id': h.season_id,
+            'season_year': Season.query.get(h.season_id).year if h.season_id else None,
+            'honor_type': h.honor_type
+        }
         for h in honors
     ]) 

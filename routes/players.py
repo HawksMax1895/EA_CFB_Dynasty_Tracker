@@ -98,4 +98,19 @@ def set_redshirt(player_id):
         return jsonify({'error': 'redshirted field is required'}), 400
     player.redshirted = bool(redshirted)
     db.session.commit()
-    return jsonify({'player_id': player_id, 'redshirted': player.redshirted}), 200 
+    return jsonify({'player_id': player_id, 'redshirted': player.redshirted}), 200
+
+@players_bp.route('/players', methods=['GET'])
+def get_all_players():
+    players = Player.query.all()
+    return jsonify([
+        {
+            'player_id': p.player_id,
+            'name': p.name,
+            'position': p.position,
+            'team_id': p.team_id,
+            'current_year': p.current_year,
+            'drafted_year': p.drafted_year
+        }
+        for p in players
+    ]) 

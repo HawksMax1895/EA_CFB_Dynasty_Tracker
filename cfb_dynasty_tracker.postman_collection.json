@@ -229,6 +229,43 @@
       ]
     },
     {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get dashboard summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/dashboard",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Get dashboard overview (by team/season)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:5000/api/dashboard/overview?team_id=1&season_id=1",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "5000",
+              "path": ["api", "dashboard", "overview"],
+              "query": [
+                { "key": "team_id", "value": "1" },
+                { "key": "season_id", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Players",
       "item": [
         {

@@ -66,4 +66,23 @@ def get_game_details(game_id):
         'away_score': game.away_score,
         'game_type': game.game_type,
         'playoff_round': game.playoff_round
-    }) 
+    })
+
+@games_bp.route('/games', methods=['GET'])
+def get_all_games():
+    games = Game.query.all()
+    return jsonify([
+        {
+            'game_id': g.game_id,
+            'season_id': g.season_id,
+            'week': g.week,
+            'home_team_id': g.home_team_id,
+            'away_team_id': g.away_team_id,
+            'home_score': g.home_score,
+            'away_score': g.away_score,
+            'game_type': g.game_type,
+            'playoff_round': g.playoff_round,
+            'neutral_site': g.neutral_site
+        }
+        for g in games
+    ]) 

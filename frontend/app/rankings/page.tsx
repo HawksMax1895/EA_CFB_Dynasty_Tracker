@@ -33,14 +33,36 @@ export default function RankingsPage() {
     { rank: 8, team: "Mississippi State", confRecord: "3-5", overallRecord: "6-7", division: "West" },
   ]
 
-  const seasonId = 2025
+  const [seasonId, setSeasonId] = useState<number | null>(null);
   const [recruitingRankings, setRecruitingRankings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updateLoading, setUpdateLoading] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
 
+  // Fetch the latest season on mount
   useEffect(() => {
+    fetch('/api/seasons')
+      .then(res => res.json())
+      .then(seasons => {
+        if (seasons.length > 0) {
+          // Use the latest season (highest year)
+          const latest = seasons.reduce((a: any, b: any) => (a.year > b.year ? a : b));
+          setSeasonId(latest.season_id);
+        } else {
+          setError('No seasons found');
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        setError('Failed to fetch seasons');
+        setLoading(false);
+      });
+  }, []);
+
+  // Fetch recruiting rankings when seasonId is set
+  useEffect(() => {
+    if (seasonId == null) return;
     setLoading(true)
     fetchRecruitingRankings(seasonId)
       .then((data) => {
@@ -174,10 +196,11 @@ export default function RankingsPage() {
               <CardContent>
                 <form className="flex flex-col md:flex-row gap-4 items-end" onSubmit={async (e) => {
                   e.preventDefault();
+                  if (seasonId == null) return;
                   setUpdateLoading(true);
                   setUpdateError(null);
                   try {
-                    await updateRecruitingRankings({ season_id: seasonId });
+                    await updateRecruitingRankings({ season_id: seasonId, rankings: [] });
                     const data = await fetchRecruitingRankings(seasonId);
                     setRecruitingRankings(data);
                   } catch (err: any) {
@@ -186,7 +209,7 @@ export default function RankingsPage() {
                     setUpdateLoading(false);
                   }
                 }}>
-                  <Button type="submit" disabled={updateLoading}>
+                  <Button type="submit" disabled={updateLoading || seasonId == null}>
                     {updateLoading ? "Updating..." : "Update Rankings"}
                   </Button>
                   {updateError && <span className="text-red-500 ml-2">{updateError}</span>}
@@ -208,17 +231,16 @@ export default function RankingsPage() {
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="text-2xl font-bold text-green-600 w-8">{team.rank ?? index + 1}</div>
+                        <div className="text-2xl font-bold text-green-600 w-8">{team.recruiting_rank ?? index + 1}</div>
                         <div>
-                          <div className="font-semibold text-lg">{team.team_name ?? team.team_id}</div>
+                          <div className="font-semibold text-lg">{team.team_name ?? `Team ${team.team_id}`}</div>
                           <div className="text-sm text-muted-foreground">
-                            {team.commits ?? "-"} commits  Avg: {team.avgRating ?? "-"}
+                            Season: {team.season_year ?? '-'} (ID: {team.season_id ?? '-'})
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">{team.fiveStars ?? 0} 5</Badge>
-                        <Badge variant="outline">{team.fourStars ?? 0} 4</Badge>
+                        <Badge variant="outline">Team ID: {team.team_id}</Badge>
                       </div>
                     </div>
                   ))}

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
-from models import Player, Team, Season
+from models import Player, Team, Season, PlayerSeason
 
 recruiting_bp = Blueprint('recruiting', __name__)
 
@@ -40,9 +40,17 @@ def get_recruiting_class():
     season_id = request.args.get('season_id', type=int)
     if not team_id or not season_id:
         return jsonify({'error': 'team_id and season_id are required'}), 400
-    # Assume recruits are players with current_year 'FR' and matching team/season
-    recruits = Player.query.filter_by(team_id=team_id, current_year='FR').all()
-    return jsonify([
-        {'player_id': r.player_id, 'name': r.name, 'position': r.position, 'recruit_stars': r.recruit_stars, 'recruit_rank_nat': r.recruit_rank_nat}
-        for r in recruits
-    ]) 
+
+    recruits = []
+    for p in Player.query.filter_by(team_id=team_id, current_year='FR').all():
+        # Find the first PlayerSeason for this player
+        first_ps = PlayerSeason.query.filter_by(player_id=p.player_id).order_by(PlayerSeason.season_id).first()
+        if first_ps and first_ps.season_id == season_id:
+            recruits.append({
+                'player_id': p.player_id,
+                'name': p.name,
+                'position': p.position,
+                'recruit_stars': p.recruit_stars,
+                'recruit_rank_nat': p.recruit_rank_nat
+            })
+    return jsonify(recruits) 

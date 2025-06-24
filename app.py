@@ -34,15 +34,15 @@ app.register_blueprint(players_bp, url_prefix='/api')
 app.register_blueprint(games_bp, url_prefix='/api')
 app.register_blueprint(awards_bp, url_prefix='/api')
 app.register_blueprint(dashboard_bp, url_prefix='/api')
-app.register_blueprint(recruiting_bp)
-app.register_blueprint(transfer_bp)
-app.register_blueprint(career_bp)
-app.register_blueprint(playoff_bp)
-app.register_blueprint(promotion_bp)
-app.register_blueprint(draft_bp)
-app.register_blueprint(rankings_bp)
-app.register_blueprint(honors_bp)
-app.register_blueprint(conferences_bp)
+app.register_blueprint(recruiting_bp, url_prefix='/api')
+app.register_blueprint(transfer_bp, url_prefix='/api')
+app.register_blueprint(career_bp, url_prefix='/api')
+app.register_blueprint(playoff_bp, url_prefix='/api')
+app.register_blueprint(promotion_bp, url_prefix='/api')
+app.register_blueprint(draft_bp, url_prefix='/api')
+app.register_blueprint(rankings_bp, url_prefix='/api')
+app.register_blueprint(honors_bp, url_prefix='/api')
+app.register_blueprint(conferences_bp, url_prefix='/api')
 
 # Serve React frontend (placeholder)
 @app.route('/', defaults={'path': ''})
@@ -54,5 +54,7 @@ def serve_frontend(path):
     else:
         return app.send_static_file('index.html')
 
-if __name__ == '__main__':
-    app.run(debug=True) 
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)

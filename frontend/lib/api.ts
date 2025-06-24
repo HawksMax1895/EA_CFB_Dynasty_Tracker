@@ -121,7 +121,7 @@ export async function addHonors(seasonId: number, teamId: number, honors: any[])
 
 // RANKINGS
 export async function fetchRecruitingRankings(seasonId: number) {
-  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/recruiting-rankings`)
+  const response = await fetch(`${API_BASE_URL}/recruiting-rankings?season_id=${seasonId}`)
   if (!response.ok) throw new Error("Failed to fetch recruiting rankings")
   return response.json()
 }
