@@ -3,13 +3,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Medal, GripVertical, Repeat } from "lucide-react"
-import React, { useEffect, useState } from "react"
+import { Trophy, Medal, Repeat } from "lucide-react"
+import React, { useEffect, useState, useMemo } from "react"
 import { fetchSeasons, updateTeamSeason, fetchTeams } from "@/lib/api"
 import { DndContext, closestCenter } from "@dnd-kit/core"
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { useRouter } from "next/navigation"
+import SortableTeamRow from "@/components/sortable-team-row"
+import type { Team, Conference, Season } from "@/types"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
@@ -28,19 +30,19 @@ export default function RankingsPage() {
   ]
 
   // Conference/season selection and standings state
-  const [conferences, setConferences] = useState<any[]>([])
-  const [seasons, setSeasons] = useState<any[]>([])
+  const [conferences, setConferences] = useState<Conference[]>([])
+  const [seasons, setSeasons] = useState<Season[]>([])
   const [selectedConference, setSelectedConference] = useState<number | null>(null)
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null)
-  const [teams, setTeams] = useState<any[]>([])
-  const [standings, setStandings] = useState<any[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [standings, setStandings] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedTab, setSelectedTab] = useState("ap-poll")
 
   // Fetch all teams for the selected season (for AP Poll and replacement dropdown)
-  const [apPollTeams, setApPollTeams] = useState<any[]>([])
-  const [allSeasonTeams, setAllSeasonTeams] = useState<any[]>([])
+  const [apPollTeams, setApPollTeams] = useState<Team[]>([])
+  const [allSeasonTeams, setAllSeasonTeams] = useState<Team[]>([])
   const router = useRouter();
   useEffect(() => {
     if (!selectedSeason) return
@@ -68,7 +70,7 @@ export default function RankingsPage() {
         setConferences(confs)
         setSeasons(seas)
         // Find user team and its conference
-        const userTeam = allTeams.find((t: any) => t.is_user_controlled)
+        const userTeam = (allTeams as Team[]).find((t: any) => (t as any).is_user_controlled)
         if (userTeam && userTeam.primary_conference_id) {
           setSelectedConference(userTeam.primary_conference_id)
         } else if (confs.length > 0) {
@@ -136,23 +138,18 @@ export default function RankingsPage() {
       })
   }, [selectedSeason])
 
-  // Parse record string (e.g. "8-0") to { wins, losses }
-  function parseRecord(str: string) {
-    const [wins, losses] = str.split("-").map(s => parseInt(s.trim(), 10))
-    return { wins: isNaN(wins) ? 0 : wins, losses: isNaN(losses) ? 0 : losses }
-  }
 
   // Update record and backend on change
-  const handleInputChange = async (index: number, field: string, value: string) => {
-    setStandings(prev => prev.map((team, i) => i === index ? { ...team, [field]: value } : team))
-    const team = standings[index]
+  const handleInputChange = (index: number, field: string, value: string) => {
+    setStandings(prev => prev.map((team, i) => (i === index ? { ...team, [field]: value } : team)))
+  }
+
+  const handleInputBlur = async (index: number, field: string, value: string) => {
     if (!selectedSeason) return
-    let data: any = {}
-    if (["wins", "losses", "conference_wins", "conference_losses"].includes(field)) {
-      data[field] = parseInt(value, 10)
-    } else if (field === "points_for" || field === "points_against") {
-      data[field] = parseInt(value, 10)
-    }
+    const team = standings[index]
+    const num = parseInt(value, 10)
+    if (isNaN(num)) return
+    const data: any = { [field]: num }
     try {
       await updateTeamSeason(selectedSeason, team.team_id, data)
     } catch (e) {
@@ -160,35 +157,6 @@ export default function RankingsPage() {
     }
   }
 
-  // Sortable item component for each team row
-  function SortableTeamRow({ team, index, children }: any) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: team.team_id })
-    const style = {
-      transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-      zIndex: isDragging ? 10 : undefined,
-    }
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-      >
-        {children}
-        <button
-          className="ml-4 cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600"
-          type="button"
-          {...attributes}
-          {...listeners}
-          tabIndex={-1}
-          aria-label="Drag to reorder"
-        >
-          <GripVertical className="w-5 h-5" />
-        </button>
-      </div>
-    )
-  }
 
   // Add back getRankChange for AP Poll
   function getRankChange(current: number, previous: number) {
@@ -204,6 +172,11 @@ export default function RankingsPage() {
 
   // State for swap popover (index of open popover and search value)
   const [swapPopover, setSwapPopover] = React.useState<{ index: number | null, search: string }>({ index: null, search: "" })
+
+  const availableTeams = useMemo(() => {
+    const ids = new Set(apPollTeams.map(t => t.team_id))
+    return allSeasonTeams.filter(t => !ids.has(t.team_id))
+  }, [apPollTeams, allSeasonTeams])
 
   if (loading) return <div className="p-8">Loading...</div>
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>
@@ -266,8 +239,6 @@ export default function RankingsPage() {
                   >
                     <div className="space-y-2">
                       {apPollTeams.map((team, index) => {
-                        const top25Ids = new Set(apPollTeams.map(t => t.team_id))
-                        const availableTeams = allSeasonTeams.filter(t => !top25Ids.has(t.team_id))
                         const popoverOpen = swapPopover.index === index
                         const search = popoverOpen ? swapPopover.search : ""
                         const filteredTeams = availableTeams.filter(t => t.team_name.toLowerCase().includes(search.toLowerCase()))
@@ -300,9 +271,10 @@ export default function RankingsPage() {
                                     value={team.wins ?? 0}
                                     onChange={e => {
                                       const value = e.target.value
-                                      setApPollTeams(prev => prev.map((t, i) => i === index ? { ...t, wins: value } : t))
+                                      setApPollTeams(prev => prev.map((t, i) => (i === index ? { ...t, wins: value } : t)))
                                       handleInputChange(index, "wins", value)
                                     }}
+                                    onBlur={e => handleInputBlur(index, "wins", e.target.value)}
                                     aria-label="Overall Wins"
                                   />
                                   <span className="mx-1 text-2xl font-bold">-</span>
@@ -314,9 +286,10 @@ export default function RankingsPage() {
                                     value={team.losses ?? 0}
                                     onChange={e => {
                                       const value = e.target.value
-                                      setApPollTeams(prev => prev.map((t, i) => i === index ? { ...t, losses: value } : t))
+                                      setApPollTeams(prev => prev.map((t, i) => (i === index ? { ...t, losses: value } : t)))
                                       handleInputChange(index, "losses", value)
                                     }}
+                                    onBlur={e => handleInputBlur(index, "losses", e.target.value)}
                                     aria-label="Overall Losses"
                                   />
                                 </div>
@@ -426,12 +399,14 @@ export default function RankingsPage() {
                     setStandings(newOrder.map((team, i) => ({ ...team, rank: i + 1 })))
                     // Update backend order
                     if (selectedSeason) {
-                      for (let i = 0; i < newOrder.length; i++) {
-                        try {
-                          await updateTeamSeason(selectedSeason, newOrder[i].team_id, { final_rank: i + 1 })
-                        } catch (e) {
-                          setError("Failed to update team order")
-                        }
+                      try {
+                        await Promise.all(
+                          newOrder.map((team, i) =>
+                            updateTeamSeason(selectedSeason, team.team_id, { final_rank: i + 1 })
+                          )
+                        )
+                      } catch (e) {
+                        setError("Failed to update team order")
                       }
                     }
                   }}
@@ -473,6 +448,7 @@ export default function RankingsPage() {
                                   max={20}
                                   value={team.wins ?? 0}
                                   onChange={e => handleInputChange(index, "wins", e.target.value)}
+                                  onBlur={e => handleInputBlur(index, "wins", e.target.value)}
                                   aria-label="Overall Wins"
                                 />
                                 <span className="mx-1 text-2xl font-bold">-</span>
@@ -483,6 +459,7 @@ export default function RankingsPage() {
                                   max={20}
                                   value={team.losses ?? 0}
                                   onChange={e => handleInputChange(index, "losses", e.target.value)}
+                                  onBlur={e => handleInputBlur(index, "losses", e.target.value)}
                                   aria-label="Overall Losses"
                                 />
                               </div>
@@ -498,6 +475,7 @@ export default function RankingsPage() {
                                   max={20}
                                   value={team.conference_wins ?? 0}
                                   onChange={e => handleInputChange(index, "conference_wins", e.target.value)}
+                                  onBlur={e => handleInputBlur(index, "conference_wins", e.target.value)}
                                   aria-label="Conference Wins"
                                 />
                                 <span className="mx-1 text-xl font-bold">-</span>
@@ -508,6 +486,7 @@ export default function RankingsPage() {
                                   max={20}
                                   value={team.conference_losses ?? 0}
                                   onChange={e => handleInputChange(index, "conference_losses", e.target.value)}
+                                  onBlur={e => handleInputBlur(index, "conference_losses", e.target.value)}
                                   aria-label="Conference Losses"
                                 />
                               </div>
