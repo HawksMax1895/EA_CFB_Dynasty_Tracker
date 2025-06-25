@@ -9,7 +9,14 @@ teams_bp = Blueprint('teams', __name__)
 def get_teams():
     teams = Team.query.all()
     return jsonify([
-        {'team_id': t.team_id, 'name': t.name, 'abbreviation': t.abbreviation, 'logo_url': t.logo_url}
+        {
+            'team_id': t.team_id,
+            'name': t.name,
+            'abbreviation': t.abbreviation,
+            'logo_url': t.logo_url,
+            'is_user_controlled': t.is_user_controlled,
+            'primary_conference_id': t.primary_conference_id
+        }
         for t in teams
     ])
 

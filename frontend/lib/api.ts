@@ -156,3 +156,15 @@ export async function fetchDashboard() {
   if (!response.ok) throw new Error("Failed to fetch dashboard data")
   return response.json()
 }
+
+// Update Team Season
+// Supports: wins, losses, conference_wins, conference_losses, points_for, points_against, offense_yards, defense_yards, prestige, team_rating, final_rank, recruiting_rank, conference_id
+export async function updateTeamSeason(seasonId: number, teamId: number, data: any) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/teams/${teamId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update team season")
+  return response.json()
+}

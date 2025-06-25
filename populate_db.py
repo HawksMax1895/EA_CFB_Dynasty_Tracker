@@ -7,13 +7,304 @@ with app.app_context():
     db.drop_all()
     db.create_all()
 
-    # Conferences
-    confs = [
-        Conference(name="SEC", tier=1),
-        Conference(name="Big Ten", tier=1),
-        Conference(name="Sun Belt", tier=2),
+    # FBS Conferences
+    fbs_confs = [
+        "ACC", "American", "Big 12", "Big Ten", "Conference USA", "MAC", "Mountain West", "Pac-12", "SEC", "Sun Belt", "Independents"
     ]
-    db.session.add_all(confs)
+    conf_objs = {name: Conference(name=name, tier=1) for name in fbs_confs}
+    db.session.add_all(conf_objs.values())
+    db.session.commit()
+
+    # FBS Teams (school, abbreviation, conference)
+    fbs_teams = [
+        ("Air Force Falcons", "AF", "Mountain West"),
+        ("Akron Zips", "AKR", "MAC"),
+        ("Alabama Crimson Tide", "BAMA", "SEC"),
+        ("Appalachian State Mountaineers", "APP", "Sun Belt"),
+        ("Arizona Wildcats", "ARIZ", "Pac-12"),
+        ("Arizona State Sun Devils", "ASU", "Pac-12"),
+        ("Arkansas Razorbacks", "ARK", "SEC"),
+        ("Arkansas State Red Wolves", "ARST", "Sun Belt"),
+        ("Army Black Knights", "ARMY", "Independents"),
+        ("Auburn Tigers", "AUB", "SEC"),
+        ("Ball State Cardinals", "BALL", "MAC"),
+        ("Baylor Bears", "BAY", "Big 12"),
+        ("Boise State Broncos", "BSU", "Mountain West"),
+        ("Boston College Eagles", "BC", "ACC"),
+        ("Bowling Green Falcons", "BGSU", "MAC"),
+        ("Buffalo Bulls", "BUFF", "MAC"),
+        ("BYU Cougars", "BYU", "Big 12"),
+        ("California Golden Bears", "CAL", "Pac-12"),
+        ("Central Michigan Chippewas", "CMU", "MAC"),
+        ("Charlotte 49ers", "CLT", "American"),
+        ("Cincinnati Bearcats", "CIN", "Big 12"),
+        ("Clemson Tigers", "CLEM", "ACC"),
+        ("Coastal Carolina Chanticleers", "CCU", "Sun Belt"),
+        ("Colorado Buffaloes", "COLO", "Pac-12"),
+        ("Colorado State Rams", "CSU", "Mountain West"),
+        ("Connecticut Huskies", "UCONN", "Independents"),
+        ("Duke Blue Devils", "DUKE", "ACC"),
+        ("East Carolina Pirates", "ECU", "American"),
+        ("Eastern Michigan Eagles", "EMU", "MAC"),
+        ("FIU Panthers", "FIU", "Conference USA"),
+        ("Florida Atlantic Owls", "FAU", "American"),
+        ("Florida Gators", "UF", "SEC"),
+        ("Florida International Panthers", "FIU", "Conference USA"),
+        ("Florida State Seminoles", "FSU", "ACC"),
+        ("Fresno State Bulldogs", "FRES", "Mountain West"),
+        ("Georgia Bulldogs", "UGA", "SEC"),
+        ("Georgia Southern Eagles", "GASO", "Sun Belt"),
+        ("Georgia State Panthers", "GAST", "Sun Belt"),
+        ("Georgia Tech Yellow Jackets", "GT", "ACC"),
+        ("Hawaii Rainbow Warriors", "HAW", "Mountain West"),
+        ("Houston Cougars", "HOU", "Big 12"),
+        ("Illinois Fighting Illini", "ILL", "Big Ten"),
+        ("Indiana Hoosiers", "IND", "Big Ten"),
+        ("Iowa Hawkeyes", "IOWA", "Big Ten"),
+        ("Iowa State Cyclones", "ISU", "Big 12"),
+        ("Jacksonville State Gamecocks", "JSU", "Conference USA"),
+        ("James Madison Dukes", "JMU", "Sun Belt"),
+        ("Kansas Jayhawks", "KU", "Big 12"),
+        ("Kansas State Wildcats", "KSU", "Big 12"),
+        ("Kent State Golden Flashes", "KENT", "MAC"),
+        ("Kentucky Wildcats", "UK", "SEC"),
+        ("Liberty Flames", "LIB", "Conference USA"),
+        ("Louisiana Ragin' Cajuns", "ULL", "Sun Belt"),
+        ("Louisiana-Monroe Warhawks", "ULM", "Sun Belt"),
+        ("Louisiana State Tigers", "LSU", "SEC"),
+        ("Louisville Cardinals", "LOU", "ACC"),
+        ("Marshall Thundering Herd", "MRSH", "Sun Belt"),
+        ("Maryland Terrapins", "UMD", "Big Ten"),
+        ("Massachusetts Minutemen", "UMASS", "Independents"),
+        ("Memphis Tigers", "MEM", "American"),
+        ("Miami Hurricanes", "MIA", "ACC"),
+        ("Miami RedHawks", "M-OH", "MAC"),
+        ("Michigan Wolverines", "MICH", "Big Ten"),
+        ("Michigan State Spartans", "MSU", "Big Ten"),
+        ("Middle Tennessee Blue Raiders", "MTSU", "Conference USA"),
+        ("Minnesota Golden Gophers", "MINN", "Big Ten"),
+        ("Mississippi Rebels", "MISS", "SEC"),
+        ("Mississippi State Bulldogs", "MSST", "SEC"),
+        ("Missouri Tigers", "MIZZ", "SEC"),
+        ("Navy Midshipmen", "NAVY", "American"),
+        ("NC State Wolfpack", "NCST", "ACC"),
+        ("Nebraska Cornhuskers", "NEB", "Big Ten"),
+        ("Nevada Wolf Pack", "NEV", "Mountain West"),
+        ("New Mexico Lobos", "UNM", "Mountain West"),
+        ("New Mexico State Aggies", "NMSU", "Conference USA"),
+        ("North Carolina Tar Heels", "UNC", "ACC"),
+        ("North Texas Mean Green", "UNT", "American"),
+        ("Northern Illinois Huskies", "NIU", "MAC"),
+        ("Northwestern Wildcats", "NW", "Big Ten"),
+        ("Notre Dame Fighting Irish", "ND", "Independents"),
+        ("Ohio Bobcats", "OHIO", "MAC"),
+        ("Ohio State Buckeyes", "OSU", "Big Ten"),
+        ("Oklahoma Sooners", "OU", "Big 12"),
+        ("Oklahoma State Cowboys", "OKST", "Big 12"),
+        ("Old Dominion Monarchs", "ODU", "Sun Belt"),
+        ("Ole Miss Rebels", "MISS", "SEC"),
+        ("Oregon Ducks", "ORE", "Pac-12"),
+        ("Oregon State Beavers", "ORST", "Pac-12"),
+        ("Penn State Nittany Lions", "PSU", "Big Ten"),
+        ("Pittsburgh Panthers", "PITT", "ACC"),
+        ("Purdue Boilermakers", "PUR", "Big Ten"),
+        ("Rice Owls", "RICE", "American"),
+        ("Rutgers Scarlet Knights", "RUTG", "Big Ten"),
+        ("San Diego State Aztecs", "SDSU", "Mountain West"),
+        ("San Jose State Spartans", "SJSU", "Mountain West"),
+        ("SMU Mustangs", "SMU", "ACC"),
+        ("South Alabama Jaguars", "USA", "Sun Belt"),
+        ("South Carolina Gamecocks", "SCAR", "SEC"),
+        ("South Florida Bulls", "USF", "American"),
+        ("Southern Miss Golden Eagles", "USM", "Sun Belt"),
+        ("Stanford Cardinal", "STAN", "ACC"),
+        ("Syracuse Orange", "SYR", "ACC"),
+        ("TCU Horned Frogs", "TCU", "Big 12"),
+        ("Temple Owls", "TEM", "American"),
+        ("Tennessee Volunteers", "TENN", "SEC"),
+        ("Texas A&M Aggies", "TAMU", "SEC"),
+        ("Texas Longhorns", "TEX", "Big 12"),
+        ("Texas State Bobcats", "TXST", "Sun Belt"),
+        ("Texas Tech Red Raiders", "TTU", "Big 12"),
+        ("Toledo Rockets", "TOL", "MAC"),
+        ("Troy Trojans", "TROY", "Sun Belt"),
+        ("Tulane Green Wave", "TULN", "American"),
+        ("Tulsa Golden Hurricane", "TLSA", "American"),
+        ("UAB Blazers", "UAB", "American"),
+        ("UCLA Bruins", "UCLA", "Pac-12"),
+        ("UCF Knights", "UCF", "Big 12"),
+        ("UConn Huskies", "UCONN", "Independents"),
+        ("UMass Minutemen", "UMASS", "Independents"),
+        ("UNLV Rebels", "UNLV", "Mountain West"),
+        ("USC Trojans", "USC", "Pac-12"),
+        ("Utah Utes", "UTAH", "Pac-12"),
+        ("Utah State Aggies", "USU", "Mountain West"),
+        ("UTEP Miners", "UTEP", "Conference USA"),
+        ("UTSA Roadrunners", "UTSA", "American"),
+        ("Vanderbilt Commodores", "VAN", "SEC"),
+        ("Virginia Cavaliers", "UVA", "ACC"),
+        ("Virginia Tech Hokies", "VT", "ACC"),
+        ("Wake Forest Demon Deacons", "WF", "ACC"),
+        ("Washington Huskies", "UW", "Pac-12"),
+        ("Washington State Cougars", "WSU", "Pac-12"),
+        ("West Virginia Mountaineers", "WVU", "Big 12"),
+        ("Western Kentucky Hilltoppers", "WKU", "Conference USA"),
+        ("Western Michigan Broncos", "WMU", "MAC"),
+        ("Wisconsin Badgers", "WISC", "Big Ten"),
+        ("Wyoming Cowboys", "WYO", "Mountain West"),
+    ]
+    logo_map = {
+        "AF": "air-force",
+        "AKR": "akron",
+        "BAMA": "alabama",
+        "APP": "appalachian-state",
+        "ARIZ": "arizona",
+        "ASU": "arizona-state",
+        "ARK": "arkansas",
+        "ARST": "arkansas-state",
+        "ARMY": "army",
+        "AUB": "auburn",
+        "BALL": "ball-state",
+        "BAY": "baylor",
+        "BSU": "boise-state",
+        "BC": "boston-college",
+        "BGSU": "bowling-green",
+        "BUFF": "buffalo",
+        "BYU": "byu",
+        "CAL": "california",
+        "CMU": "central-michigan",
+        "CLT": "charlotte",
+        "CIN": "cincinnati",
+        "CLEM": "clemson",
+        "CCU": "coastal-carolina",
+        "COLO": "colorado",
+        "CSU": "colorado-state",
+        "UCONN": "connecticut",
+        "DUKE": "duke",
+        "ECU": "east-carolina",
+        "EMU": "eastern-michigan",
+        "FIU": "fiu",
+        "FAU": "florida-atlantic",
+        "UF": "florida",
+        "FSU": "florida-state",
+        "FRES": "fresno-state",
+        "UGA": "georgia",
+        "GASO": "georgia-southern",
+        "GAST": "georgia-state",
+        "GT": "georgia-tech",
+        "HAW": "hawaii",
+        "HOU": "houston",
+        "ILL": "illinois",
+        "IND": "indiana",
+        "IOWA": "iowa",
+        "ISU": "iowa-state",
+        "JSU": "jacksonville-state",
+        "JMU": "james-madison",
+        "KU": "kansas",
+        "KSU": "kansas-state",
+        "KENT": "kent-state",
+        "UK": "kentucky",
+        "LIB": "liberty",
+        "ULL": "louisiana",
+        "ULM": "louisiana-monroe",
+        "LSU": "lsu",
+        "LOU": "louisville",
+        "MRSH": "marshall",
+        "UMD": "maryland",
+        "UMASS": "umass",
+        "MEM": "memphis",
+        "MIA": "miami-fl",
+        "M-OH": "miami-oh",
+        "MICH": "michigan",
+        "MSU": "michigan-state",
+        "MTSU": "middle-tennessee",
+        "MINN": "minnesota",
+        "MISS": "ole-miss",
+        "MSST": "mississippi-state",
+        "MIZZ": "missouri",
+        "NAVY": "navy",
+        "NCST": "nc-state",
+        "NEB": "nebraska",
+        "NEV": "nevada",
+        "UNM": "new-mexico",
+        "NMSU": "new-mexico-state",
+        "UNC": "north-carolina",
+        "UNT": "north-texas",
+        "NIU": "northern-illinois",
+        "NW": "northwestern",
+        "ND": "notre-dame",
+        "OHIO": "ohio",
+        "OSU": "ohio-state",
+        "OU": "oklahoma",
+        "OKST": "oklahoma-state",
+        "ODU": "old-dominion",
+        "ORE": "oregon",
+        "ORST": "oregon-state",
+        "PSU": "penn-state",
+        "PITT": "pittsburgh",
+        "PUR": "purdue",
+        "RICE": "rice",
+        "RUTG": "rutgers",
+        "SDSU": "san-diego-state",
+        "SJSU": "san-jose-state",
+        "SMU": "smu",
+        "USA": "south-alabama",
+        "SCAR": "south-carolina",
+        "USF": "south-florida",
+        "USM": "southern-miss",
+        "STAN": "stanford",
+        "SYR": "syracuse",
+        "TCU": "tcu",
+        "TEM": "temple",
+        "TENN": "tennessee",
+        "TAMU": "texas-am",
+        "TEX": "texas",
+        "TXST": "texas-state",
+        "TTU": "texas-tech",
+        "TOL": "toledo",
+        "TROY": "troy",
+        "TULN": "tulane",
+        "TLSA": "tulsa",
+        "UAB": "uab",
+        "UCLA": "ucla",
+        "UCF": "ucf",
+        "UNLV": "unlv",
+        "USC": "usc",
+        "UTAH": "utah",
+        "USU": "utah-state",
+        "UTEP": "utep",
+        "UTSA": "utsa",
+        "VAN": "vanderbilt",
+        "UVA": "virginia",
+        "VT": "virginia-tech",
+        "WF": "wake-forest",
+        "UW": "washington",
+        "WSU": "washington-state",
+        "WVU": "west-virginia",
+        "WKU": "western-kentucky",
+        "WMU": "western-michigan",
+        "WISC": "wisconsin",
+        "WYO": "wyoming"
+    }
+
+    # Teams
+    team_objs = []
+    user_team_id = None
+    for name, abbr, conf in fbs_teams:
+        is_user = abbr == "BALL"
+        logo_suffix = logo_map.get(abbr, abbr.lower())
+        logo_url = f"https://a.espncdn.com/i/teamlogos/ncaa/500/{logo_suffix}.png"
+        team = Team(
+            name=name,
+            abbreviation=abbr,
+            primary_conference_id=conf_objs.get(conf, conf_objs["Independents"]).conference_id,
+            logo_url=logo_url,
+            is_user_controlled=is_user
+        )
+        team_objs.append(team)
+        if is_user:
+            user_team_id = team.team_id
+    db.session.add_all(team_objs)
     db.session.commit()
 
     # Seasons
@@ -21,27 +312,26 @@ with app.app_context():
     db.session.add_all(seasons)
     db.session.commit()
 
-    # Teams
-    teams = [
-        Team(name="Alabama Crimson Tide", abbreviation="BAMA", primary_conference_id=confs[0].conference_id, is_user_controlled=True, logo_url="https://via.placeholder.com/100?text=BAMA"),
-        Team(name="Georgia Bulldogs", abbreviation="UGA", primary_conference_id=confs[0].conference_id, logo_url="https://via.placeholder.com/100?text=UGA"),
-        Team(name="Ohio State Buckeyes", abbreviation="OSU", primary_conference_id=confs[1].conference_id, logo_url="https://via.placeholder.com/100?text=OSU"),
-        Team(name="Appalachian State Mountaineers", abbreviation="APP", primary_conference_id=confs[2].conference_id, logo_url="https://via.placeholder.com/100?text=APP"),
-    ]
-    db.session.add_all(teams)
-    db.session.commit()
-
     # TeamSeasons
     team_seasons = []
     for season in seasons:
-        for team in teams:
+        for team in team_objs:
             conf_id = team.primary_conference_id
+            conf_wins = random.randint(0, 8)
+            conf_losses = random.randint(0, 8)
+            if conf_wins + conf_losses > 12:
+                if conf_wins > conf_losses:
+                    conf_wins = 12 - conf_losses
+                else:
+                    conf_losses = 12 - conf_wins
             team_seasons.append(TeamSeason(
                 team_id=team.team_id,
                 season_id=season.season_id,
                 conference_id=conf_id,
                 wins=random.randint(5, 13),
                 losses=random.randint(0, 7),
+                conference_wins=conf_wins,
+                conference_losses=conf_losses,
                 points_for=random.randint(200, 600),
                 points_against=random.randint(150, 500),
                 offense_yards=random.randint(3000, 7000),
@@ -54,11 +344,13 @@ with app.app_context():
     db.session.add_all(team_seasons)
     db.session.commit()
 
-    # Players
+    # Players (only for user team)
     positions = ["QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K"]
     players = []
-    for team in teams:
-        for i in range(10):  # 10 players per team
+    for team in team_objs:
+        if not team.is_user_controlled:
+            continue
+        for i in range(10):  # 10 players for user team
             p = Player(
                 name=f"{team.abbreviation} Player {i+1}",
                 position=random.choice(positions),
@@ -73,7 +365,7 @@ with app.app_context():
     db.session.add_all(players)
     db.session.commit()
 
-    # PlayerSeasons
+    # PlayerSeasons (only for user team)
     player_seasons = []
     for season in seasons:
         for player in players:
@@ -98,24 +390,35 @@ with app.app_context():
     db.session.add_all(player_seasons)
     db.session.commit()
 
-    # Games
+    # Games (only for user team)
     games = []
     for season in seasons:
+        user_team = next((t for t in team_objs if t.is_user_controlled), None)
+        if not user_team:
+            continue
+        # Schedule 12 games: 6 home, 6 away, vs random other teams
+        other_teams = [t for t in team_objs if t.team_id != user_team.team_id]
+        random.shuffle(other_teams)
         for week in range(1, 13):
-            for i in range(0, len(teams), 2):
-                if i+1 < len(teams):
-                    games.append(Game(
-                        season_id=season.season_id,
-                        week=week,
-                        home_team_id=teams[i].team_id,
-                        away_team_id=teams[i+1].team_id,
-                        home_score=random.randint(10, 60),
-                        away_score=random.randint(10, 60),
-                        overtime=random.choice([True, False]),
-                        game_type="Regular",
-                        playoff_round=None,
-                        neutral_site=random.choice([True, False])
-                    ))
+            opp = other_teams[week % len(other_teams)]
+            if week % 2 == 0:
+                home_team_id = user_team.team_id
+                away_team_id = opp.team_id
+            else:
+                home_team_id = opp.team_id
+                away_team_id = user_team.team_id
+            games.append(Game(
+                season_id=season.season_id,
+                week=week,
+                home_team_id=home_team_id,
+                away_team_id=away_team_id,
+                home_score=random.randint(10, 60),
+                away_score=random.randint(10, 60),
+                overtime=random.choice([True, False]),
+                game_type="Regular",
+                playoff_round=None,
+                neutral_site=random.choice([True, False])
+            ))
     db.session.add_all(games)
     db.session.commit()
 

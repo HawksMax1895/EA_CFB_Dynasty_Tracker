@@ -52,28 +52,69 @@ def get_season(season_id):
 
 @seasons_bp.route('/seasons/<int:season_id>/teams', methods=['GET'])
 def get_teams_in_season(season_id):
+    all_param = request.args.get('all', 'false').lower() == 'true'
     team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
+    teams = {t.team_id: t for t in Team.query.all()}
+    conferences = {c.conference_id: c for c in Conference.query.all()}
+    if all_param:
+        # Return all teams for the season
+        return jsonify([
+            {
+                'team_id': ts.team_id,
+                'team_name': teams[ts.team_id].name if ts.team_id in teams else None,
+                'logo_url': teams[ts.team_id].logo_url if ts.team_id in teams else None,
+                'conference_id': ts.conference_id,
+                'conference_name': conferences[ts.conference_id].name if ts.conference_id in conferences else None,
+                'wins': ts.wins,
+                'losses': ts.losses,
+                'conference_wins': ts.conference_wins,
+                'conference_losses': ts.conference_losses,
+                'points_for': ts.points_for,
+                'points_against': ts.points_against,
+                'prestige': ts.prestige,
+                'team_rating': ts.team_rating,
+                'final_rank': ts.final_rank,
+                'recruiting_rank': ts.recruiting_rank
+            }
+            for ts in team_seasons
+        ])
+    # Only include top 25 by final_rank
+    top_25 = sorted([ts for ts in team_seasons if ts.final_rank and ts.final_rank <= 25], key=lambda ts: ts.final_rank)[:25]
     return jsonify([
         {
             'team_id': ts.team_id,
+            'team_name': teams[ts.team_id].name if ts.team_id in teams else None,
+            'logo_url': teams[ts.team_id].logo_url if ts.team_id in teams else None,
             'conference_id': ts.conference_id,
+            'conference_name': conferences[ts.conference_id].name if ts.conference_id in conferences else None,
             'wins': ts.wins,
             'losses': ts.losses,
+            'conference_wins': ts.conference_wins,
+            'conference_losses': ts.conference_losses,
             'points_for': ts.points_for,
             'points_against': ts.points_against,
             'prestige': ts.prestige,
             'team_rating': ts.team_rating,
             'final_rank': ts.final_rank,
-            'recruiting_rank': ts.recruiting_rank
+            'recruiting_rank': ts.recruiting_rank,
+            'national_rank': i + 1
         }
-        for ts in team_seasons
+        for i, ts in enumerate(top_25)
     ])
 
 @seasons_bp.route('/seasons/<int:season_id>/teams/<int:team_id>', methods=['PUT'])
 def update_team_season(season_id, team_id):
-    ts = TeamSeason.query.filter_by(season_id=season_id, team_id=team_id).first_or_404()
+    ts = TeamSeason.query.filter_by(season_id=season_id, team_id=team_id).first()
+    if not ts:
+        # Create a new TeamSeason if it doesn't exist
+        team = Team.query.get(team_id)
+        if not team:
+            return jsonify({'error': 'Team not found'}), 404
+        conference_id = team.primary_conference_id
+        ts = TeamSeason(team_id=team_id, season_id=season_id, conference_id=conference_id)
+        db.session.add(ts)
     data = request.json
-    for field in ['wins', 'losses', 'points_for', 'points_against', 'offense_yards', 'defense_yards', 'prestige', 'team_rating', 'final_rank', 'recruiting_rank', 'conference_id']:
+    for field in ['wins', 'losses', 'conference_wins', 'conference_losses', 'points_for', 'points_against', 'offense_yards', 'defense_yards', 'prestige', 'team_rating', 'final_rank', 'recruiting_rank', 'conference_id']:
         if field in data:
             setattr(ts, field, data[field])
     db.session.commit()
@@ -143,15 +184,31 @@ def get_season_bracket(season_id):
 @seasons_bp.route('/conferences/<int:conference_id>/teams', methods=['GET'])
 def get_conference_teams(conference_id):
     season_id = request.args.get('season_id', type=int)
-    if season_id:
-        team_seasons = TeamSeason.query.filter_by(conference_id=conference_id, season_id=season_id).all()
-        teams = [Team.query.get(ts.team_id) for ts in team_seasons]
-    else:
-        teams = Team.query.filter_by(primary_conference_id=conference_id).all()
-    return jsonify([
-        {'team_id': t.team_id, 'name': t.name, 'abbreviation': t.abbreviation}
-        for t in teams if t is not None
-    ])
+    teams = Team.query.filter_by(primary_conference_id=conference_id).all()
+    team_map = {t.team_id: t for t in teams}
+    conference = Conference.query.get(conference_id)
+    team_seasons = {ts.team_id: ts for ts in TeamSeason.query.filter_by(conference_id=conference_id, season_id=season_id).all()} if season_id else {}
+    result = []
+    for team in teams:
+        ts = team_seasons.get(team.team_id)
+        result.append({
+            'team_id': team.team_id,
+            'team_name': team.name,
+            'logo_url': team.logo_url,
+            'abbreviation': team.abbreviation,
+            'wins': ts.wins if ts else 0,
+            'losses': ts.losses if ts else 0,
+            'conference_wins': ts.conference_wins if ts else 0,
+            'conference_losses': ts.conference_losses if ts else 0,
+            'points_for': ts.points_for if ts else None,
+            'points_against': ts.points_against if ts else None,
+            'prestige': ts.prestige if ts else None,
+            'team_rating': ts.team_rating if ts else None,
+            'final_rank': ts.final_rank if ts else None,
+            'recruiting_rank': ts.recruiting_rank if ts else None,
+            'conference_name': conference.name if conference else None
+        })
+    return jsonify(result)
 
 @seasons_bp.route('/seasons/<int:season_id>/promotion_relegation', methods=['GET'])
 def get_promotion_relegation(season_id):
@@ -195,4 +252,19 @@ def progress_players(season_id):
             player.current_year = PROGRESSION_MAP[player.current_year]
             progressed.append(player.player_id)
     db.session.commit()
-    return jsonify({"progressed_player_ids": progressed, "redshirted_player_ids": redshirted}), 200 
+    return jsonify({"progressed_player_ids": progressed, "redshirted_player_ids": redshirted}), 200
+
+@seasons_bp.route('/seasons/<int:season_id>/auto_assign_top25', methods=['POST'])
+def auto_assign_top25(season_id):
+    team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
+    # Sort by wins descending, then by team_id for tie-breaker
+    sorted_teams = sorted(team_seasons, key=lambda ts: (ts.wins if ts.wins is not None else 0, ts.team_id), reverse=True)
+    top25 = sorted_teams[:25]
+    # Assign final_rank 1-25
+    for i, ts in enumerate(top25):
+        ts.final_rank = i + 1
+    # Set all others to None
+    for ts in sorted_teams[25:]:
+        ts.final_rank = None
+    db.session.commit()
+    return jsonify({'message': 'Top 25 assigned by wins', 'assigned_team_ids': [ts.team_id for ts in top25]}), 200 

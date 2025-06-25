@@ -1,3 +1,4 @@
+
 from extensions import db
 
 class Season(db.Model):
@@ -41,8 +42,10 @@ class TeamSeason(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
     season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'), nullable=False)
     conference_id = db.Column(db.Integer, db.ForeignKey('conferences.conference_id'), nullable=False)
-    wins = db.Column(db.Integer, default=0)
-    losses = db.Column(db.Integer, default=0)
+    wins = db.Column(db.Integer, default=0, nullable=False)
+    losses = db.Column(db.Integer, default=0, nullable=False)
+    conference_wins = db.Column(db.Integer, default=0, nullable=False)
+    conference_losses = db.Column(db.Integer, default=0, nullable=False)
     points_for = db.Column(db.Integer)
     points_against = db.Column(db.Integer)
     offense_yards = db.Column(db.Integer)
