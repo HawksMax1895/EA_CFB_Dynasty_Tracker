@@ -150,6 +150,22 @@ export async function fetchGames() {
   return response.json()
 }
 
+export async function fetchGamesBySeason(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/games`)
+  if (!response.ok) throw new Error("Failed to fetch games for season")
+  return response.json()
+}
+
+export async function updateGameResult(gameId: number, data: { home_score: number, away_score: number }) {
+  const response = await fetch(`${API_BASE_URL}/games/${gameId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update game result")
+  return response.json()
+}
+
 // DASHBOARD
 export async function fetchDashboard() {
   const response = await fetch(`${API_BASE_URL}/dashboard`)

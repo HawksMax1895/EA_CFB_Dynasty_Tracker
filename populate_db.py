@@ -422,6 +422,31 @@ with app.app_context():
     db.session.add_all(games)
     db.session.commit()
 
+    # Ensure TBD team exists
+    tbd_team = Team.query.filter_by(name='TBD').first()
+    if not tbd_team:
+        tbd_team = Team(name='TBD', abbreviation='TBD', primary_conference_id=list(conf_objs.values())[0].conference_id)
+        db.session.add(tbd_team)
+        db.session.commit()
+
+    # Ensure weeks 0-16 exist for all seasons
+    for season in seasons:
+        user_team = next((t for t in team_objs if t.is_user_controlled), None)
+        if not user_team:
+            continue
+        for week in range(17):
+            # Check if a game already exists for this week in this season
+            existing = Game.query.filter_by(season_id=season.season_id, week=week).first()
+            if not existing:
+                db.session.add(Game(
+                    season_id=season.season_id,
+                    week=week,
+                    home_team_id=user_team.team_id,
+                    away_team_id=user_team.team_id,
+                    game_type="Bye Week"
+                ))
+    db.session.commit()
+
     # Awards
     awards = [
         Award(name="Heisman Trophy", description="Best player in college football"),
@@ -458,4 +483,71 @@ with app.app_context():
     db.session.add_all(honors)
     db.session.commit()
 
-    print("Database populated with example data!") 
+    print("Database populated with example data!")
+
+# --- BACKFILL TEAMSEASON RECORDS FOR ALL SEASONS/TEAMS ---
+def backfill_user_team_seasons():
+    seasons = Season.query.all()
+    user_team = Team.query.filter_by(is_user_controlled=True).first()
+    if not user_team:
+        print("No user-controlled team found.")
+        return
+    created = 0
+    for season in seasons:
+        ts = TeamSeason.query.filter_by(season_id=season.season_id, team_id=user_team.team_id).first()
+        if not ts:
+            conference_id = user_team.primary_conference_id
+            if not conference_id:
+                first_conf = Conference.query.first()
+                conference_id = first_conf.conference_id if first_conf else None
+            ts = TeamSeason(team_id=user_team.team_id, season_id=season.season_id, conference_id=conference_id)
+            db.session.add(ts)
+            created += 1
+    db.session.commit()
+    print(f"Created {created} missing TeamSeason records for user-controlled team.")
+
+    # Recalculate records for user-controlled team in all seasons
+    for season in seasons:
+        ts = TeamSeason.query.filter_by(season_id=season.season_id, team_id=user_team.team_id).first()
+        if not ts:
+            continue
+        games = Game.query.filter(
+            Game.season_id == season.season_id,
+            ((Game.home_team_id == user_team.team_id) | (Game.away_team_id == user_team.team_id))
+        ).all()
+        wins = losses = conf_wins = conf_losses = 0
+        for g in games:
+            if g.home_score is None or g.away_score is None or g.game_type not in ("Regular", "Conference"):
+                continue
+            is_home = g.home_team_id == user_team.team_id
+            is_away = g.away_team_id == user_team.team_id
+            team_score = g.home_score if is_home else g.away_score
+            opp_score = g.away_score if is_home else g.home_score
+            if team_score > opp_score:
+                wins += 1
+            elif team_score < opp_score:
+                losses += 1
+            # Conference win/loss: only if both teams are in the same conference and game_type is 'Conference'
+            if g.game_type == 'Conference' and g.home_team_id and g.away_team_id:
+                home_ts = TeamSeason.query.filter_by(season_id=season.season_id, team_id=g.home_team_id).first()
+                away_ts = TeamSeason.query.filter_by(season_id=season.season_id, team_id=g.away_team_id).first()
+                if home_ts and away_ts and home_ts.conference_id and away_ts.conference_id and home_ts.conference_id == away_ts.conference_id:
+                    if is_home and g.home_score > g.away_score:
+                        conf_wins += 1
+                    elif is_home and g.home_score < g.away_score:
+                        conf_losses += 1
+                    elif is_away and g.away_score > g.home_score:
+                        conf_wins += 1
+                    elif is_away and g.away_score < g.home_score:
+                        conf_losses += 1
+        ts.wins = wins
+        ts.losses = losses
+        ts.conference_wins = conf_wins
+        ts.conference_losses = conf_losses
+        db.session.add(ts)
+    db.session.commit()
+    print("Recalculated win/loss records for user-controlled team.")
+
+if __name__ == "__main__":
+    with app.app_context():
+        backfill_user_team_seasons() 

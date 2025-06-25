@@ -26,6 +26,41 @@ def create_season():
     season = Season(year=year)
     db.session.add(season)
     db.session.commit()
+
+    # Find the user-controlled team
+    user_team = Team.query.filter_by(is_user_controlled=True).first()
+    if not user_team:
+        # If no user team exists, create a default one or use the first team
+        user_team = Team.query.first()
+        if not user_team:
+            return jsonify({'error': 'No teams found in database'}), 400
+
+    # Create bye week games for weeks 0-16
+    for week in range(17):
+        game = Game(
+            season_id=season.season_id, 
+            week=week, 
+            home_team_id=user_team.team_id, 
+            away_team_id=user_team.team_id,
+            game_type="Bye Week"
+        )
+        db.session.add(game)
+    db.session.commit()
+
+    # --- NEW: Create TeamSeason records for all teams ---
+    all_teams = Team.query.all()
+    for team in all_teams:
+        # Use the team's primary_conference_id
+        conference_id = team.primary_conference_id
+        if not conference_id:
+            # Fallback: assign to first conference if not set
+            first_conf = Conference.query.first()
+            conference_id = first_conf.conference_id if first_conf else None
+        ts = TeamSeason(team_id=team.team_id, season_id=season.season_id, conference_id=conference_id)
+        db.session.add(ts)
+    db.session.commit()
+    # --- END NEW ---
+
     return jsonify({'season_id': season.season_id, 'year': season.year}), 201
 
 @seasons_bp.route('/conferences', methods=['GET'])
