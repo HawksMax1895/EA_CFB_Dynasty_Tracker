@@ -1,16 +1,43 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from extensions import db
-from models import Game, TeamSeason, Conference
+from models import Game, TeamSeason, Conference, Team
 
 games_bp = Blueprint('games', __name__)
 
 @games_bp.route('/seasons/<int:season_id>/games', methods=['GET'])
 def get_games_in_season(season_id):
     games = Game.query.filter_by(season_id=season_id).all()
-    return jsonify([
-        {'game_id': g.game_id, 'week': g.week, 'home_team_id': g.home_team_id, 'away_team_id': g.away_team_id, 'home_score': g.home_score, 'away_score': g.away_score, 'game_type': g.game_type, 'playoff_round': g.playoff_round, 'overtime': g.overtime}
-        for g in games
-    ])
+    teams = {t.team_id: t for t in Team.query.all()}
+    team_seasons = {
+        ts.team_id: ts
+        for ts in TeamSeason.query.filter_by(season_id=season_id).all()
+    }
+
+    result = []
+    for g in games:
+        home_ts = team_seasons.get(g.home_team_id)
+        away_ts = team_seasons.get(g.away_team_id)
+        is_conf_game = (
+            home_ts is not None
+            and away_ts is not None
+            and home_ts.conference_id == away_ts.conference_id
+        )
+        result.append({
+            'game_id': g.game_id,
+            'week': g.week,
+            'home_team_id': g.home_team_id,
+            'home_team_name': teams.get(g.home_team_id).name if teams.get(g.home_team_id) else None,
+            'away_team_id': g.away_team_id,
+            'away_team_name': teams.get(g.away_team_id).name if teams.get(g.away_team_id) else None,
+            'home_score': g.home_score,
+            'away_score': g.away_score,
+            'game_type': g.game_type,
+            'playoff_round': g.playoff_round,
+            'overtime': g.overtime,
+            'is_conference_game': is_conf_game,
+        })
+
+    return jsonify(result)
 
 @games_bp.route('/games/<int:game_id>', methods=['GET'])
 def get_game(game_id):

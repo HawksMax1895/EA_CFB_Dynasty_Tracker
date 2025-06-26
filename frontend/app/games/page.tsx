@@ -52,7 +52,8 @@ export default function GamesPage() {
       const map: { [key: number]: string } = {}
       let userId: number | null = null
       data.forEach((team: Team) => {
-        map[team.team_id] = team.team_name
+        const name = (team as any).team_name || (team as any).name
+        map[team.team_id] = name
         if (team.is_user_controlled) userId = team.team_id
       })
       setTeamMap(map)
@@ -327,8 +328,8 @@ export default function GamesPage() {
                         </div>
                         <CardTitle className="text-xl font-bold text-gray-800">
                           {(() => {
-                            const homeName = teamMap[game.home_team_id] || game.home_team_id;
-                            const awayName = teamMap[game.away_team_id] || game.away_team_id;
+                            const homeName = game.home_team_name || teamMap[game.home_team_id] || game.home_team_id;
+                            const awayName = game.away_team_name || teamMap[game.away_team_id] || game.away_team_id;
                             
                             if (game.game_type === 'Bye Week') {
                               return (
@@ -354,8 +355,12 @@ export default function GamesPage() {
                                         <Command>
                                           <CommandInput placeholder="Search team..." />
                                           <CommandList>
-                                            {teams.filter((t: Team) => t.team_id !== userTeamId).map((t: Team) => (
-                                              <CommandItem key={t.team_id} value={t.team_name} onSelect={async () => {
+                                            {[...teams].sort((a: Team, b: Team) => {
+                                              const nameA = (a as any).team_name || (a as any).name || '';
+                                              const nameB = (b as any).team_name || (b as any).name || '';
+                                              return nameA.localeCompare(nameB);
+                                            }).map((t: Team) => (
+                                              <CommandItem key={t.team_id} value={(t as any).team_name || (t as any).name} onSelect={async () => {
                                                 await updateGameResult(game.game_id, {
                                                   home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
                                                   away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
@@ -365,7 +370,7 @@ export default function GamesPage() {
                                                 const data = await fetchGamesBySeason(selectedSeason!);
                                                 setGames(data);
                                                 setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                              }}>{t.team_name}</CommandItem>
+                                              }}>{(t as any).team_name || (t as any).name}</CommandItem>
                                             ))}
                                           </CommandList>
                                         </Command>
@@ -388,8 +393,12 @@ export default function GamesPage() {
                                         <Command>
                                           <CommandInput placeholder="Search team..." />
                                           <CommandList>
-                                            {teams.filter((t: Team) => t.team_id !== userTeamId).map((t: Team) => (
-                                              <CommandItem key={t.team_id} value={t.team_name} onSelect={async () => {
+                                            {[...teams].sort((a: Team, b: Team) => {
+                                              const nameA = (a as any).team_name || (a as any).name || '';
+                                              const nameB = (b as any).team_name || (b as any).name || '';
+                                              return nameA.localeCompare(nameB);
+                                            }).map((t: Team) => (
+                                              <CommandItem key={t.team_id} value={(t as any).team_name || (t as any).name} onSelect={async () => {
                                                 await updateGameResult(game.game_id, {
                                                   home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
                                                   away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
@@ -399,7 +408,7 @@ export default function GamesPage() {
                                                 const data = await fetchGamesBySeason(selectedSeason!);
                                                 setGames(data);
                                                 setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                              }}>{t.team_name}</CommandItem>
+                                              }}>{(t as any).team_name || (t as any).name}</CommandItem>
                                             ))}
                                           </CommandList>
                                         </Command>
@@ -419,6 +428,11 @@ export default function GamesPage() {
                         <Badge variant={game.game_type === "Conference" ? "default" : game.game_type === "Bye Week" ? "secondary" : "secondary"} className="text-xs px-2 py-1">
                           {game.game_type ?? "Regular"}
                         </Badge>
+                        {game.game_type !== 'Bye Week' && (
+                          <Badge variant={game.is_conference_game ? "default" : "secondary"} className="text-xs px-2 py-1">
+                            {game.is_conference_game ? 'Conf' : 'Non-Conf'}
+                          </Badge>
+                        )}
                         {game.game_type !== 'Bye Week' && (
                           <div className="flex items-center gap-2">
                             <input
@@ -490,7 +504,7 @@ export default function GamesPage() {
                                 {(() => {
                                   const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
                                   if (awayTeam && awayTeam.logo_url) {
-                                    return <img src={awayTeam.logo_url} alt={awayTeam.team_name} className="w-8 h-8 rounded-full shadow-sm" />;
+                                    return <img src={awayTeam.logo_url} alt={(awayTeam as any).team_name || (awayTeam as any).name} className="w-8 h-8 rounded-full shadow-sm" />;
                                   }
                                   return <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-500">?</div>;
                                 })()}
@@ -527,7 +541,7 @@ export default function GamesPage() {
                                 {(() => {
                                   const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
                                   if (homeTeam && homeTeam.logo_url) {
-                                    return <img src={homeTeam.logo_url} alt={homeTeam.team_name} className="w-8 h-8 rounded-full shadow-sm" />;
+                                    return <img src={homeTeam.logo_url} alt={(homeTeam as any).team_name || (homeTeam as any).name} className="w-8 h-8 rounded-full shadow-sm" />;
                                   }
                                   return <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-500">?</div>;
                                 })()}
