@@ -170,6 +170,7 @@ export default function SeasonsPage() {
                         <span>View Roster</span>
                       </Button>
                     </Link>
+                    <Link href={`/seasons/${season.season_id}/playoff`} className="btn btn-primary ml-2">Playoff Bracket</Link>
                   </div>
                 </CardContent>
               </Card>

@@ -157,7 +157,7 @@ export async function fetchGames() {
 }
 
 export async function fetchGamesBySeason(seasonId: number) {
-  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/games`)
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/games?type=regular`)
   if (!response.ok) throw new Error("Failed to fetch games for season")
   return response.json()
 }
@@ -188,5 +188,28 @@ export async function updateTeamSeason(seasonId: number, teamId: number, data: a
     body: JSON.stringify(data)
   })
   if (!response.ok) throw new Error("Failed to update team season")
+  return response.json()
+}
+
+// PLAYOFFS
+export async function fetchPlayoffEligibleTeams(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/api/playoff/${seasonId}/playoff-eligible-teams`)
+  if (!response.ok) throw new Error("Failed to fetch playoff eligible teams")
+  return response.json()
+}
+
+export async function manualSeedBracket(seasonId: number, teamIds: number[]) {
+  const response = await fetch(`${API_BASE_URL}/api/playoff/${seasonId}/manual-seed-bracket`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ team_ids: teamIds })
+  })
+  if (!response.ok) throw new Error("Failed to seed bracket")
+  return response.json()
+}
+
+export async function fetchBracket(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/api/playoff/${seasonId}/bracket`)
+  if (!response.ok) throw new Error("Failed to fetch bracket")
   return response.json()
 }

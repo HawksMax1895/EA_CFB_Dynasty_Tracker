@@ -10,6 +10,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command"
 import { useSeason } from "@/context/SeasonContext"
 import { Team, Game } from "@/types";
+import Bracket from '../seasons/[season_id]/playoff/Bracket';
 
 export default function GamesPage() {
   // Component State
@@ -610,9 +611,7 @@ export default function GamesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-8">
-                  <div>Playoff bracket coming soon...</div>
-                </div>
+                <Bracket seasonId={selectedSeason} />
               </CardContent>
             </Card>
           </TabsContent>

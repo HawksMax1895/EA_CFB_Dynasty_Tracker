@@ -6,7 +6,15 @@ games_bp = Blueprint('games', __name__)
 
 @games_bp.route('/seasons/<int:season_id>/games', methods=['GET'])
 def get_games_in_season(season_id):
-    games = Game.query.filter_by(season_id=season_id).all()
+    game_type = request.args.get('type', 'regular')
+    query = Game.query.filter_by(season_id=season_id)
+
+    if game_type == 'regular':
+        query = query.filter(Game.game_type != 'Playoff')
+    elif game_type == 'playoff':
+        query = query.filter_by(game_type='Playoff')
+
+    games = query.order_by(Game.week.asc()).all()
     teams = {t.team_id: t for t in Team.query.all()}
     team_seasons = {
         ts.team_id: ts

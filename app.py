@@ -44,6 +44,10 @@ app.register_blueprint(rankings_bp, url_prefix='/api')
 app.register_blueprint(honors_bp, url_prefix='/api')
 app.register_blueprint(conferences_bp, url_prefix='/api')
 
+print("Registered routes:")
+for rule in app.url_map.iter_rules():
+    print(rule)
+
 # Serve React frontend (placeholder)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

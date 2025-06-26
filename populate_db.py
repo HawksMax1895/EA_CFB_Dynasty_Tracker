@@ -240,4 +240,42 @@ with app.app_context():
 
     db.session.commit()
 
+    # --- Create empty 12-team playoff bracket for the season ---
+    playoff_games = [
+        # First Round (week 17)
+        {"week": 17, "playoff_round": "First Round", "home_seed": 5, "away_seed": 12},
+        {"week": 17, "playoff_round": "First Round", "home_seed": 6, "away_seed": 11},
+        {"week": 17, "playoff_round": "First Round", "home_seed": 7, "away_seed": 10},
+        {"week": 17, "playoff_round": "First Round", "home_seed": 8, "away_seed": 9},
+        # Quarterfinals (week 18)
+        {"week": 18, "playoff_round": "Quarterfinals", "home_seed": 1},
+        {"week": 18, "playoff_round": "Quarterfinals", "home_seed": 2},
+        {"week": 18, "playoff_round": "Quarterfinals", "home_seed": 3},
+        {"week": 18, "playoff_round": "Quarterfinals", "home_seed": 4},
+        # Semifinals (week 19)
+        {"week": 19, "playoff_round": "Semifinals"},
+        {"week": 19, "playoff_round": "Semifinals"},
+        # Championship (week 20)
+        {"week": 20, "playoff_round": "Championship"},
+    ]
+    
+    # Get top 12 teams by final_rank
+    top_12_teams = TeamSeason.query.filter(TeamSeason.final_rank != None).order_by(TeamSeason.final_rank.asc()).limit(12).all()
+    seeds = {ts.final_rank: ts.team_id for ts in top_12_teams}
+
+    for g_info in playoff_games:
+        home_id = seeds.get(g_info.get("home_seed")) if g_info.get("home_seed") else None
+        away_id = seeds.get(g_info.get("away_seed")) if g_info.get("away_seed") else None
+        
+        game = Game(
+            season_id=season.season_id,
+            week=g_info["week"],
+            home_team_id=home_id,
+            away_team_id=away_id,
+            game_type="Playoff",
+            playoff_round=g_info["playoff_round"]
+        )
+        db.session.add(game)
+    db.session.commit()
+
     print("Database has been populated with a single season and randomized data.") 

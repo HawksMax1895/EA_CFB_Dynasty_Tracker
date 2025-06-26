@@ -66,9 +66,43 @@ def create_season():
         final_rank = prev_ap_poll.get(team.team_id)
         ts = TeamSeason(team_id=team.team_id, season_id=season.season_id, conference_id=conference_id, final_rank=final_rank)
         db.session.add(ts)
-    db.session.commit()
+
+    # --- NEW: Automatically generate empty 12-team playoff bracket ---
+    # Bracket structure:
+    # First Round: 4 games (5v12, 6v11, 7v10, 8v9)
+    # Quarterfinals: 4 games (1vG4, 2vG3, 3vG2, 4vG1)
+    # Semifinals: 2 games (G5vG8, G6vG7)
+    # Championship: 1 game (G9vG10)
+    playoff_games = [
+        # First Round (week 17)
+        {"week": 17, "playoff_round": "First Round"},
+        {"week": 17, "playoff_round": "First Round"},
+        {"week": 17, "playoff_round": "First Round"},
+        {"week": 17, "playoff_round": "First Round"},
+        # Quarterfinals (week 18)
+        {"week": 18, "playoff_round": "Quarterfinals"},
+        {"week": 18, "playoff_round": "Quarterfinals"},
+        {"week": 18, "playoff_round": "Quarterfinals"},
+        {"week": 18, "playoff_round": "Quarterfinals"},
+        # Semifinals (week 19)
+        {"week": 19, "playoff_round": "Semifinals"},
+        {"week": 19, "playoff_round": "Semifinals"},
+        # Championship (week 20)
+        {"week": 20, "playoff_round": "Championship"},
+    ]
+    for g in playoff_games:
+        game = Game(
+            season_id=season.season_id,
+            week=g["week"],
+            home_team_id=None,
+            away_team_id=None,
+            game_type="Playoff",
+            playoff_round=g["playoff_round"]
+        )
+        db.session.add(game)
     # --- END NEW ---
 
+    db.session.commit()
     return jsonify({'season_id': season.season_id, 'year': season.year}), 201
 
 @seasons_bp.route('/conferences', methods=['GET'])
