@@ -3,39 +3,35 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, MapPin, Trophy, Clock } from "lucide-react"
+import { Trophy } from "lucide-react"
 import React, { useEffect, useState } from "react"
-import { fetchGames, addGame, updateGameResult, fetchGamesBySeason, fetchSeasons, fetchTeams, updateTeamSeason } from "@/lib/api"
+import { updateGameResult, fetchGamesBySeason, fetchTeams, updateTeamSeason, fetchTeamsBySeason } from "@/lib/api"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command"
 import { useSeason } from "@/context/SeasonContext"
+import { Team, Game } from "@/types";
 
 export default function GamesPage() {
-  const [games, setGames] = useState<any[]>([])
+  // Component State
+  const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [addForm, setAddForm] = useState({ week: '', opponent_name: '', date: '', time: '', location: '', game_type: 'Regular' })
-  const [addLoading, setAddLoading] = useState(false)
-  const [addError, setAddError] = useState<string | null>(null)
+  
+  
   const [resultLoading, setResultLoading] = useState<number | null>(null)
-  const [resultError, setResultError] = useState<string | null>(null)
+  
   const [resultForms, setResultForms] = useState<{ [key: number]: { home_score: string, away_score: string } }>({})
-  const [teams, setTeams] = useState<any[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
   const [teamMap, setTeamMap] = useState<{ [key: number]: string }>({})
   const [userTeamId, setUserTeamId] = useState<number | null>(null)
-  const [dropdownFilters, setDropdownFilters] = useState<{ [gameId: number]: { home?: string; away?: string } }>({})
+  
   const [openCombobox, setOpenCombobox] = useState<{ [gameId: number]: 'home' | 'away' | null }>({})
-  const { seasons, selectedSeason, setSelectedSeason, setSeasons } = useSeason();
+  const { selectedSeason } = useSeason();
+  const [teamSeasonStats, setTeamSeasonStats] = useState<Team | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [editableStats, setEditableStats] = useState<Partial<Team>>({});
 
-  useEffect(() => {
-    // Fetch seasons and set in context
-    fetchSeasons()
-      .then((data) => {
-        setSeasons(data)
-      })
-      .catch((err) => setError(err.message))
-  }, [setSeasons])
-
+  // Effects
   useEffect(() => {
     if (selectedSeason == null) return;
     setLoading(true)
@@ -51,13 +47,12 @@ export default function GamesPage() {
   }, [selectedSeason])
 
   useEffect(() => {
-    // Fetch teams for mapping
     fetchTeams().then((data) => {
       setTeams(data)
       const map: { [key: number]: string } = {}
       let userId: number | null = null
-      data.forEach((team: any) => {
-        map[team.team_id] = team.name
+      data.forEach((team: Team) => {
+        map[team.team_id] = team.team_name
         if (team.is_user_controlled) userId = team.team_id
       })
       setTeamMap(map)
@@ -65,8 +60,59 @@ export default function GamesPage() {
     })
   }, [])
 
-  // Automatic win/loss logic for user team
-  const getUserResultBadge = (game: any) => {
+  useEffect(() => {
+    if (!selectedSeason) return;
+    setStatsLoading(true);
+    fetchTeamsBySeason(selectedSeason)
+        .then(teams => {
+            const userTeam = teams.find((t: Team) => t.is_user_controlled);
+            setTeamSeasonStats(userTeam || null);
+            if (userTeam) {
+              setEditableStats(userTeam);
+            }
+        })
+        .catch(err => {
+            setError(err.message);
+        })
+        .finally(() => {
+            setStatsLoading(false);
+        });
+  }, [selectedSeason]);
+
+  // Handlers
+  const handleStatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditableStats(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleStatUpdate = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (!selectedSeason || !userTeamId) return;
+
+    // Allow updates even if teamSeasonStats is null (for initial creation)
+    const numericValue = name !== 'prestige' && name !== 'team_rating' ? (value === '' ? null : parseFloat(value)) : value;
+    
+    // Get the original value from the editable state, which reflects the most recent data
+    const originalValue = teamSeasonStats ? teamSeasonStats[name as keyof Team] : null;
+
+    if (String(numericValue) !== String(originalValue)) {
+      try {
+        await updateTeamSeason(selectedSeason, userTeamId, { [name]: numericValue });
+        
+        // Optimistically update the local state
+        const updatedStats = { ...teamSeasonStats, [name]: numericValue, team_id: userTeamId };
+        setTeamSeasonStats(updatedStats as Team);
+        setEditableStats(updatedStats);
+
+      } catch (error) {
+        console.error("Failed to update stat:", error);
+        // Revert on error
+        setEditableStats(teamSeasonStats || {});
+      }
+    }
+  };
+
+  const getUserResultBadge = (game: Game) => {
     if (userTeamId == null) return null;
     const home = game.home_team_id === userTeamId;
     const away = game.away_team_id === userTeamId;
@@ -81,87 +127,34 @@ export default function GamesPage() {
     return <Badge variant="outline">-</Badge>;
   }
 
-  const handleAddFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setAddForm({ ...addForm, [e.target.name]: e.target.value })
-  }
-  const handleSeasonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedSeason(Number(e.target.value))
-  }
-  const handleAddGame = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setAddLoading(true)
-    setAddError(null)
-    try {
-      await addGame({ ...addForm, season_id: selectedSeason })
-      setAddForm({ week: '', opponent_name: '', date: '', time: '', location: '', game_type: 'Regular' })
-      const data = await fetchGamesBySeason(selectedSeason!)
-      setGames(data)
-    } catch (err: any) {
-      setAddError(err.message)
-    } finally {
-      setAddLoading(false)
-    }
-  }
-  const handleResultFormChange = (gameId: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    setResultForms({
-      ...resultForms,
-      [gameId]: {
-        ...resultForms[gameId],
-        [e.target.name]: e.target.value
-      }
-    })
-  }
-  const handleUpdateResult = async (gameId: number, e: React.FormEvent) => {
-    e.preventDefault()
-    setResultLoading(gameId)
-    setResultError(null)
-    try {
-      const { home_score, away_score } = resultForms[gameId] || {}
-      await updateGameResult(gameId, { home_score: Number(home_score), away_score: Number(away_score) })
-      const data = await fetchGamesBySeason(selectedSeason!)
-      setGames(data)
-      setResultForms((prev) => ({ ...prev, [gameId]: { home_score: '', away_score: '' } }))
-    } catch (err: any) {
-      setResultError(err.message)
-    } finally {
-      setResultLoading(null)
-    }
-  }
-
-  // Inline update handler for score inputs
   const handleUpdateResultInline = async (gameId: number, home_score: number, away_score: number) => {
     setResultLoading(gameId)
-    setResultError(null)
+    
     try {
       await updateGameResult(gameId, { home_score, away_score })
       
-      // Update the game locally instead of fetching all games
       setGames(prev => prev.map(game => 
         game.game_id === gameId 
           ? { ...game, home_score, away_score }
           : game
       ))
       
-      // Recalculate wins/losses for both teams involved in the game
       const game = games.find(g => g.game_id === gameId);
       if (game && game.home_team_id && game.away_team_id) {
         const homeTeamId = game.home_team_id;
         const awayTeamId = game.away_team_id;
         
-        // Get all games for the season with updated scores
         const updatedGames = games.map(g => 
           g.game_id === gameId ? { ...g, home_score, away_score } : g
         );
         
-        // Calculate records for home team
         let homeWins = 0, homeLosses = 0, homeConfWins = 0, homeConfLosses = 0;
         const homeTeam = teams.find(t => t.team_id === homeTeamId);
         const homeConfId = homeTeam?.primary_conference_id;
         
-        updatedGames.forEach((g: any) => {
+        updatedGames.forEach((g: Game) => {
           if (g.home_score == null || g.away_score == null) return;
           
-          // Overall record
           if (g.home_team_id === homeTeamId) {
             if (g.home_score > g.away_score) homeWins++;
             else if (g.home_score < g.away_score) homeLosses++;
@@ -170,7 +163,6 @@ export default function GamesPage() {
             else if (g.away_score < g.home_score) homeLosses++;
           }
           
-          // Conference record (only count games against conference opponents)
           if (g.game_type === 'Conference') {
             const awayTeam = teams.find(t => t.team_id === g.away_team_id);
             const awayConfId = awayTeam?.primary_conference_id;
@@ -185,15 +177,13 @@ export default function GamesPage() {
           }
         });
         
-        // Calculate records for away team
         let awayWins = 0, awayLosses = 0, awayConfWins = 0, awayConfLosses = 0;
         const awayTeam = teams.find(t => t.team_id === awayTeamId);
         const awayConfId = awayTeam?.primary_conference_id;
         
-        updatedGames.forEach((g: any) => {
+        updatedGames.forEach((g: Game) => {
           if (g.home_score == null || g.away_score == null) return;
           
-          // Overall record
           if (g.home_team_id === awayTeamId) {
             if (g.home_score > g.away_score) awayWins++;
             else if (g.home_score < g.away_score) awayLosses++;
@@ -202,7 +192,6 @@ export default function GamesPage() {
             else if (g.away_score < g.home_score) awayLosses++;
           }
           
-          // Conference record
           if (g.game_type === 'Conference') {
             const homeTeam = teams.find(t => t.team_id === g.home_team_id);
             const homeConfId = homeTeam?.primary_conference_id;
@@ -217,7 +206,6 @@ export default function GamesPage() {
           }
         });
         
-        // Update both teams' records
         await Promise.all([
           updateTeamSeason(selectedSeason!, homeTeamId, { 
             wins: homeWins, 
@@ -233,8 +221,8 @@ export default function GamesPage() {
           })
         ]);
       }
-    } catch (err: any) {
-      setResultError(err.message)
+    } catch (err) {
+      setError((err as Error).message)
     } finally {
       setResultLoading(null)
     }
@@ -246,7 +234,6 @@ export default function GamesPage() {
     
     setResultLoading(gameId);
     try {
-      // Swap home and away teams, and also swap their scores
       await updateGameResult(gameId, {
         home_team_id: game.away_team_id,
         away_team_id: game.home_team_id,
@@ -268,7 +255,6 @@ export default function GamesPage() {
     
     setResultLoading(gameId);
     try {
-      // Set game type to "Bye Week" and clear scores
       await updateGameResult(gameId, {
         game_type: 'Bye Week',
         home_score: null,
@@ -289,16 +275,14 @@ export default function GamesPage() {
     
     setResultLoading(gameId);
     try {
-      // Find the alphabetically first team that isn't the user-controlled team
-      const availableTeams = teams.filter((t: any) => t.team_id !== userTeamId);
-      const firstOpponent = availableTeams.sort((a: any, b: any) => a.name.localeCompare(b.name))[0];
+      const availableTeams = teams.filter((t: Team) => t.team_id !== userTeamId);
+      const firstOpponent = availableTeams.sort((a: Team, b: Team) => a.team_name.localeCompare(b.team_name))[0];
       
       if (!firstOpponent) {
         console.error('No available opponents found');
         return;
       }
       
-      // Set game type back to "Regular" and set the opponent
       await updateGameResult(gameId, {
         game_type: 'Regular',
         home_team_id: userTeamId,
@@ -332,7 +316,6 @@ export default function GamesPage() {
           </TabsList>
 
           <TabsContent value="schedule" className="space-y-4">
-            {/* Game List with Update Result forms */}
             {[...games].sort((a, b) => a.week - b.week).map((game, index) => (
               <Card key={game.game_id || index} className="hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-r from-white to-gray-50">
                 <CardHeader className="pb-4">
@@ -347,7 +330,6 @@ export default function GamesPage() {
                             const homeName = teamMap[game.home_team_id] || game.home_team_id;
                             const awayName = teamMap[game.away_team_id] || game.away_team_id;
                             
-                            // Check if this is a bye week
                             if (game.game_type === 'Bye Week') {
                               return (
                                 <span className="text-gray-500 italic">
@@ -359,7 +341,6 @@ export default function GamesPage() {
                             if (homeName === 'TBD' && awayName === 'TBD') return 'TBD';
                             if (userTeamId) {
                               if (game.home_team_id === userTeamId) {
-                                // User is home, opponent is away (combobox)
                                 return (
                                   <>
                                     vs{' '}
@@ -373,8 +354,8 @@ export default function GamesPage() {
                                         <Command>
                                           <CommandInput placeholder="Search team..." />
                                           <CommandList>
-                                            {teams.filter((t: any) => t.team_id !== userTeamId).map((t: any) => (
-                                              <CommandItem key={t.team_id} value={t.name} onSelect={async () => {
+                                            {teams.filter((t: Team) => t.team_id !== userTeamId).map((t: Team) => (
+                                              <CommandItem key={t.team_id} value={t.team_name} onSelect={async () => {
                                                 await updateGameResult(game.game_id, {
                                                   home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
                                                   away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
@@ -384,7 +365,7 @@ export default function GamesPage() {
                                                 const data = await fetchGamesBySeason(selectedSeason!);
                                                 setGames(data);
                                                 setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                              }}>{t.name}</CommandItem>
+                                              }}>{t.team_name}</CommandItem>
                                             ))}
                                           </CommandList>
                                         </Command>
@@ -394,7 +375,6 @@ export default function GamesPage() {
                                 );
                               }
                               if (game.away_team_id === userTeamId) {
-                                // User is away, opponent is home (combobox)
                                 return (
                                   <>
                                     @{' '}
@@ -408,8 +388,8 @@ export default function GamesPage() {
                                         <Command>
                                           <CommandInput placeholder="Search team..." />
                                           <CommandList>
-                                            {teams.filter((t: any) => t.team_id !== userTeamId).map((t: any) => (
-                                              <CommandItem key={t.team_id} value={t.name} onSelect={async () => {
+                                            {teams.filter((t: Team) => t.team_id !== userTeamId).map((t: Team) => (
+                                              <CommandItem key={t.team_id} value={t.team_name} onSelect={async () => {
                                                 await updateGameResult(game.game_id, {
                                                   home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
                                                   away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
@@ -419,7 +399,7 @@ export default function GamesPage() {
                                                 const data = await fetchGamesBySeason(selectedSeason!);
                                                 setGames(data);
                                                 setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                              }}>{t.name}</CommandItem>
+                                              }}>{t.team_name}</CommandItem>
                                             ))}
                                           </CommandList>
                                         </Command>
@@ -431,7 +411,6 @@ export default function GamesPage() {
                             }
                             if (homeName === 'TBD') return `@ ${awayName}`;
                             if (awayName === 'TBD') return `vs ${homeName}`;
-                            // Default: show as home game
                             return `vs ${awayName}`;
                           })()}
                         </CardTitle>
@@ -450,7 +429,6 @@ export default function GamesPage() {
                                 await updateGameResult(game.game_id, {
                                   overtime: e.target.checked
                                 });
-                                // Update locally
                                 setGames(prev => prev.map(g => 
                                   g.game_id === game.game_id 
                                     ? { ...g, overtime: e.target.checked }
@@ -508,17 +486,16 @@ export default function GamesPage() {
                           </div>
                           <div className="bg-white rounded-lg border-2 border-gray-200 p-4 shadow-sm">
                             <div className="space-y-3">
-                              {/* Away team row */}
                               <div className="flex items-center gap-3">
                                 {(() => {
-                                  const awayTeam = teams.find((t: any) => t.team_id === game.away_team_id);
+                                  const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
                                   if (awayTeam && awayTeam.logo_url) {
-                                    return <img src={awayTeam.logo_url} alt={awayTeam.name} className="w-8 h-8 rounded-full shadow-sm" />;
+                                    return <img src={awayTeam.logo_url} alt={awayTeam.team_name} className="w-8 h-8 rounded-full shadow-sm" />;
                                   }
                                   return <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-500">?</div>;
                                 })()}
                                 {(() => {
-                                  const awayTeam = teams.find((t: any) => t.team_id === game.away_team_id);
+                                  const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
                                   if (awayTeam && awayTeam.abbreviation) {
                                     return <span className="text-sm font-semibold text-gray-700 min-w-[40px]">{awayTeam.abbreviation}</span>;
                                   }
@@ -535,7 +512,7 @@ export default function GamesPage() {
                                       home_score: prev[game.game_id]?.home_score ?? (game.home_score ?? '')
                                     }
                                   }))}
-                                  onBlur={e => {
+                                  onBlur={() => {
                                     const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
                                     const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
                                     if (!isNaN(home_score) && !isNaN(away_score)) {
@@ -546,17 +523,16 @@ export default function GamesPage() {
                                   disabled={resultLoading === game.game_id}
                                 />
                               </div>
-                              {/* Home team row */}
                               <div className="flex items-center gap-3">
                                 {(() => {
-                                  const homeTeam = teams.find((t: any) => t.team_id === game.home_team_id);
+                                  const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
                                   if (homeTeam && homeTeam.logo_url) {
-                                    return <img src={homeTeam.logo_url} alt={homeTeam.name} className="w-8 h-8 rounded-full shadow-sm" />;
+                                    return <img src={homeTeam.logo_url} alt={homeTeam.team_name} className="w-8 h-8 rounded-full shadow-sm" />;
                                   }
                                   return <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs text-gray-500">?</div>;
                                 })()}
                                 {(() => {
-                                  const homeTeam = teams.find((t: any) => t.team_id === game.home_team_id);
+                                  const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
                                   if (homeTeam && homeTeam.abbreviation) {
                                     return <span className="text-sm font-semibold text-gray-700 min-w-[40px]">{homeTeam.abbreviation}</span>;
                                   }
@@ -573,7 +549,7 @@ export default function GamesPage() {
                                       away_score: prev[game.game_id]?.away_score ?? (game.away_score ?? '')
                                     }
                                   }))}
-                                  onBlur={e => {
+                                  onBlur={() => {
                                     const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
                                     const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
                                     if (!isNaN(home_score) && !isNaN(away_score)) {
@@ -606,7 +582,6 @@ export default function GamesPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-8">
-                  {/* You can fetch and display playoff bracket from backend if available */}
                   <div>Playoff bracket coming soon...</div>
                 </div>
               </CardContent>
@@ -614,6 +589,9 @@ export default function GamesPage() {
           </TabsContent>
 
           <TabsContent value="stats" className="space-y-6">
+            {statsLoading ? (
+              <div>Loading stats...</div>
+            ) : teamSeasonStats ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -621,21 +599,71 @@ export default function GamesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span>Points Per Game</span>
-                      <span className="font-bold">-</span>
+                      <input
+                        type="number"
+                        name="off_ppg"
+                        value={editableStats.off_ppg ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span>Total Yards Per Game</span>
-                      <span className="font-bold">-</span>
+                    <div className="flex justify-between items-center">
+                      <span>Total Offensive Yards</span>
+                      <input
+                        type="number"
+                        name="offense_yards"
+                        value={editableStats.offense_yards ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span>Passing Yards Per Game</span>
-                      <span className="font-bold">-</span>
+                    <div className="flex justify-between items-center">
+                      <span>Passing Yards</span>
+                      <input
+                        type="number"
+                        name="pass_yards"
+                        value={editableStats.pass_yards ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span>Rushing Yards Per Game</span>
-                      <span className="font-bold">-</span>
+                    <div className="flex justify-between items-center">
+                      <span>Rushing Yards</span>
+                      <input
+                        type="number"
+                        name="rush_yards"
+                        value={editableStats.rush_yards ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Passing TDs</span>
+                      <input
+                        type="number"
+                        name="pass_tds"
+                        value={editableStats.pass_tds ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Rushing TDs</span>
+                      <input
+                        type="number"
+                        name="rush_tds"
+                        value={editableStats.rush_tds ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -647,22 +675,57 @@ export default function GamesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span>Points Allowed Per Game</span>
-                      <span className="font-bold">-</span>
+                      <input
+                        type="number"
+                        name="def_ppg"
+                        value={editableStats.def_ppg ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span>Yards Allowed Per Game</span>
-                      <span className="font-bold">-</span>
+                    <div className="flex justify-between items-center">
+                      <span>Yards Allowed</span>
+                      <input
+                        type="number"
+                        name="defense_yards"
+                        value={editableStats.defense_yards ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
-                    <div className="flex justify-between">
-                      <span>Turnovers Forced</span>
-                      <span className="font-bold">-</span>
+                    <div className="flex justify-between items-center">
+                      <span>Total Sacks</span>
+                      <input
+                        type="number"
+                        name="sacks"
+                        value={editableStats.sacks ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Interceptions</span>
+                      <input
+                        type="number"
+                        name="interceptions"
+                        value={editableStats.interceptions ?? ""}
+                        onChange={handleStatChange}
+                        onBlur={handleStatUpdate}
+                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                      />
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
+            ) : (
+              <div>No season stats available.</div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

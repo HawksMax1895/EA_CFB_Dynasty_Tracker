@@ -30,6 +30,12 @@ export async function fetchTeams() {
   return response.json()
 }
 
+export async function fetchTeamsBySeason(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/teams?all=true`)
+  if (!response.ok) throw new Error("Failed to fetch teams for season")
+  return response.json()
+}
+
 export async function createTeam(data: { name: string; abbreviation?: string; logo_url?: string }) {
   const response = await fetch(`${API_BASE_URL}/teams`, {
     method: "POST",

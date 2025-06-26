@@ -25,7 +25,6 @@ def create_season():
         return jsonify({'error': f'Season for year {year} already exists'}), 400
     season = Season(year=year)
     db.session.add(season)
-    db.session.commit()
 
     # Find the user-controlled team
     user_team = Team.query.filter_by(is_user_controlled=True).first()
@@ -45,7 +44,6 @@ def create_season():
             game_type="Bye Week"
         )
         db.session.add(game)
-    db.session.commit()
 
     # --- NEW: Create TeamSeason records for all teams ---
     all_teams = Team.query.all()
@@ -58,6 +56,7 @@ def create_season():
             conference_id = first_conf.conference_id if first_conf else None
         ts = TeamSeason(team_id=team.team_id, season_id=season.season_id, conference_id=conference_id)
         db.session.add(ts)
+    
     db.session.commit()
     # --- END NEW ---
 
@@ -97,6 +96,7 @@ def get_teams_in_season(season_id):
             {
                 'team_id': ts.team_id,
                 'team_name': teams[ts.team_id].name if ts.team_id in teams else None,
+                'is_user_controlled': teams[ts.team_id].is_user_controlled if ts.team_id in teams else None,
                 'logo_url': teams[ts.team_id].logo_url if ts.team_id in teams else None,
                 'conference_id': ts.conference_id,
                 'conference_name': conferences[ts.conference_id].name if ts.conference_id in conferences else None,
@@ -106,6 +106,14 @@ def get_teams_in_season(season_id):
                 'conference_losses': ts.conference_losses,
                 'points_for': ts.points_for,
                 'points_against': ts.points_against,
+                'pass_yards': ts.pass_yards,
+                'rush_yards': ts.rush_yards,
+                'pass_tds': ts.pass_tds,
+                'rush_tds': ts.rush_tds,
+                'off_ppg': ts.off_ppg,
+                'def_ppg': ts.def_ppg,
+                'sacks': ts.sacks,
+                'interceptions': ts.interceptions,
                 'prestige': ts.prestige,
                 'team_rating': ts.team_rating,
                 'final_rank': ts.final_rank,
@@ -119,6 +127,7 @@ def get_teams_in_season(season_id):
         {
             'team_id': ts.team_id,
             'team_name': teams[ts.team_id].name if ts.team_id in teams else None,
+            'is_user_controlled': teams[ts.team_id].is_user_controlled if ts.team_id in teams else None,
             'logo_url': teams[ts.team_id].logo_url if ts.team_id in teams else None,
             'conference_id': ts.conference_id,
             'conference_name': conferences[ts.conference_id].name if ts.conference_id in conferences else None,
@@ -128,6 +137,14 @@ def get_teams_in_season(season_id):
             'conference_losses': ts.conference_losses,
             'points_for': ts.points_for,
             'points_against': ts.points_against,
+            'pass_yards': ts.pass_yards,
+            'rush_yards': ts.rush_yards,
+            'pass_tds': ts.pass_tds,
+            'rush_tds': ts.rush_tds,
+            'off_ppg': ts.off_ppg,
+            'def_ppg': ts.def_ppg,
+            'sacks': ts.sacks,
+            'interceptions': ts.interceptions,
             'prestige': ts.prestige,
             'team_rating': ts.team_rating,
             'final_rank': ts.final_rank,
@@ -149,7 +166,7 @@ def update_team_season(season_id, team_id):
         ts = TeamSeason(team_id=team_id, season_id=season_id, conference_id=conference_id)
         db.session.add(ts)
     data = request.json
-    for field in ['wins', 'losses', 'conference_wins', 'conference_losses', 'points_for', 'points_against', 'offense_yards', 'defense_yards', 'prestige', 'team_rating', 'final_rank', 'recruiting_rank', 'conference_id']:
+    for field in ['wins', 'losses', 'conference_wins', 'conference_losses', 'points_for', 'points_against', 'offense_yards', 'defense_yards', 'pass_yards', 'rush_yards', 'pass_tds', 'rush_tds', 'off_ppg', 'def_ppg', 'sacks', 'interceptions', 'prestige', 'team_rating', 'final_rank', 'recruiting_rank', 'conference_id']:
         if field in data:
             setattr(ts, field, data[field])
     db.session.commit()
@@ -237,6 +254,14 @@ def get_conference_teams(conference_id):
             'conference_losses': ts.conference_losses if ts else 0,
             'points_for': ts.points_for if ts else None,
             'points_against': ts.points_against if ts else None,
+            'pass_yards': ts.pass_yards if ts else None,
+            'rush_yards': ts.rush_yards if ts else None,
+            'pass_tds': ts.pass_tds if ts else None,
+            'rush_tds': ts.rush_tds if ts else None,
+            'off_ppg': ts.off_ppg if ts else None,
+            'def_ppg': ts.def_ppg if ts else None,
+            'sacks': ts.sacks if ts else None,
+            'interceptions': ts.interceptions if ts else None,
             'prestige': ts.prestige if ts else None,
             'team_rating': ts.team_rating if ts else None,
             'final_rank': ts.final_rank if ts else None,

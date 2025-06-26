@@ -1,4 +1,3 @@
-
 from extensions import db
 
 class Season(db.Model):
@@ -48,8 +47,16 @@ class TeamSeason(db.Model):
     conference_losses = db.Column(db.Integer, default=0, nullable=False)
     points_for = db.Column(db.Integer)
     points_against = db.Column(db.Integer)
+    pass_yards = db.Column(db.Integer)
+    rush_yards = db.Column(db.Integer)
+    pass_tds = db.Column(db.Integer)
+    rush_tds = db.Column(db.Integer)
+    off_ppg = db.Column(db.Float)
+    def_ppg = db.Column(db.Float)
     offense_yards = db.Column(db.Integer)
     defense_yards = db.Column(db.Integer)
+    sacks = db.Column(db.Integer)
+    interceptions = db.Column(db.Integer)
     prestige = db.Column(db.String(8))
     team_rating = db.Column(db.String(8))
     final_rank = db.Column(db.Integer)

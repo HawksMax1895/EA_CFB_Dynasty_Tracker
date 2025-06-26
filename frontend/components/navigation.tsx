@@ -4,8 +4,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Home, Calendar, Users, Trophy, Award, TrendingUp, Target, Menu, X } from "lucide-react"
+import { Home, Calendar, Users, Trophy, Award, TrendingUp, Target, Menu, X, Cog } from "lucide-react"
 import { useState } from "react"
+import { SeasonSelector } from "./SeasonSelector"
+import { useSeason } from "@/context/SeasonContext"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -15,11 +17,13 @@ const navigation = [
   { name: "Awards", href: "/awards", icon: Award },
   { name: "Rankings", href: "/rankings", icon: TrendingUp },
   { name: "Recruiting", href: "/recruiting", icon: Target },
+  { name: "Settings", href: "/settings", icon: Cog },
 ]
 
 export function Navigation() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { userTeam } = useSeason()
 
   return (
     <nav className="bg-white shadow-sm border-b">
@@ -27,12 +31,12 @@ export function Navigation() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <Link href="/" className="text-xl font-bold text-gray-900">
-              CFB Dynasty
+              {userTeam ? userTeam.team_name : "CFB Dynasty"}
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-1">
+          <div className="hidden md:flex items-center space-x-1">
             {navigation.map((item) => {
               const Icon = item.icon
               return (
@@ -52,9 +56,13 @@ export function Navigation() {
               )
             })}
           </div>
+          <div className="hidden md:flex items-center space-x-4">
+            <SeasonSelector />
+          </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center">
+            <SeasonSelector />
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </Button>

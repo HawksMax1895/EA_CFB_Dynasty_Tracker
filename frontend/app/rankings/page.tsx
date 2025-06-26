@@ -13,8 +13,8 @@ import { useRouter } from "next/navigation"
 import SortableTeamRow from "@/components/sortable-team-row"
 import type { Team, Conference, Season } from "@/types"
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command"
-import { SeasonSelector } from "@/components/SeasonSelector"
 import { useSeason } from "@/context/SeasonContext"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
@@ -35,7 +35,6 @@ export default function RankingsPage() {
   // Conference/season selection and standings state
   const [conferences, setConferences] = useState<Conference[]>([])
   const { seasons, selectedSeason, setSelectedSeason, setSeasons } = useSeason();
-  const [teams, setTeams] = useState<Team[]>([])
   const [standings, setStandings] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -96,7 +95,7 @@ export default function RankingsPage() {
     fetch(`${API_BASE_URL}/conferences/${selectedConference}/teams?season_id=${selectedSeason}`)
       .then(res => res.json())
       .then(confTeams => {
-        setTeams(confTeams);
+        setStandings(confTeams.map((t: Team, i: number) => ({ ...t, rank: i + 1 })));
         setLoading(false);
       })
       .catch(() => {
@@ -104,35 +103,6 @@ export default function RankingsPage() {
         setLoading(false);
       });
   }, [selectedTab, selectedConference, selectedSeason]);
-
-  // Fetch and merge records for standings when teams or season changes
-  useEffect(() => {
-    if (!selectedSeason || teams.length === 0) return;
-    setLoading(true);
-    fetch(`${API_BASE_URL}/seasons/${selectedSeason}/teams`).then(res => res.json())
-      .then(allRecords => {
-        const recordsMap = Object.fromEntries(allRecords.map((r: any) => [r.team_id, r]))
-        const merged = teams.map((t: any, i: number) => {
-          const rec = recordsMap[t.team_id] || {}
-          return {
-            ...t,
-            wins: rec.wins,
-            losses: rec.losses,
-            conference_wins: rec.conference_wins,
-            conference_losses: rec.conference_losses,
-            points_for: rec.points_for,
-            points_against: rec.points_against,
-            rank: i + 1
-          }
-        })
-        setStandings(merged)
-        setLoading(false)
-      })
-      .catch(() => {
-        setError("Failed to load teams or records")
-        setLoading(false)
-      })
-  }, [selectedSeason, teams]);
 
   // Fetch AP Poll (top 25) teams for the selected season
   useEffect(() => {
@@ -163,6 +133,8 @@ export default function RankingsPage() {
   const handleInputBlur = async (index: number, field: string, value: string) => {
     if (!selectedSeason) return
     const team = standings[index]
+    if (isUserControlledTeam(team.team_id)) return; // Prevent updates for user team
+
     const num = parseInt(value, 10)
     if (isNaN(num)) return
     
@@ -244,9 +216,6 @@ export default function RankingsPage() {
             <div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">Rankings</h1>
               <p className="text-gray-600">End of season rankings and standings</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <SeasonSelector />
             </div>
           </div>
         </div>
@@ -410,6 +379,23 @@ export default function RankingsPage() {
                     <Medal className="h-5 w-5 text-blue-500" />
                     Conference Standings
                   </CardTitle>
+                  <div className="w-64">
+                    <Select
+                      value={selectedConference?.toString()}
+                      onValueChange={(value) => setSelectedConference(Number(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Conference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {conferences.map((conf) => (
+                          <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>
+                            {conf.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

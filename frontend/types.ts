@@ -11,6 +11,7 @@ export interface Season {
 export interface Team {
   team_id: number;
   team_name: string;
+  is_user_controlled?: boolean;
   conference_name?: string;
   conference?: string;
   logo_url?: string;
@@ -21,5 +22,29 @@ export interface Team {
   conference_losses?: number | null;
   points_for?: number | null;
   points_against?: number | null;
+  pass_yards?: number | null;
+  rush_yards?: number | null;
+  pass_tds?: number | null;
+  rush_tds?: number | null;
+  off_ppg?: number | null;
+  def_ppg?: number | null;
+  sacks?: number | null;
+  interceptions?: number | null;
+  offense_yards?: number | null;
+  defense_yards?: number | null;
+  prestige?: string | null;
+  team_rating?: string | null;
+  recruiting_rank?: number | null;
   rank?: number;
+}
+
+export interface Game {
+  game_id: number;
+  week: number;
+  home_team_id: number;
+  away_team_id: number;
+  home_score: number | null;
+  away_score: number | null;
+  game_type: string;
+  overtime: boolean;
 }
