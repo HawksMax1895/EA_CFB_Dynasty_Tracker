@@ -2,20 +2,51 @@ from flask import Blueprint, request, jsonify
 from extensions import db
 from models import Game
 
-playoff_bp = Blueprint('playoff', __name__)
 
-@playoff_bp.route('/playoff/<int:season_id>/bracket', methods=['POST'])
+def _build_bracket(games):
+    """Serialize a list of Game objects into a bracket dict."""
+    bracket = {}
+    for g in games:
+        round_name = g.playoff_round or "Unknown"
+        bracket.setdefault(round_name, []).append(
+            {
+                "game_id": g.game_id,
+                "week": g.week,
+                "home_team_id": g.home_team_id,
+                "away_team_id": g.away_team_id,
+                "home_score": g.home_score,
+                "away_score": g.away_score,
+            }
+        )
+    return bracket
+
+
+playoff_bp = Blueprint("playoff", __name__)
+
+
+@playoff_bp.route("/playoff/<int:season_id>/bracket", methods=["GET"])
+def get_playoff_bracket(season_id):
+    """Return the playoff bracket for a season."""
+    games = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
+    return jsonify(_build_bracket(games))
+
+
+@playoff_bp.route("/playoff/<int:season_id>/bracket", methods=["POST"])
 def create_or_update_bracket(season_id):
     data = request.json
-    games = data.get('games', [])
+    games = data.get("games", [])
     if not isinstance(games, list):
-        return jsonify({'error': 'games must be a list'}), 400
+        return jsonify({"error": "games must be a list"}), 400
     created_games = []
     for g in games:
-        home_team_id = g.get('home_team_id')
-        away_team_id = g.get('away_team_id')
-        week = g.get('week')
-        playoff_round = g.get('playoff_round')
+        home_team_id = g.get("home_team_id")
+        away_team_id = g.get("away_team_id")
+        week = g.get("week")
+        playoff_round = g.get("playoff_round")
         if not home_team_id or not away_team_id or not week or not playoff_round:
             continue
         game = Game(
@@ -23,48 +54,68 @@ def create_or_update_bracket(season_id):
             week=week,
             home_team_id=home_team_id,
             away_team_id=away_team_id,
-            game_type='Playoff',
-            playoff_round=playoff_round
+            game_type="Playoff",
+            playoff_round=playoff_round,
         )
         db.session.add(game)
         db.session.flush()
         created_games.append(game.game_id)
     db.session.commit()
-    return jsonify({'created_game_ids': created_games}), 201
+    return jsonify({"created_game_ids": created_games}), 201
 
-@playoff_bp.route('/playoff/<int:season_id>/playoff-result', methods=['POST'])
+
+@playoff_bp.route("/playoff/<int:season_id>/playoff-result", methods=["POST"])
 def add_playoff_result(season_id):
     data = request.json
-    game_id = data.get('game_id')
-    home_score = data.get('home_score')
-    away_score = data.get('away_score')
-    playoff_round = data.get('playoff_round')
+    game_id = data.get("game_id")
+    home_score = data.get("home_score")
+    away_score = data.get("away_score")
+    playoff_round = data.get("playoff_round")
     if not game_id or home_score is None or away_score is None:
-        return jsonify({'error': 'game_id, home_score, and away_score are required'}), 400
+        return (
+            jsonify({"error": "game_id, home_score, and away_score are required"}),
+            400,
+        )
     from models import Game
+
     game = Game.query.get(game_id)
     if not game or game.season_id != season_id:
-        return jsonify({'error': 'Game not found for this season'}), 404
+        return jsonify({"error": "Game not found for this season"}), 404
     game.home_score = home_score
     game.away_score = away_score
     if playoff_round:
         game.playoff_round = playoff_round
     db.session.commit()
-    return jsonify({'message': 'Playoff result updated', 'game_id': game_id}), 200
+    return jsonify({"message": "Playoff result updated", "game_id": game_id}), 200
 
-@playoff_bp.route('/playoff/<int:season_id>/seed_bracket', methods=['POST'])
+
+@playoff_bp.route("/playoff/<int:season_id>/seed_bracket", methods=["POST"])
 def seed_bracket(season_id):
     from models import TeamSeason, Game
+
     # Get top 12 teams by final_rank (1-12)
-    team_seasons = TeamSeason.query.filter_by(season_id=season_id).filter(TeamSeason.final_rank != None).order_by(TeamSeason.final_rank.asc()).limit(12).all()
+    team_seasons = (
+        TeamSeason.query.filter_by(season_id=season_id)
+        .filter(TeamSeason.final_rank != None)
+        .order_by(TeamSeason.final_rank.asc())
+        .limit(12)
+        .all()
+    )
     if len(team_seasons) < 12:
-        return jsonify({'error': 'Not enough teams with final_rank to seed bracket'}), 400
+        return (
+            jsonify({"error": "Not enough teams with final_rank to seed bracket"}),
+            400,
+        )
     # Map seed number to team_id
-    seeds = {i+1: ts.team_id for i, ts in enumerate(team_seasons)}
+    seeds = {i + 1: ts.team_id for i, ts in enumerate(team_seasons)}
     # Get all playoff games for this season, ordered by week and id
-    games = Game.query.filter_by(season_id=season_id, game_type='Playoff').order_by(Game.week.asc(), Game.game_id.asc()).all()
+    games = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
     if len(games) != 11:
-        return jsonify({'error': 'Bracket structure is incomplete'}), 400
+        return jsonify({"error": "Bracket structure is incomplete"}), 400
     # Assign teams to games according to 12-team bracket
     # First Round (week 17):
     # G1: 5 vs 12
@@ -105,24 +156,13 @@ def seed_bracket(season_id):
     games[10].away_team_id = None
     db.session.commit()
     # Return updated bracket
-    bracket = {}
-    for g in games:
-        round_name = g.playoff_round or 'Unknown'
-        if round_name not in bracket:
-            bracket[round_name] = []
-        bracket[round_name].append({
-            'game_id': g.game_id,
-            'week': g.week,
-            'home_team_id': g.home_team_id,
-            'away_team_id': g.away_team_id,
-            'home_score': g.home_score,
-            'away_score': g.away_score
-        })
-    return jsonify(bracket)
+    return jsonify(_build_bracket(games))
 
-@playoff_bp.route('/playoff/<int:season_id>/playoff-eligible-teams', methods=['GET'])
+
+@playoff_bp.route("/playoff/<int:season_id>/playoff-eligible-teams", methods=["GET"])
 def get_playoff_eligible_teams(season_id):
     from models import TeamSeason, Team, Conference
+
     team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
     teams = {t.team_id: t for t in Team.query.all()}
     conferences = {c.conference_id: c for c in Conference.query.all()}
@@ -132,35 +172,54 @@ def get_playoff_eligible_teams(season_id):
         conf_teams = [ts for ts in team_seasons if ts.conference_id == conf_id]
         if conf_teams:
             # Sort by wins, then by final_rank, then by team_id
-            conf_teams_sorted = sorted(conf_teams, key=lambda ts: (ts.wins if ts.wins is not None else 0, -(ts.final_rank or 9999), -ts.team_id), reverse=True)
+            conf_teams_sorted = sorted(
+                conf_teams,
+                key=lambda ts: (
+                    ts.wins if ts.wins is not None else 0,
+                    -(ts.final_rank or 9999),
+                    -ts.team_id,
+                ),
+                reverse=True,
+            )
             champions[conf_id] = conf_teams_sorted[0].team_id
     result = []
     for ts in team_seasons:
         team = teams.get(ts.team_id)
         conf = conferences.get(ts.conference_id)
-        result.append({
-            'team_id': ts.team_id,
-            'team_name': team.name if team else None,
-            'final_rank': ts.final_rank,
-            'conference_id': ts.conference_id,
-            'conference_name': conf.name if conf else None,
-            'is_conference_champion': ts.team_id == champions.get(ts.conference_id),
-            'wins': ts.wins,
-            'losses': ts.losses
-        })
+        result.append(
+            {
+                "team_id": ts.team_id,
+                "team_name": team.name if team else None,
+                "final_rank": ts.final_rank,
+                "conference_id": ts.conference_id,
+                "conference_name": conf.name if conf else None,
+                "is_conference_champion": ts.team_id == champions.get(ts.conference_id),
+                "wins": ts.wins,
+                "losses": ts.losses,
+            }
+        )
     return jsonify(result)
 
-@playoff_bp.route('/playoff/<int:season_id>/manual-seed-bracket', methods=['POST'])
+
+@playoff_bp.route("/playoff/<int:season_id>/manual-seed-bracket", methods=["POST"])
 def manual_seed_bracket(season_id):
     from models import Game
+
     data = request.json
-    team_ids = data.get('team_ids')
+    team_ids = data.get("team_ids")
     if not isinstance(team_ids, list) or len(team_ids) != 12:
-        return jsonify({'error': 'team_ids must be a list of 12 team IDs in seed order'}), 400
+        return (
+            jsonify({"error": "team_ids must be a list of 12 team IDs in seed order"}),
+            400,
+        )
     # Get all playoff games for this season, ordered by week and id
-    games = Game.query.filter_by(season_id=season_id, game_type='Playoff').order_by(Game.week.asc(), Game.game_id.asc()).all()
+    games = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
     if len(games) != 11:
-        return jsonify({'error': 'Bracket structure is incomplete'}), 400
+        return jsonify({"error": "Bracket structure is incomplete"}), 400
     # Assign teams to games according to 12-team bracket
     # First Round (week 17):
     # G1: 5 vs 12
@@ -201,17 +260,4 @@ def manual_seed_bracket(season_id):
     games[10].away_team_id = None
     db.session.commit()
     # Return updated bracket
-    bracket = {}
-    for g in games:
-        round_name = g.playoff_round or 'Unknown'
-        if round_name not in bracket:
-            bracket[round_name] = []
-        bracket[round_name].append({
-            'game_id': g.game_id,
-            'week': g.week,
-            'home_team_id': g.home_team_id,
-            'away_team_id': g.away_team_id,
-            'home_score': g.home_score,
-            'away_score': g.away_score
-        })
-    return jsonify(bracket) 
+    return jsonify(_build_bracket(games))
