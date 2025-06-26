@@ -11,6 +11,7 @@ export interface Season {
 export interface Team {
   team_id: number;
   team_name: string;
+  name?: string;
   is_user_controlled?: boolean;
   conference_name?: string;
   conference?: string;
@@ -43,8 +44,11 @@ export interface Game {
   week: number;
   home_team_id: number;
   away_team_id: number;
+  home_team_name?: string | null;
+  away_team_name?: string | null;
   home_score: number | null;
   away_score: number | null;
   game_type: string;
   overtime: boolean;
+  is_conference_game?: boolean;
 }
