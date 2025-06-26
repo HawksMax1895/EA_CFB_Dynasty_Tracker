@@ -67,6 +67,7 @@ def create_or_update_bracket(season_id):
 @playoff_bp.route("/playoff/<int:season_id>/playoff-result", methods=["POST"])
 def add_playoff_result(season_id):
     data = request.json
+    print("Received data for playoff-result:", data)  # Debug log
     game_id = data.get("game_id")
     home_score = data.get("home_score")
     away_score = data.get("away_score")
@@ -80,12 +81,14 @@ def add_playoff_result(season_id):
 
     game = Game.query.get(game_id)
     if not game or game.season_id != season_id:
+        print(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")  # Debug log
         return jsonify({"error": "Game not found for this season"}), 404
     game.home_score = home_score
     game.away_score = away_score
     if playoff_round:
         game.playoff_round = playoff_round
     db.session.commit()
+    print(f"Updated game: id={game.game_id}, home_score={game.home_score}, away_score={game.away_score}")  # Debug log
     return jsonify({"message": "Playoff result updated", "game_id": game_id}), 200
 
 

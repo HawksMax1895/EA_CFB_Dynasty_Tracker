@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 // SEASONS
 export async function fetchSeasons() {
@@ -193,13 +193,13 @@ export async function updateTeamSeason(seasonId: number, teamId: number, data: a
 
 // PLAYOFFS
 export async function fetchPlayoffEligibleTeams(seasonId: number) {
-  const response = await fetch(`${API_BASE_URL}/api/playoff/${seasonId}/playoff-eligible-teams`)
+  const response = await fetch(`${API_BASE_URL}/playoff/${seasonId}/playoff-eligible-teams`)
   if (!response.ok) throw new Error("Failed to fetch playoff eligible teams")
   return response.json()
 }
 
 export async function manualSeedBracket(seasonId: number, teamIds: number[]) {
-  const response = await fetch(`${API_BASE_URL}/api/playoff/${seasonId}/manual-seed-bracket`, {
+  const response = await fetch(`${API_BASE_URL}/playoff/${seasonId}/manual-seed-bracket`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ team_ids: teamIds })
@@ -209,7 +209,7 @@ export async function manualSeedBracket(seasonId: number, teamIds: number[]) {
 }
 
 export async function fetchBracket(seasonId: number) {
-  const response = await fetch(`${API_BASE_URL}/api/playoff/${seasonId}/bracket`)
+  const response = await fetch(`${API_BASE_URL}/playoff/${seasonId}/bracket`)
   if (!response.ok) throw new Error("Failed to fetch bracket")
   return response.json()
 }
