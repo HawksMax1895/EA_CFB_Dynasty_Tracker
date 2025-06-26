@@ -61,6 +61,18 @@ class TeamSeason(db.Model):
     team_rating = db.Column(db.String(8))
     final_rank = db.Column(db.Integer)
     recruiting_rank = db.Column(db.Integer)
+    offense_yards_rank = db.Column(db.Integer)
+    defense_yards_rank = db.Column(db.Integer)
+    pass_yards_rank = db.Column(db.Integer)
+    rush_yards_rank = db.Column(db.Integer)
+    pass_tds_rank = db.Column(db.Integer)
+    rush_tds_rank = db.Column(db.Integer)
+    off_ppg_rank = db.Column(db.Integer)
+    def_ppg_rank = db.Column(db.Integer)
+    sacks_rank = db.Column(db.Integer)
+    interceptions_rank = db.Column(db.Integer)
+    points_for_rank = db.Column(db.Integer)
+    points_against_rank = db.Column(db.Integer)
 
 class Player(db.Model):
     __tablename__ = 'players'

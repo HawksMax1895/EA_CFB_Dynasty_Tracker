@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Home, Calendar, Users, Trophy, Award, TrendingUp, Target, Menu, X, Cog } from "lucide-react"
@@ -22,15 +22,26 @@ const navigation = [
 
 export function Navigation() {
   const pathname = usePathname()
+  const searchParams = useSearchParams();
+  const { userTeam, selectedSeason } = useSeason();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { userTeam } = useSeason()
+
+  // Helper to append ?season=... to links
+  const getSeasonHref = (href: string) => {
+    if (selectedSeason) {
+      const url = new URL(href, 'http://dummy');
+      url.searchParams.set('season', String(selectedSeason));
+      return url.pathname + url.search;
+    }
+    return href;
+  };
 
   return (
     <nav className="bg-white shadow-sm border-b">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-xl font-bold text-gray-900">
+            <Link href={getSeasonHref("/")} className="text-xl font-bold text-gray-900">
               {userTeam ? userTeam.team_name : "CFB Dynasty"}
             </Link>
           </div>
@@ -42,7 +53,7 @@ export function Navigation() {
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={getSeasonHref(item.href)}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     pathname === item.href
@@ -78,7 +89,7 @@ export function Navigation() {
                 return (
                   <Link
                     key={item.name}
-                    href={item.href}
+                    href={getSeasonHref(item.href)}
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                       pathname === item.href

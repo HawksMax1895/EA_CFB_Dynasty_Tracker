@@ -43,7 +43,8 @@ def backfill_user_team_seasons():
                 wins=0, losses=0, conference_wins=0, conference_losses=0,
                 points_for=None, points_against=None, offense_yards=None, defense_yards=None,
                 pass_yards=None, rush_yards=None, pass_tds=None, rush_tds=None,
-                off_ppg=None, def_ppg=None, sacks=None, interceptions=None
+                off_ppg=None, def_ppg=None, sacks=None, interceptions=None,
+                offense_yards_rank=None, defense_yards_rank=None, pass_yards_rank=None, rush_yards_rank=None, pass_tds_rank=None, rush_tds_rank=None, off_ppg_rank=None, def_ppg_rank=None, sacks_rank=None, interceptions_rank=None, points_for_rank=None, points_against_rank=None
             )
             db.session.add(team_season)
     db.session.commit()
@@ -159,7 +160,8 @@ with app.app_context():
             wins=0, losses=0, conference_wins=0, conference_losses=0,
             points_for=None, points_against=None, offense_yards=None, defense_yards=None,
             pass_yards=None, rush_yards=None, pass_tds=None, rush_tds=None,
-            off_ppg=None, def_ppg=None, sacks=None, interceptions=None
+            off_ppg=None, def_ppg=None, sacks=None, interceptions=None,
+            offense_yards_rank=None, defense_yards_rank=None, pass_yards_rank=None, rush_yards_rank=None, pass_tds_rank=None, rush_tds_rank=None, off_ppg_rank=None, def_ppg_rank=None, sacks_rank=None, interceptions_rank=None, points_for_rank=None, points_against_rank=None
         ))
     db.session.commit()
 

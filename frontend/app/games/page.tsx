@@ -69,7 +69,11 @@ export default function GamesPage() {
             const userTeam = teams.find((t: Team) => t.is_user_controlled);
             setTeamSeasonStats(userTeam || null);
             if (userTeam) {
-              setEditableStats(userTeam);
+              setEditableStats({
+                ...userTeam,
+                offense_yards: userTeam.offense_yards,
+                defense_yards: userTeam.defense_yards
+              });
             }
         })
         .catch(err => {
@@ -99,12 +103,22 @@ export default function GamesPage() {
     if (String(numericValue) !== String(originalValue)) {
       try {
         await updateTeamSeason(selectedSeason, userTeamId, { [name]: numericValue });
-        
         // Optimistically update the local state
         const updatedStats = { ...teamSeasonStats, [name]: numericValue, team_id: userTeamId };
         setTeamSeasonStats(updatedStats as Team);
         setEditableStats(updatedStats);
-
+        // Background refetch to ensure consistency
+        fetchTeamsBySeason(selectedSeason).then(teams => {
+          const userTeam = teams.find((t: Team) => t.is_user_controlled);
+          if (userTeam && (userTeam.offense_yards !== updatedStats.offense_yards || userTeam.defense_yards !== updatedStats.defense_yards)) {
+            setTeamSeasonStats(userTeam);
+            setEditableStats({
+              ...userTeam,
+              offense_yards: userTeam.offense_yards,
+              defense_yards: userTeam.defense_yards
+            });
+          }
+        });
       } catch (error) {
         console.error("Failed to update stat:", error);
         // Revert on error
@@ -277,7 +291,7 @@ export default function GamesPage() {
     setResultLoading(gameId);
     try {
       const availableTeams = teams.filter((t: Team) => t.team_id !== userTeamId);
-      const firstOpponent = availableTeams.sort((a: Team, b: Team) => a.team_name.localeCompare(b.team_name))[0];
+      const firstOpponent = availableTeams.sort((a: Team, b: Team) => ((a as any).name || a.team_name).localeCompare((b as any).name || b.team_name))[0];
       
       if (!firstOpponent) {
         console.error('No available opponents found');
@@ -298,6 +312,7 @@ export default function GamesPage() {
     }
   }
 
+  if (selectedSeason == null) return <div className="p-8">Loading season...</div>;
   if (loading) return <div className="p-8">Loading games...</div>
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>
 
@@ -615,69 +630,142 @@ export default function GamesPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span>Points Per Game</span>
-                      <input
-                        type="number"
-                        name="off_ppg"
-                        value={editableStats.off_ppg ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <span className="w-24 text-right font-bold bg-gray-100 rounded-md p-1">
+                          {editableStats.off_ppg ?? "-"}
+                        </span>
+                        <input
+                          type="number"
+                          name="off_ppg_rank"
+                          value={editableStats.off_ppg_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>Total Offensive Yards</span>
-                      <input
-                        type="number"
-                        name="offense_yards"
-                        value={editableStats.offense_yards ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <span>Offensive Yards</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="offense_yards"
+                          value={editableStats.offense_yards ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="offense_yards_rank"
+                          value={editableStats.offense_yards_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Passing Yards</span>
-                      <input
-                        type="number"
-                        name="pass_yards"
-                        value={editableStats.pass_yards ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="pass_yards"
+                          value={editableStats.pass_yards ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="pass_yards_rank"
+                          value={editableStats.pass_yards_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Rushing Yards</span>
-                      <input
-                        type="number"
-                        name="rush_yards"
-                        value={editableStats.rush_yards ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="rush_yards"
+                          value={editableStats.rush_yards ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="rush_yards_rank"
+                          value={editableStats.rush_yards_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Passing TDs</span>
-                      <input
-                        type="number"
-                        name="pass_tds"
-                        value={editableStats.pass_tds ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="pass_tds"
+                          value={editableStats.pass_tds ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="pass_tds_rank"
+                          value={editableStats.pass_tds_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Rushing TDs</span>
-                      <input
-                        type="number"
-                        name="rush_tds"
-                        value={editableStats.rush_tds ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="rush_tds"
+                          value={editableStats.rush_tds ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="rush_tds_rank"
+                          value={editableStats.rush_tds_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -691,47 +779,94 @@ export default function GamesPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span>Points Allowed Per Game</span>
-                      <input
-                        type="number"
-                        name="def_ppg"
-                        value={editableStats.def_ppg ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <span className="w-24 text-right font-bold bg-gray-100 rounded-md p-1">
+                          {editableStats.def_ppg ?? "-"}
+                        </span>
+                        <input
+                          type="number"
+                          name="def_ppg_rank"
+                          value={editableStats.def_ppg_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span>Yards Allowed</span>
-                      <input
-                        type="number"
-                        name="defense_yards"
-                        value={editableStats.defense_yards ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <span>Defensive Yards</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="defense_yards"
+                          value={editableStats.defense_yards ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="defense_yards_rank"
+                          value={editableStats.defense_yards_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Total Sacks</span>
-                      <input
-                        type="number"
-                        name="sacks"
-                        value={editableStats.sacks ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="sacks"
+                          value={editableStats.sacks ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="sacks_rank"
+                          value={editableStats.sacks_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Interceptions</span>
-                      <input
-                        type="number"
-                        name="interceptions"
-                        value={editableStats.interceptions ?? ""}
-                        onChange={handleStatChange}
-                        onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          name="interceptions"
+                          value={editableStats.interceptions ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-24 text-right font-bold bg-gray-100 rounded-md p-1"
+                        />
+                        <input
+                          type="number"
+                          name="interceptions_rank"
+                          value={editableStats.interceptions_rank ?? ""}
+                          onChange={handleStatChange}
+                          onBlur={handleStatUpdate}
+                          className="w-12 text-xs text-gray-500 border rounded p-1 ml-2"
+                          min={1}
+                          max={130}
+                          placeholder="#"
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>

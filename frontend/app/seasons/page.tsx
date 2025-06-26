@@ -8,6 +8,14 @@ import React, { useEffect, useState } from "react"
 import { fetchSeasons, createSeason, fetchTeamsBySeason } from "@/lib/api"
 import { useSeason } from "@/context/SeasonContext"
 import { Team } from "@/types"
+import Link from "next/link"
+
+// Add a helper for ordinal suffix
+function ordinal(n: number | null | undefined) {
+  if (!n) return '';
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 export default function SeasonsPage() {
   const { seasons, setSeasons } = useSeason();
@@ -108,12 +116,12 @@ export default function SeasonsPage() {
                         Offense
                       </h4>
                       <div className="text-sm space-y-1">
-                        <div>Offensive PPG: {details?.off_ppg?.toFixed(1) ?? "-"}</div>
-                        <div>Passing Yards: {details?.pass_yards ?? "-"}</div>
-                        <div>Rushing Yards: {details?.rush_yards ?? "-"}</div>
-                        <div>Passing TDs: {details?.pass_tds ?? "-"}</div>
-                        <div>Rushing TDs: {details?.rush_tds ?? "-"}</div>
-                        <div>Offensive Yards: {details?.offense_yards ?? "-"}</div>
+                        <div>Offensive PPG: {details?.off_ppg?.toFixed(1) ?? "-"}{details?.off_ppg_rank ? ` (${ordinal(details.off_ppg_rank)})` : ""}</div>
+                        <div>Passing Yards: {details?.pass_yards ?? "-"}{details?.pass_yards_rank ? ` (${ordinal(details.pass_yards_rank)})` : ""}</div>
+                        <div>Rushing Yards: {details?.rush_yards ?? "-"}{details?.rush_yards_rank ? ` (${ordinal(details.rush_yards_rank)})` : ""}</div>
+                        <div>Passing TDs: {details?.pass_tds ?? "-"}{details?.pass_tds_rank ? ` (${ordinal(details.pass_tds_rank)})` : ""}</div>
+                        <div>Rushing TDs: {details?.rush_tds ?? "-"}{details?.rush_tds_rank ? ` (${ordinal(details.rush_tds_rank)})` : ""}</div>
+                        <div>Offensive Yards: {details?.offense_yards ?? "-"}{details?.offense_yards_rank ? ` (${ordinal(details.offense_yards_rank)})` : ""}</div>
                       </div>
                     </div>
 
@@ -123,10 +131,10 @@ export default function SeasonsPage() {
                         Defense
                       </h4>
                       <div className="text-sm space-y-1">
-                        <div>Defensive PPG: {details?.def_ppg?.toFixed(1) ?? "-"}</div>
-                        <div>Total Sacks: {details?.sacks ?? "-"}</div>
-                        <div>Interceptions: {details?.interceptions ?? "-"}</div>
-                        <div>Defensive Yards: {details?.defense_yards ?? "-"}</div>
+                        <div>Defensive PPG: {details?.def_ppg?.toFixed(1) ?? "-"}{details?.def_ppg_rank ? ` (${ordinal(details.def_ppg_rank)})` : ""}</div>
+                        <div>Total Sacks: {details?.sacks ?? "-"}{details?.sacks_rank ? ` (${ordinal(details.sacks_rank)})` : ""}</div>
+                        <div>Interceptions: {details?.interceptions ?? "-"}{details?.interceptions_rank ? ` (${ordinal(details.interceptions_rank)})` : ""}</div>
+                        <div>Defensive Yards: {details?.defense_yards ?? "-"}{details?.defense_yards_rank ? ` (${ordinal(details.defense_yards_rank)})` : ""}</div>
                       </div>
                     </div>
 
@@ -152,10 +160,16 @@ export default function SeasonsPage() {
                   </div>
 
                   <div className="mt-4 pt-4 border-t">
-                    <Button variant="outline" className="mr-2">
-                      View Details
-                    </Button>
-                    <Button variant="outline">View Roster</Button>
+                    <Link href={`/games?season=${season.season_id}`} passHref legacyBehavior>
+                      <Button asChild variant="outline" className="mr-2">
+                        <span>View Details</span>
+                      </Button>
+                    </Link>
+                    <Link href={`/players?season=${season.season_id}`} passHref legacyBehavior>
+                      <Button asChild variant="outline">
+                        <span>View Roster</span>
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>

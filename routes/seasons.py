@@ -47,6 +47,14 @@ def create_season():
 
     # --- NEW: Create TeamSeason records for all teams ---
     all_teams = Team.query.all()
+    # Get previous season's AP poll (final_rank 1-25)
+    prev_season = Season.query.order_by(Season.year.desc()).filter(Season.year < year).first()
+    prev_ap_poll = {}
+    if prev_season:
+        prev_team_seasons = TeamSeason.query.filter_by(season_id=prev_season.season_id).all()
+        for ts in prev_team_seasons:
+            if ts.final_rank and ts.final_rank <= 25:
+                prev_ap_poll[ts.team_id] = ts.final_rank
     for team in all_teams:
         # Use the team's primary_conference_id
         conference_id = team.primary_conference_id
@@ -54,9 +62,10 @@ def create_season():
             # Fallback: assign to first conference if not set
             first_conf = Conference.query.first()
             conference_id = first_conf.conference_id if first_conf else None
-        ts = TeamSeason(team_id=team.team_id, season_id=season.season_id, conference_id=conference_id)
+        # Set final_rank from previous season if in AP poll
+        final_rank = prev_ap_poll.get(team.team_id)
+        ts = TeamSeason(team_id=team.team_id, season_id=season.season_id, conference_id=conference_id, final_rank=final_rank)
         db.session.add(ts)
-    
     db.session.commit()
     # --- END NEW ---
 
@@ -112,12 +121,26 @@ def get_teams_in_season(season_id):
                 'rush_tds': ts.rush_tds,
                 'off_ppg': ts.off_ppg,
                 'def_ppg': ts.def_ppg,
+                'offense_yards': ts.offense_yards,
+                'defense_yards': ts.defense_yards,
                 'sacks': ts.sacks,
                 'interceptions': ts.interceptions,
                 'prestige': ts.prestige,
                 'team_rating': ts.team_rating,
                 'final_rank': ts.final_rank,
-                'recruiting_rank': ts.recruiting_rank
+                'recruiting_rank': ts.recruiting_rank,
+                'offense_yards_rank': ts.offense_yards_rank,
+                'defense_yards_rank': ts.defense_yards_rank,
+                'pass_yards_rank': ts.pass_yards_rank,
+                'rush_yards_rank': ts.rush_yards_rank,
+                'pass_tds_rank': ts.pass_tds_rank,
+                'rush_tds_rank': ts.rush_tds_rank,
+                'off_ppg_rank': ts.off_ppg_rank,
+                'def_ppg_rank': ts.def_ppg_rank,
+                'sacks_rank': ts.sacks_rank,
+                'interceptions_rank': ts.interceptions_rank,
+                'points_for_rank': ts.points_for_rank,
+                'points_against_rank': ts.points_against_rank
             }
             for ts in team_seasons
         ])
@@ -166,7 +189,15 @@ def update_team_season(season_id, team_id):
         ts = TeamSeason(team_id=team_id, season_id=season_id, conference_id=conference_id)
         db.session.add(ts)
     data = request.json
-    for field in ['wins', 'losses', 'conference_wins', 'conference_losses', 'points_for', 'points_against', 'offense_yards', 'defense_yards', 'pass_yards', 'rush_yards', 'pass_tds', 'rush_tds', 'off_ppg', 'def_ppg', 'sacks', 'interceptions', 'prestige', 'team_rating', 'final_rank', 'recruiting_rank', 'conference_id']:
+    for field in [
+        'wins', 'losses', 'conference_wins', 'conference_losses', 'points_for', 'points_against',
+        'offense_yards', 'defense_yards', 'pass_yards', 'rush_yards', 'pass_tds', 'rush_tds',
+        'off_ppg', 'def_ppg', 'sacks', 'interceptions', 'prestige', 'team_rating', 'final_rank',
+        'recruiting_rank', 'conference_id',
+        'offense_yards_rank', 'defense_yards_rank', 'pass_yards_rank', 'rush_yards_rank',
+        'pass_tds_rank', 'rush_tds_rank', 'off_ppg_rank', 'def_ppg_rank', 'sacks_rank',
+        'interceptions_rank', 'points_for_rank', 'points_against_rank'
+    ]:
         if field in data:
             setattr(ts, field, data[field])
     db.session.commit()
