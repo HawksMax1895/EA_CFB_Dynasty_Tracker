@@ -61,6 +61,15 @@ def create_or_update_bracket(season_id):
         db.session.flush()
         created_games.append(game.game_id)
     db.session.commit()
+    # Debug: print the full bracket after save
+    games_after = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
+    print("Bracket after save:")
+    for g in games_after:
+        print(f"Game {g.game_id}: {g.home_team_id} vs {g.away_team_id}, {g.home_score}-{g.away_score}, round={g.playoff_round}")
     return jsonify({"created_game_ids": created_games}), 201
 
 
@@ -79,15 +88,86 @@ def add_playoff_result(season_id):
         )
     from models import Game
 
+    # Helper: get all playoff games for this season, ordered by week and id
+    games = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
     game = Game.query.get(game_id)
     if not game or game.season_id != season_id:
         print(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")  # Debug log
         return jsonify({"error": "Game not found for this season"}), 404
+    # Find index and round
+    idx = None
+    round_name = game.playoff_round
+    for i, g in enumerate(games):
+        if g.game_id == game_id:
+            idx = i
+            break
+    if idx is None:
+        return jsonify({"error": "Game not found in bracket"}), 404
+    # Save old winner for propagation
+    old_winner = None
+    if game.home_score is not None and game.away_score is not None and game.home_team_id and game.away_team_id:
+        old_winner = game.home_team_id if game.home_score > game.away_score else game.away_team_id
+    # Update score
     game.home_score = home_score
     game.away_score = away_score
     if playoff_round:
         game.playoff_round = playoff_round
+    # Determine new winner
+    new_winner = None
+    if game.home_team_id and game.away_team_id and home_score is not None and away_score is not None:
+        new_winner = game.home_team_id if home_score > away_score else game.away_team_id
+
+    # Helper: propagate winner recursively
+    def propagate_winner(games, idx, round_name, new_winner, old_winner):
+        next_map = {
+            'First Round': ('Quarterfinals', [3, 2, 1, 0], 'away'),
+            'Quarterfinals': ('Semifinals', [0, 1, 1, 0], ['home', 'home', 'away', 'away']),
+            'Semifinals': ('Championship', [0, 0], ['home', 'away'])
+        }
+        if round_name not in next_map:
+            return
+        next_round, next_idxs, slots = next_map[round_name]
+        if idx < 0 or idx >= len(next_idxs):
+            print(f"[propagate_winner] idx {idx} out of range for round {round_name} (len={len(next_idxs)})")
+            return
+        next_idx = next_idxs[idx]
+        slot = slots if isinstance(slots, str) else slots[idx]
+        games_in_round = [x for x in games if x.playoff_round == next_round]
+        if next_idx < len(games_in_round):
+            next_game = games_in_round[next_idx]
+            # Always clear the downstream slot first
+            if slot == 'home':
+                next_game.home_team_id = None
+            elif slot == 'away':
+                next_game.away_team_id = None
+            next_game.home_score = None
+            next_game.away_score = None
+            # If the current game is complete and there is a new winner, set the downstream slot to the new winner
+            if new_winner:
+                if slot == 'home':
+                    next_game.home_team_id = new_winner
+                elif slot == 'away':
+                    next_game.away_team_id = new_winner
+            # Recursively propagate further, but only for clearing (not setting) downstream slots
+            propagate_winner(games, next_idx, next_round, None, old_winner)
+
+    # If the winner changed, propagate
+    if old_winner != new_winner:
+        propagate_winner(games, idx, game.playoff_round, new_winner, old_winner)
     db.session.commit()
+    # Debug: print the full bracket after save
+    games_after = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
+    print("Bracket after save:")
+    for g in games_after:
+        print(f"Game {g.game_id}: {g.home_team_id} vs {g.away_team_id}, {g.home_score}-{g.away_score}, round={g.playoff_round}")
     print(f"Updated game: id={game.game_id}, home_score={game.home_score}, away_score={game.away_score}")  # Debug log
     return jsonify({"message": "Playoff result updated", "game_id": game_id}), 200
 

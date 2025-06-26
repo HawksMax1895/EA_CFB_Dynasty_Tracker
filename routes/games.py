@@ -81,6 +81,15 @@ def create_game():
 def update_game(game_id):
     game = Game.query.get_or_404(game_id)
     data = request.json
+    old_home_team_id = game.home_team_id
+    old_away_team_id = game.away_team_id
+    old_home_score = game.home_score
+    old_away_score = game.away_score
+    old_winner = None
+    if game.game_type == 'Playoff' and game.home_score is not None and game.away_score is not None and game.home_team_id and game.away_team_id:
+        old_winner = game.home_team_id if game.home_score > game.away_score else game.away_team_id
+
+    # Update teams and scores
     game.home_score = data.get('home_score', game.home_score)
     game.away_score = data.get('away_score', game.away_score)
     game.home_team_id = data.get('home_team_id', game.home_team_id)
@@ -89,6 +98,74 @@ def update_game(game_id):
     game.playoff_round = data.get('playoff_round', game.playoff_round)
     game.overtime = data.get('overtime', game.overtime)
     db.session.commit()
+
+    # --- Playoff winner propagation logic ---
+    if game.game_type == 'Playoff':
+        from models import Game as GameModel
+        season_id = game.season_id
+        games = GameModel.query.filter_by(season_id=season_id, game_type='Playoff').order_by(GameModel.week.asc(), GameModel.game_id.asc()).all()
+        # Find index and round
+        idx = None
+        round_name = game.playoff_round
+        for i, g in enumerate(games):
+            if g.game_id == game_id:
+                idx = i
+                break
+        def propagate_winner(games, idx, round_name, new_winner, old_winner):
+            next_map = {
+                'First Round': ('Quarterfinals', [3, 2, 1, 0], 'away'),
+                'Quarterfinals': ('Semifinals', [0, 1, 1, 0], ['home', 'home', 'away', 'away']),
+                'Semifinals': ('Championship', [0, 0], ['home', 'away'])
+            }
+            if round_name not in next_map:
+                return
+            next_round, next_idxs, slots = next_map[round_name]
+            if idx < 0 or idx >= len(next_idxs):
+                return
+            next_idx = next_idxs[idx]
+            slot = slots if isinstance(slots, str) else slots[idx]
+            games_in_round = [x for x in games if x.playoff_round == next_round]
+            if next_idx < len(games_in_round):
+                next_game = games_in_round[next_idx]
+                # Remove old winner if present
+                if old_winner:
+                    if slot == 'home' and next_game.home_team_id == old_winner:
+                        next_game.home_team_id = None
+                        next_game.home_score = None
+                        next_game.away_score = None
+                        propagate_winner(games, next_idx, next_round, None, old_winner)
+                    elif slot == 'away' and next_game.away_team_id == old_winner:
+                        next_game.away_team_id = None
+                        next_game.home_score = None
+                        next_game.away_score = None
+                        propagate_winner(games, next_idx, next_round, None, old_winner)
+                # Set new winner if provided
+                if new_winner:
+                    if slot == 'home' and next_game.home_team_id != new_winner:
+                        next_game.home_team_id = new_winner
+                        next_game.home_score = None
+                        next_game.away_score = None
+                        propagate_winner(games, next_idx, next_round, new_winner, old_winner)
+                    elif slot == 'away' and next_game.away_team_id != new_winner:
+                        next_game.away_team_id = new_winner
+                        next_game.home_score = None
+                        next_game.away_score = None
+                        propagate_winner(games, next_idx, next_round, new_winner, old_winner)
+        # If teams changed, clear downstream
+        teams_changed = (
+            data.get('home_team_id') is not None and data.get('home_team_id') != old_home_team_id
+        ) or (
+            data.get('away_team_id') is not None and data.get('away_team_id') != old_away_team_id
+        )
+        if idx is not None and round_name and teams_changed:
+            # Remove old winner from downstream
+            propagate_winner(games, idx, round_name, None, old_winner)
+        # If both teams and scores are present, propagate new winner
+        if idx is not None and round_name and game.home_team_id and game.away_team_id and game.home_score is not None and game.away_score is not None:
+            new_winner = game.home_team_id if game.home_score > game.away_score else game.away_team_id
+            if new_winner != old_winner:
+                propagate_winner(games, idx, round_name, new_winner, old_winner)
+        db.session.commit()
 
     # --- NEW: Update TeamSeason records for both teams ---
     season_id = game.season_id

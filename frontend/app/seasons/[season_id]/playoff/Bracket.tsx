@@ -1,5 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import { fetchPlayoffEligibleTeams, manualSeedBracket, fetchBracket, API_BASE_URL } from '../../../../lib/api';
+import { Input } from '../../../../components/ui/input';
+import { Badge } from '../../../../components/ui/badge';
 
 function debounce(fn: (...args: any[]) => void, delay: number) {
   let timer: NodeJS.Timeout;
@@ -26,14 +28,37 @@ export default function Bracket({ seasonId }: BracketProps) {
   const [scoreError, setScoreError] = useState<string | null>(null);
   const bracketRef = useRef<any>(null);
 
+  // Helper to reset scoreInputs for games where teams changed
+  function resetScoreInputsOnTeamChange(newBracket: any, prevBracket: any, prevScoreInputs: any, preserveGameId?: number) {
+    const updatedScoreInputs = { ...prevScoreInputs };
+    const rounds = ['First Round', 'Quarterfinals', 'Semifinals', 'Championship'];
+    for (const round of rounds) {
+      if (!newBracket[round] || !prevBracket?.[round]) continue;
+      newBracket[round].forEach((game: any, idx: number) => {
+        const prevGame = prevBracket[round][idx];
+        if (!prevGame) return;
+        if (
+          game.home_team_id !== prevGame.home_team_id ||
+          game.away_team_id !== prevGame.away_team_id
+        ) {
+          if (preserveGameId && game.game_id === preserveGameId) return;
+          updatedScoreInputs[game.game_id] = { home: '', away: '' };
+        }
+      });
+    }
+    return updatedScoreInputs;
+  }
+
   // Fetch bracket
   useEffect(() => {
     if (seasonId) {
       setLoading(true);
-      fetchBracket(seasonId)
+      fetchBracket(Number(seasonId))
         .then(data => {
           console.log('Bracket data after save:', data); // Debug log
           setBracket(data);
+          // Reset scoreInputs for games where teams changed
+          setScoreInputs(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev));
           bracketRef.current = data;
           setLoading(false);
         });
@@ -96,9 +121,10 @@ export default function Bracket({ seasonId }: BracketProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [`${slot}_team_id`]: teamId })
       });
-      fetchBracket(seasonId)
+      fetchBracket(Number(seasonId))
         .then(data => {
           setBracket(data);
+          setScoreInputs(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev, gameId));
           bracketRef.current = data;
         });
     } catch (e) {
@@ -135,11 +161,18 @@ export default function Bracket({ seasonId }: BracketProps) {
   const saveScoreAndAdvance = async (game: any, round: string, idx: number) => {
     setSavingScore(game.game_id);
     setScoreError(null);
-    const home_score = scoreInputs[game.game_id]?.home;
-    const away_score = scoreInputs[game.game_id]?.away;
-    console.log('Attempting to save score:', { home_score, away_score, game });
-    if (home_score === undefined || away_score === undefined || home_score === '' || away_score === '' || game.home_team_id == null || game.away_team_id == null) {
-      console.log('Early return: missing score or team', { home_score, away_score, home_team_id: game.home_team_id, away_team_id: game.away_team_id });
+    const home_score = scoreInputs[game.game_id]?.home !== undefined && scoreInputs[game.game_id]?.home !== ''
+      ? scoreInputs[game.game_id].home
+      : (game.home_score !== null && game.home_score !== undefined ? game.home_score : '');
+    const away_score = scoreInputs[game.game_id]?.away !== undefined && scoreInputs[game.game_id]?.away !== ''
+      ? scoreInputs[game.game_id].away
+      : (game.away_score !== null && game.away_score !== undefined ? game.away_score : '');
+    if (
+      home_score === '' ||
+      away_score === '' ||
+      game.home_team_id == null ||
+      game.away_team_id == null
+    ) {
       setScoreError('Both scores are required.');
       setSavingScore(null);
       return;
@@ -177,11 +210,8 @@ export default function Bracket({ seasonId }: BracketProps) {
         .then(data => {
           console.log('Bracket data after save:', data); // Debug log
           setBracket(data);
+          setScoreInputs(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev, game.game_id));
           bracketRef.current = data;
-          setScoreInputs(prev => ({
-            ...prev,
-            [game.game_id]: { home: '', away: '' }
-          }));
           // Optionally, restore focus here using a ref if needed
         });
     } catch (e) {
@@ -194,9 +224,10 @@ export default function Bracket({ seasonId }: BracketProps) {
   // Add a manual refresh button for the bracket
   const handleRefreshBracket = async () => {
     setLoading(true);
-    fetchBracket(seasonId)
+    fetchBracket(Number(seasonId))
       .then(data => {
         setBracket(data);
+        setScoreInputs(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev));
         bracketRef.current = data;
         setLoading(false);
       });
@@ -223,7 +254,30 @@ export default function Bracket({ seasonId }: BracketProps) {
     }
   };
 
-  function BracketVisual({ bracket, eligibleTeams, scoreInputs, handleScoreChange, savingScore, scoreError, saveScoreAndAdvance, handleScoreKeyDown }: any) {
+  // Build a map from team_id to playoff seed using the First Round
+  function getTeamIdToSeed(bracket: any) {
+    const map: Record<number, number> = {};
+    if (bracket && bracket['First Round']) {
+      // 5 vs 12, 6 vs 11, 7 vs 10, 8 vs 9
+      const seeds = [5, 6, 7, 8, 12, 11, 10, 9];
+      bracket['First Round'].forEach((game: any, idx: number) => {
+        // Home team gets lower seed in each matchup
+        if (game.home_team_id) map[game.home_team_id] = seeds[idx];
+        if (game.away_team_id) map[game.away_team_id] = seeds[4 + idx];
+      });
+    }
+    // Quarterfinals: 1, 2, 3, 4 are top seeds
+    if (bracket && bracket['Quarterfinals']) {
+      [1, 2, 3, 4].forEach((seed, idx) => {
+        const game = bracket['Quarterfinals'][idx];
+        if (game && game.home_team_id) map[game.home_team_id] = seed;
+      });
+    }
+    return map;
+  }
+
+  const BracketVisual = memo(function BracketVisual({ bracket, eligibleTeams, scoreInputs, handleScoreChange, savingScore, scoreError, saveScoreAndAdvance, handleScoreKeyDown }: any) {
+    console.log('BracketVisual render, bracket:', bracket);
     if (!bracket || Object.keys(bracket).length === 0) return null;
     const rounds = [
       { key: 'First Round', label: 'First Round' },
@@ -231,79 +285,142 @@ export default function Bracket({ seasonId }: BracketProps) {
       { key: 'Semifinals', label: 'Semifinals' },
       { key: 'Championship', label: 'Championship' },
     ];
+    const teamIdToSeed = getTeamIdToSeed(bracket);
     return (
-      <div style={{ display: 'flex', gap: 32, marginTop: 32, overflowX: 'auto' }}>
+      <div className="bracket-visual" style={{ display: 'flex', gap: 40, marginTop: 32, overflowX: 'auto', padding: 24, background: '#f5f7fa', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.07)' }}>
         {rounds.map((round, i) => (
-          <div key={round.key} style={{ minWidth: 180 }}>
-            <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{round.label}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              {(bracket[round.key] || []).map((game: any, idx: number) => {
+          <div key={round.key} style={{ minWidth: 220, position: 'relative' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 12, fontSize: 18, letterSpacing: 0.5 }}>{round.label}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+              {[...(bracket[round.key] || [])].sort((a, b) => a.game_id - b.game_id).map((game: any, idx: number) => {
                 const home = getTeamInfo(game.home_team_id, eligibleTeams);
                 const away = getTeamInfo(game.away_team_id, eligibleTeams);
+                const isFirstRound = round.key === 'First Round';
+                const isQuarterfinalsHome = round.key === 'Quarterfinals' && idx >= 0 && idx < 4;
                 return (
-                  <div key={game.game_id} style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12, background: '#f9f9f9', minHeight: 60 }}>
+                  <div key={game.game_id} style={{ border: '1.5px solid #e0e7ef', borderRadius: 12, padding: 18, background: '#fff', minHeight: 70, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: 8, transition: 'box-shadow 0.2s', position: 'relative' }}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      {home ? (
-                        home.team_name
-                      ) : round.key === 'First Round' ? (
-                        <select
-                          value={''}
-                          onChange={e => handleAssignTeam(game.game_id, 'home', Number(e.target.value))}
-                          disabled={seeding}
-                        >
-                          <option value="">Assign Home Team</option>
-                          {eligibleTeams.filter(t => t.team_id !== game.away_team_id).map(team => (
-                            <option key={team.team_id} value={team.team_id}>{team.team_name}</option>
-                          ))}
-                        </select>
+                      {(isFirstRound || isQuarterfinalsHome) ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Badge variant="secondary" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, padding: '2px 8px' }}>
+                            {game.home_team_id ? (teamIdToSeed[game.home_team_id] ?? '-') : '-'}
+                          </Badge>
+                          <select
+                            value={game.home_team_id ?? ''}
+                            onChange={e => handleAssignTeam(game.game_id, 'home', Number(e.target.value))}
+                            disabled={seeding}
+                          >
+                            <option value="">Assign Home Team</option>
+                            {eligibleTeams.filter((t: any) => t.team_id !== game.away_team_id).map((team: any) => {
+                              // Collect all assigned team IDs in this round except for the current slot
+                              const assignedTeamIds = (bracket[round.key] || [])
+                                .filter((g: any) => g.game_id !== game.game_id)
+                                .flatMap((g: any) => [g.home_team_id, g.away_team_id])
+                                .filter((id: any) => id !== null && id !== undefined);
+                              const isAssigned = assignedTeamIds.includes(team.team_id);
+                              return (
+                                <option key={team.team_id} value={team.team_id} disabled={isAssigned}>
+                                  {`${team.team_name} ${team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </span>
+                      ) : home ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Badge variant="secondary" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, padding: '2px 8px' }}>
+                            {teamIdToSeed[home.team_id] ?? '-'}
+                          </Badge>
+                          {home.team_name}
+                          <span style={{ marginLeft: 4, color: '#888', fontSize: 13 }}>
+                            {home.final_rank && home.final_rank >= 1 && home.final_rank <= 25 ? `#${home.final_rank}` : '#NR'}
+                          </span>
+                        </span>
                       ) : (
                         <span>TBD</span>
                       )}
-                      {game.home_score !== null && game.home_score !== undefined ? ` (${game.home_score})` : ''}
+                      {/* Show seed rank if available */}
+                      {(() => {
+                        if (!game.home_team_id) return '';
+                        const seedIdx = selectedTeams.findIndex((id: number | null) => id === game.home_team_id);
+                        return seedIdx !== -1 ? ` (${seedIdx + 1})` : '';
+                      })()}
                     </div>
                     <div style={{ fontWeight: 500 }}>
-                      {away ? (
-                        away.team_name
-                      ) : round.key === 'First Round' ? (
-                        <select
-                          value={''}
-                          onChange={e => handleAssignTeam(game.game_id, 'away', Number(e.target.value))}
-                          disabled={seeding}
-                        >
-                          <option value="">Assign Away Team</option>
-                          {eligibleTeams.filter(t => t.team_id !== game.home_team_id).map(team => (
-                            <option key={team.team_id} value={team.team_id}>{team.team_name}</option>
-                          ))}
-                        </select>
+                      {isFirstRound ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Badge variant="secondary" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, padding: '2px 8px' }}>
+                            {game.away_team_id ? (teamIdToSeed[game.away_team_id] ?? '-') : '-'}
+                          </Badge>
+                          <select
+                            value={game.away_team_id ?? ''}
+                            onChange={e => handleAssignTeam(game.game_id, 'away', Number(e.target.value))}
+                            disabled={seeding}
+                          >
+                            <option value="">Assign Away Team</option>
+                            {eligibleTeams.filter((t: any) => t.team_id !== game.home_team_id).map((team: any) => {
+                              // Collect all assigned team IDs in this round except for the current slot
+                              const assignedTeamIds = (bracket[round.key] || [])
+                                .filter((g: any) => g.game_id !== game.game_id)
+                                .flatMap((g: any) => [g.home_team_id, g.away_team_id])
+                                .filter((id: any) => id !== null && id !== undefined);
+                              const isAssigned = assignedTeamIds.includes(team.team_id);
+                              return (
+                                <option key={team.team_id} value={team.team_id} disabled={isAssigned}>
+                                  {`${team.team_name} ${team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}`}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </span>
+                      ) : away ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Badge variant="secondary" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, padding: '2px 8px' }}>
+                            {teamIdToSeed[away.team_id] ?? '-'}
+                          </Badge>
+                          {away.team_name}
+                          <span style={{ marginLeft: 4, color: '#888', fontSize: 13 }}>
+                            {away.final_rank && away.final_rank >= 1 && away.final_rank <= 25 ? `#${away.final_rank}` : '#NR'}
+                          </span>
+                        </span>
                       ) : (
                         <span>TBD</span>
                       )}
-                      {game.away_score !== null && game.away_score !== undefined ? ` (${game.away_score})` : ''}
+                      {/* Show seed rank if available */}
+                      {(() => {
+                        if (!game.away_team_id) return '';
+                        const seedIdx = selectedTeams.findIndex((id: number | null) => id === game.away_team_id);
+                        return seedIdx !== -1 ? ` (${seedIdx + 1})` : '';
+                      })()}
                     </div>
                     {/* Score input fields */}
                     {home && away && (
                       <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           placeholder="Home Score"
                           value={scoreInputs[game.game_id]?.home ?? ''}
-                          onChange={e => handleScoreChange(game, round.key, idx, 'home', e.target.value)}
-                          onKeyDown={e => handleScoreKeyDown(e, game, round.key, idx)}
-                          style={{ width: 60 }}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleScoreChange(game, round.key, idx, 'home', e.target.value)}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleScoreKeyDown(e, game, round.key, idx)}
+                          className="w-16 text-center text-base font-semibold border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
                         />
                         <span>:</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           placeholder="Away Score"
                           value={scoreInputs[game.game_id]?.away ?? ''}
-                          onChange={e => handleScoreChange(game, round.key, idx, 'away', e.target.value)}
-                          onKeyDown={e => handleScoreKeyDown(e, game, round.key, idx)}
-                          style={{ width: 60 }}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleScoreChange(game, round.key, idx, 'away', e.target.value)}
+                          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleScoreKeyDown(e, game, round.key, idx)}
+                          className="w-16 text-center text-base font-semibold border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
                         />
                         <button
                           onClick={() => saveScoreAndAdvance(game, round.key, idx)}
                           disabled={savingScore === game.game_id}
-                          style={{ marginLeft: 8 }}
+                          style={{ marginLeft: 8, padding: '6px 16px', borderRadius: 6, background: savingScore === game.game_id ? '#e0e7ef' : '#2563eb', color: '#fff', fontWeight: 600, border: 'none', cursor: savingScore === game.game_id ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
                         >
                           {savingScore === game.game_id ? 'Saving...' : 'Save'}
                         </button>
@@ -314,11 +431,15 @@ export default function Bracket({ seasonId }: BracketProps) {
                 );
               })}
             </div>
+            {/* Vertical line for round connection */}
+            {i < rounds.length - 1 && (
+              <div style={{ position: 'absolute', right: -20, top: 0, bottom: 0, width: 4, background: 'linear-gradient(to bottom, #e0e7ef 60%, transparent 100%)', borderRadius: 2, zIndex: 0 }} />
+            )}
           </div>
         ))}
       </div>
     );
-  }
+  });
 
   if (loading) return <div>Loading bracket...</div>;
 
@@ -326,44 +447,6 @@ export default function Bracket({ seasonId }: BracketProps) {
     <div>
       <h1>12-Team Playoff Bracket</h1>
       <button onClick={handleRefreshBracket} style={{ marginBottom: 16 }}>Refresh Bracket</button>
-      {/* Manual selection UI if bracket is not seeded */}
-      {eligibleTeams.length > 0 && (!bracket || !bracket['First Round'] || bracket['First Round'].some((g: any) => !g.home_team_id || !g.away_team_id)) && (
-        <div style={{ marginBottom: 32 }}>
-          <h2>Manual Playoff Team Selection</h2>
-          <p>Select 12 teams in seed order (1 = top seed):</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>Seed {i + 1}:</span>
-                <select
-                  value={selectedTeams[i] ?? ''}
-                  onChange={e => handleSelectTeam(i, Number(e.target.value))}
-                >
-                  <option value="">Select team</option>
-                  {eligibleTeams.map(team => (
-                    <option
-                      key={team.team_id}
-                      value={team.team_id}
-                      disabled={selectedTeams.includes(team.team_id)}
-                    >
-                      {team.team_name} (Rank: {team.final_rank ?? 'N/A'}, Conf: {team.conference_name}, {team.is_conference_champion ? 'Champion' : 'Non-Champ'}, {team.wins}-{team.losses})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={handleSeedBracket}
-            disabled={seeding}
-            style={{ marginTop: 16 }}
-          >
-            {seeding ? 'Seeding...' : 'Seed Bracket'}
-          </button>
-          {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
-          {success && <div style={{ color: 'green', marginTop: 8 }}>{success}</div>}
-        </div>
-      )}
       {/* Bracket display */}
       <BracketVisual
         bracket={bracket}
