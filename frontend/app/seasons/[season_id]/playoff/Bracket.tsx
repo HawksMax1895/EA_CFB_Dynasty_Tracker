@@ -243,7 +243,9 @@ export default function Bracket({ seasonId }: BracketProps) {
                 return (
                   <div key={game.game_id} style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12, background: '#f9f9f9', minHeight: 60 }}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      {home ? home.team_name : (
+                      {home ? (
+                        home.team_name
+                      ) : round.key === 'First Round' ? (
                         <select
                           value={''}
                           onChange={e => handleAssignTeam(game.game_id, 'home', Number(e.target.value))}
@@ -254,11 +256,15 @@ export default function Bracket({ seasonId }: BracketProps) {
                             <option key={team.team_id} value={team.team_id}>{team.team_name}</option>
                           ))}
                         </select>
+                      ) : (
+                        <span>TBD</span>
                       )}
                       {game.home_score !== null && game.home_score !== undefined ? ` (${game.home_score})` : ''}
                     </div>
                     <div style={{ fontWeight: 500 }}>
-                      {away ? away.team_name : (
+                      {away ? (
+                        away.team_name
+                      ) : round.key === 'First Round' ? (
                         <select
                           value={''}
                           onChange={e => handleAssignTeam(game.game_id, 'away', Number(e.target.value))}
@@ -269,6 +275,8 @@ export default function Bracket({ seasonId }: BracketProps) {
                             <option key={team.team_id} value={team.team_id}>{team.team_name}</option>
                           ))}
                         </select>
+                      ) : (
+                        <span>TBD</span>
                       )}
                       {game.away_score !== null && game.away_score !== undefined ? ` (${game.away_score})` : ''}
                     </div>
@@ -276,10 +284,7 @@ export default function Bracket({ seasonId }: BracketProps) {
                     {home && away && (
                       <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
-                          key={`home-${game.game_id}`}
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
+                          type="number"
                           placeholder="Home Score"
                           value={scoreInputs[game.game_id]?.home ?? ''}
                           onChange={e => handleScoreChange(game, round.key, idx, 'home', e.target.value)}
@@ -288,10 +293,7 @@ export default function Bracket({ seasonId }: BracketProps) {
                         />
                         <span>:</span>
                         <input
-                          key={`away-${game.game_id}`}
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
+                          type="number"
                           placeholder="Away Score"
                           value={scoreInputs[game.game_id]?.away ?? ''}
                           onChange={e => handleScoreChange(game, round.key, idx, 'away', e.target.value)}
