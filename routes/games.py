@@ -104,9 +104,10 @@ def update_game(game_id):
         .all()
     }
 
-    # Helper to recalculate record for a team
+    # Helper to recalculate record and scoring stats for a team
     def recalc_record(team_id):
         wins = losses = conf_wins = conf_losses = 0
+        points_for = points_against = games_played = 0
         for g in all_games:
             # Only count games with valid scores and not bye weeks
             if g.home_score is None or g.away_score is None or g.game_type == 'Bye Week':
@@ -123,6 +124,11 @@ def update_game(game_id):
                 wins += 1
             elif team_score < opp_score:
                 losses += 1
+
+            # Points for/against
+            points_for += team_score
+            points_against += opp_score
+            games_played += 1
             # Conference win/loss: only if both teams are in the same conference
             if g.home_team_id and g.away_team_id:
                 home_ts = team_seasons.get(g.home_team_id)
@@ -142,6 +148,10 @@ def update_game(game_id):
             ts.losses = losses
             ts.conference_wins = conf_wins
             ts.conference_losses = conf_losses
+            ts.points_for = points_for
+            ts.points_against = points_against
+            ts.off_ppg = round(points_for / games_played, 1) if games_played else None
+            ts.def_ppg = round(points_against / games_played, 1) if games_played else None
             db.session.add(ts)
 
     recalc_record(home_team_id)
