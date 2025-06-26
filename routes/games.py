@@ -67,6 +67,16 @@ def update_game(game_id):
          (Game.home_team_id == away_team_id) | (Game.away_team_id == away_team_id))
     ).all()
 
+    # Prefetch TeamSeason records for teams appearing in these games to avoid
+    # repeated DB queries when recalculating records
+    involved_team_ids = {g.home_team_id for g in all_games} | {g.away_team_id for g in all_games}
+    team_seasons = {
+        ts.team_id: ts
+        for ts in TeamSeason.query.filter_by(season_id=season_id)
+        .filter(TeamSeason.team_id.in_(involved_team_ids))
+        .all()
+    }
+
     # Helper to recalculate record for a team
     def recalc_record(team_id):
         wins = losses = conf_wins = conf_losses = 0
@@ -87,10 +97,9 @@ def update_game(game_id):
             elif team_score < opp_score:
                 losses += 1
             # Conference win/loss: only if both teams are in the same conference
-            # (Assume TeamSeason has conference_id)
             if g.home_team_id and g.away_team_id:
-                home_ts = TeamSeason.query.filter_by(season_id=season_id, team_id=g.home_team_id).first()
-                away_ts = TeamSeason.query.filter_by(season_id=season_id, team_id=g.away_team_id).first()
+                home_ts = team_seasons.get(g.home_team_id)
+                away_ts = team_seasons.get(g.away_team_id)
                 if home_ts and away_ts and home_ts.conference_id and away_ts.conference_id and home_ts.conference_id == away_ts.conference_id:
                     if is_home and g.home_score > g.away_score:
                         conf_wins += 1
@@ -100,7 +109,7 @@ def update_game(game_id):
                         conf_wins += 1
                     elif is_away and g.away_score < g.home_score:
                         conf_losses += 1
-        ts = TeamSeason.query.filter_by(season_id=season_id, team_id=team_id).first()
+        ts = team_seasons.get(team_id)
         if ts:
             ts.wins = wins
             ts.losses = losses
