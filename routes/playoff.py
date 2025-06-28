@@ -21,18 +21,67 @@ def _build_bracket(games):
     return bracket
 
 
+def _fix_playoff_rounds(season_id):
+    """Fix playoff_round values for existing playoff games based on their week."""
+    from models import Game
+    
+    print(f"Fixing playoff rounds for season {season_id}")  # Debug log
+    
+    games = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
+    
+    print(f"Found {len(games)} playoff games")  # Debug log
+    
+    # Map weeks to playoff rounds
+    week_to_round = {
+        17: 'First Round',
+        18: 'Quarterfinals', 
+        19: 'Semifinals',
+        20: 'Championship'
+    }
+    
+    updated = False
+    for game in games:
+        expected_round = week_to_round.get(game.week)
+        print(f"Game {game.game_id}: week={game.week}, current_round={game.playoff_round}, expected_round={expected_round}")  # Debug log
+        if expected_round and game.playoff_round != expected_round:
+            game.playoff_round = expected_round
+            updated = True
+            print(f"Updated game {game.game_id} to round {expected_round}")  # Debug log
+    
+    if updated:
+        db.session.commit()
+        print(f"Fixed playoff_round values for season {season_id}")
+    else:
+        print(f"No updates needed for season {season_id}")
+    
+    return games
+
+
 playoff_bp = Blueprint("playoff", __name__)
 
 
 @playoff_bp.route("/playoff/<int:season_id>/bracket", methods=["GET"])
 def get_playoff_bracket(season_id):
     """Return the playoff bracket for a season."""
-    games = (
-        Game.query.filter_by(season_id=season_id, game_type="Playoff")
-        .order_by(Game.week.asc(), Game.game_id.asc())
-        .all()
-    )
-    return jsonify(_build_bracket(games))
+    from models import Game
+
+    # Fix playoff_round values for existing games
+    games = _fix_playoff_rounds(season_id)
+    
+    bracket = _build_bracket(games)
+    
+    # Debug: print all games to see what's being returned
+    print(f"Bracket for season {season_id}:")
+    for round_name, round_games in bracket.items():
+        print(f"  {round_name}: {len(round_games)} games")
+        for game in round_games:
+            print(f"    Game {game['game_id']}: {game['home_team_id']} vs {game['away_team_id']}, {game['home_score']}-{game['away_score']}")
+    
+    return jsonify(bracket)
 
 
 @playoff_bp.route("/playoff/<int:season_id>/bracket", methods=["POST"])
@@ -81,7 +130,9 @@ def add_playoff_result(season_id):
     home_score = data.get("home_score")
     away_score = data.get("away_score")
     playoff_round = data.get("playoff_round")
+    print(f"Looking for game_id={game_id} in season_id={season_id}")
     if not game_id or home_score is None or away_score is None:
+        print("Missing required fields in request")
         return (
             jsonify({"error": "game_id, home_score, and away_score are required"}),
             400,
@@ -98,165 +149,226 @@ def add_playoff_result(season_id):
     if not game or game.season_id != season_id:
         print(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")  # Debug log
         return jsonify({"error": "Game not found for this season"}), 404
-    # Find index and round
-    idx = None
-    round_name = game.playoff_round
-    for i, g in enumerate(games):
-        if g.game_id == game_id:
-            idx = i
-            break
-    if idx is None:
-        return jsonify({"error": "Game not found in bracket"}), 404
-    # Save old winner for propagation
-    old_winner = None
-    if game.home_score is not None and game.away_score is not None and game.home_team_id and game.away_team_id:
-        old_winner = game.home_team_id if game.home_score > game.away_score else game.away_team_id
-    # Update score
+
+    print(f"Found game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
+
+    # Update the game score
     game.home_score = home_score
     game.away_score = away_score
     if playoff_round:
         game.playoff_round = playoff_round
-    # Determine new winner
-    new_winner = None
-    if game.home_team_id and game.away_team_id and home_score is not None and away_score is not None:
-        new_winner = game.home_team_id if home_score > away_score else game.away_team_id
+    print(f"Updated game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
 
-    # Helper: propagate winner recursively
-    def propagate_winner(games, idx, round_name, new_winner, old_winner):
-        next_map = {
-            'First Round': ('Quarterfinals', [3, 2, 1, 0], 'away'),
-            'Quarterfinals': ('Semifinals', [0, 1, 1, 0], ['home', 'home', 'away', 'away']),
-            'Semifinals': ('Championship', [0, 0], ['home', 'away'])
-        }
-        if round_name not in next_map:
-            return
-        next_round, next_idxs, slots = next_map[round_name]
-        if idx < 0 or idx >= len(next_idxs):
-            print(f"[propagate_winner] idx {idx} out of range for round {round_name} (len={len(next_idxs)})")
-            return
-        next_idx = next_idxs[idx]
-        slot = slots if isinstance(slots, str) else slots[idx]
-        games_in_round = [x for x in games if x.playoff_round == next_round]
-        if next_idx < len(games_in_round):
-            next_game = games_in_round[next_idx]
-            # Always clear the downstream slot first
-            if slot == 'home':
-                next_game.home_team_id = None
-            elif slot == 'away':
-                next_game.away_team_id = None
-            next_game.home_score = None
-            next_game.away_score = None
-            # If the current game is complete and there is a new winner, set the downstream slot to the new winner
-            if new_winner:
-                if slot == 'home':
-                    next_game.home_team_id = new_winner
-                elif slot == 'away':
-                    next_game.away_team_id = new_winner
-            # Recursively propagate further, but only for clearing (not setting) downstream slots
-            propagate_winner(games, next_idx, next_round, None, old_winner)
+    # Clear downstream games when this result changes
+    def clear_downstream_games(changed_round):
+        round_order = ['First Round', 'Quarterfinals', 'Semifinals', 'Championship']
+        try:
+            changed_idx = round_order.index(changed_round)
+            # Only clear rounds that come AFTER the changed round
+            downstream_rounds = round_order[changed_idx + 1:]
+            print(f"Clearing downstream rounds for {changed_round}: {downstream_rounds}")
+            for round_name in downstream_rounds:
+                for g in games:
+                    if g.playoff_round == round_name:
+                        print(f"Clearing game {g.game_id} in {round_name}")
+                        if round_name == 'Quarterfinals':
+                            # Only clear away_team_id and scores for QF, keep home_team_id (seeds 1-4)
+                            g.away_team_id = None
+                            g.home_score = None
+                            g.away_score = None
+                        else:
+                            g.home_team_id = None
+                            g.away_team_id = None
+                            g.home_score = None
+                            g.away_score = None
+        except ValueError:
+            pass
 
-    # If the winner changed, propagate
-    if old_winner != new_winner:
-        propagate_winner(games, idx, game.playoff_round, new_winner, old_winner)
+    # Clear downstream games when this result changes
+    clear_downstream_games(game.playoff_round)
 
-    # --- Reseeding logic ---
-    # Define round order
+    # Check if all games in the current round are complete
     round_order = ['First Round', 'Quarterfinals', 'Semifinals', 'Championship']
-    # Find current round index
     current_round_idx = round_order.index(game.playoff_round) if game.playoff_round in round_order else -1
-    if current_round_idx != -1 and current_round_idx < len(round_order) - 1:
-        current_round = round_order[current_round_idx]
-        next_round = round_order[current_round_idx + 1]
-        games_in_round = [g for g in games if g.playoff_round == current_round]
-        next_games = [g for g in games if g.playoff_round == next_round]
-        # Only reseed if all games in current round are complete
-        all_complete = all(g.home_score is not None and g.away_score is not None for g in games_in_round)
-        if all_complete:
-            # Special logic for advancing to Quarterfinals: do NOT reseed home teams, only set away_team_id
-            if current_round == 'First Round' and next_round == 'Quarterfinals':
-                # Map: QF1: 1 vs Winner G4, QF2: 2 vs Winner G3, QF3: 3 vs Winner G2, QF4: 4 vs Winner G1
-                # First round games: G1, G2, G3, G4 (in order)
-                # Quarterfinals: G5, G6, G7, G8 (in order)
-                # G1: 5 vs 12, G2: 6 vs 11, G3: 7 vs 10, G4: 8 vs 9
-                # G5: 1 vs Winner G4, G6: 2 vs Winner G3, G7: 3 vs Winner G2, G8: 4 vs Winner G1
-                fr_games = sorted([g for g in games if g.playoff_round == 'First Round'], key=lambda g: g.game_id)
-                qf_games = sorted([g for g in games if g.playoff_round == 'Quarterfinals'], key=lambda g: g.game_id)
-                # Determine winners
-                winners = []
-                for g in fr_games:
-                    if g.home_score > g.away_score:
-                        winners.append(g.home_team_id)
-                    else:
-                        winners.append(g.away_team_id)
-                # Assign away_team_id for QFs
-                if len(qf_games) == 4 and len(winners) == 4:
-                    qf_games[0].away_team_id = winners[3]  # QF1: 1 vs Winner G4
-                    qf_games[1].away_team_id = winners[2]  # QF2: 2 vs Winner G3
-                    qf_games[2].away_team_id = winners[1]  # QF3: 3 vs Winner G2
-                    qf_games[3].away_team_id = winners[0]  # QF4: 4 vs Winner G1
-                    # Clear scores for QFs
-                    for g in qf_games:
-                        g.home_score = None
-                        g.away_score = None
-            else:
-                # For other rounds, keep reseeding logic as before
-                # Build seed map from initial bracket (First Round + QF home teams)
-                seed_map = {}
-                # First round: 5 vs 12, 6 vs 11, 7 vs 10, 8 vs 9
-                if 'First Round' in round_order:
-                    seeds = [5, 6, 7, 8, 12, 11, 10, 9]
-                    fr_games = [g for g in games if g.playoff_round == 'First Round']
-                    for idx, g in enumerate(fr_games):
-                        if g.home_team_id: seed_map[g.home_team_id] = seeds[idx]
-                        if g.away_team_id: seed_map[g.away_team_id] = seeds[4 + idx]
-                # QF home teams: 1,2,3,4
-                if 'Quarterfinals' in round_order:
-                    qf_games = [g for g in games if g.playoff_round == 'Quarterfinals']
-                    for idx, g in enumerate(qf_games):
-                        if g.home_team_id: seed_map[g.home_team_id] = idx + 1
-                # Get winners and their seeds
-                winners = []
-                for g in games_in_round:
-                    if g.home_score > g.away_score:
-                        winners.append((seed_map.get(g.home_team_id, 99), g.home_team_id))
-                    else:
-                        winners.append((seed_map.get(g.away_team_id, 99), g.away_team_id))
-                # Sort winners by seed (lowest = best)
-                winners.sort()
-                # Assign next round matchups: best vs worst, 2nd best vs 2nd worst, etc.
-                n = len(winners)
-                for i, g in enumerate(next_games):
-                    if i < n // 2:
-                        best = winners[i][1]
-                        worst = winners[-(i+1)][1]
-                        g.home_team_id = best
-                        g.away_team_id = worst
-                        g.home_score = None
-                        g.away_score = None
-                    else:
-                        g.home_team_id = None
-                        g.away_team_id = None
-                        g.home_score = None
-                        g.away_score = None
+    
+    if current_round_idx == -1 or current_round_idx >= len(round_order) - 1:
+        db.session.commit()
+        return jsonify({"message": "Score updated"}), 200
+
+    current_round = round_order[current_round_idx]
+    next_round = round_order[current_round_idx + 1]
+    
+    # Get all games in current round
+    current_round_games = [g for g in games if g.playoff_round == current_round]
+    next_round_games = [g for g in games if g.playoff_round == next_round]
+    
+    # Check if all games in current round are complete
+    all_complete = all(g.home_score is not None and g.away_score is not None 
+                      and g.home_team_id is not None and g.away_team_id is not None 
+                      for g in current_round_games)
+    
+    print(f"Round {current_round}: {len(current_round_games)} games, all_complete={all_complete}")
+    
+    # Debug each game in the current round
+    for g in current_round_games:
+        print(f"  Game {g.game_id}: home_team_id={g.home_team_id}, away_team_id={g.away_team_id}, home_score={g.home_score}, away_score={g.away_score}")
+        game_complete = (g.home_score is not None and g.away_score is not None 
+                       and g.home_team_id is not None and g.away_team_id is not None)
+        print(f"    Game complete: {game_complete}")
+    
+    if not all_complete:
+        db.session.commit()
+        return jsonify({"message": "Score updated, waiting for all games in round to complete"}), 200
+
+    # All games in current round are complete - implement reseeding logic
+    print(f"All games in {current_round} complete, implementing reseeding for {next_round}")
+    
+    # Get the seed mapping for teams
+    seed_mapping = {}
+    
+    # For First Round, we need to get the original seeds from the bracket setup
+    if current_round == 'First Round':
+        # First Round seeds: 5,6,7,8 vs 12,11,10,9
+        first_round_seeds = [5, 6, 7, 8, 12, 11, 10, 9]
+        for i, g in enumerate(current_round_games):
+            if g.home_team_id:
+                seed_mapping[g.home_team_id] = first_round_seeds[i]
+            if g.away_team_id:
+                seed_mapping[g.away_team_id] = first_round_seeds[i + 4]
+    
+    # For Quarterfinals, we need to get the original seeds from the initial bracket setup
+    elif current_round == 'Quarterfinals':
+        # We need to reconstruct the original seeds for all teams
+        # First, get the original bracket structure to map team_ids to their original seeds
+        all_games = (
+            Game.query.filter_by(season_id=season_id, game_type="Playoff")
+            .order_by(Game.week.asc(), Game.game_id.asc())
+            .all()
+        )
+        
+        # Reconstruct original seeds from the bracket setup
+        # First Round: 5,6,7,8 vs 12,11,10,9
+        first_round_games = [g for g in all_games if g.playoff_round == 'First Round']
+        first_round_seeds = [5, 6, 7, 8, 12, 11, 10, 9]
+        for i, g in enumerate(first_round_games):
+            if g.home_team_id:
+                seed_mapping[g.home_team_id] = first_round_seeds[i]
+            if g.away_team_id:
+                seed_mapping[g.away_team_id] = first_round_seeds[i + 4]
+        
+        # Quarterfinals home teams: 1,2,3,4
+        quarterfinal_games = [g for g in all_games if g.playoff_round == 'Quarterfinals']
+        for i, g in enumerate(quarterfinal_games):
+            if g.home_team_id:
+                seed_mapping[g.home_team_id] = i + 1  # Seeds 1-4
+    
+    # For Semifinals, we need to determine seeds based on previous round performance
+    elif current_round == 'Semifinals':
+        # We need to reconstruct the original seeds for all teams
+        # First, get the original bracket structure to map team_ids to their original seeds
+        all_games = (
+            Game.query.filter_by(season_id=season_id, game_type="Playoff")
+            .order_by(Game.week.asc(), Game.game_id.asc())
+            .all()
+        )
+        
+        # Reconstruct original seeds from the bracket setup
+        # First Round: 5,6,7,8 vs 12,11,10,9
+        first_round_games = [g for g in all_games if g.playoff_round == 'First Round']
+        first_round_seeds = [5, 6, 7, 8, 12, 11, 10, 9]
+        for i, g in enumerate(first_round_games):
+            if g.home_team_id:
+                seed_mapping[g.home_team_id] = first_round_seeds[i]
+            if g.away_team_id:
+                seed_mapping[g.away_team_id] = first_round_seeds[i + 4]
+        
+        # Quarterfinals home teams: 1,2,3,4
+        quarterfinal_games = [g for g in all_games if g.playoff_round == 'Quarterfinals']
+        for i, g in enumerate(quarterfinal_games):
+            if g.home_team_id:
+                seed_mapping[g.home_team_id] = i + 1  # Seeds 1-4
+
+    # Get winners with their seeds
+    winners = []
+    for g in current_round_games:
+        if g.home_score > g.away_score:
+            winner_id = g.home_team_id
         else:
-            # If not all games are complete, clear next round matchups
-            for g in next_games:
-                g.home_team_id = None
-                g.away_team_id = None
-                g.home_score = None
-                g.away_score = None
+            winner_id = g.away_team_id
+        
+        winner_seed = seed_mapping.get(winner_id, 999)  # Default high seed for unknown teams
+        winners.append((winner_seed, winner_id))
+    
+    # Sort winners by seed (best seed first)
+    winners.sort(key=lambda x: x[0])
+    
+    # Special handling for First Round to Quarterfinals transition
+    if current_round == 'First Round' and next_round == 'Quarterfinals':
+        # Seeds 1-4 automatically advance to quarterfinals
+        # They should already be assigned as home teams in the bracket
+        # We just need to assign the winners from first round as away teams
+        
+        # Map first round winners to quarterfinal away slots
+        # QF1: 1 vs Winner G4, QF2: 2 vs Winner G3, QF3: 3 vs Winner G2, QF4: 4 vs Winner G1
+        if len(next_round_games) >= 4 and len(winners) >= 4:
+            next_round_games[0].away_team_id = winners[3][1]  # QF1: 1 vs Winner G4 (worst seed)
+            next_round_games[1].away_team_id = winners[2][1]  # QF2: 2 vs Winner G3
+            next_round_games[2].away_team_id = winners[1][1]  # QF3: 3 vs Winner G2
+            next_round_games[3].away_team_id = winners[0][1]  # QF4: 4 vs Winner G1 (best seed)
+    
+    # Special handling for Semifinals to Championship transition
+    elif current_round == 'Semifinals' and next_round == 'Championship':
+        # For Championship, assign as many winners as possible
+        print(f"Championship seeding logic: {len(next_round_games)} championship games, {len(winners)} winners")
+        if len(next_round_games) >= 1:
+            if len(winners) == 1:
+                # Only one semifinal complete, assign that team as home
+                next_round_games[0].home_team_id = winners[0][1]
+                next_round_games[0].away_team_id = None
+                next_round_games[0].home_score = None
+                next_round_games[0].away_score = None
+                print(f"Championship partial seed: {winners[0][1]} (seed {winners[0][0]}) vs None")
+            elif len(winners) >= 2:
+                # Both semifinals complete, assign both
+                next_round_games[0].home_team_id = winners[0][1]  # Best seed (home)
+                next_round_games[0].away_team_id = winners[1][1]  # Worst seed (away)
+                next_round_games[0].home_score = None
+                next_round_games[0].away_score = None
+                print(f"Championship seeded: {winners[0][1]} (seed {winners[0][0]}) vs {winners[1][1]} (seed {winners[1][0]})")
+            # else: no winners yet, do nothing
+        else:
+            print(f"Championship seeding failed: not enough games ({len(next_round_games)}) or winners ({len(winners)})")
+    
+    # For other rounds, implement best vs worst seeding
+    else:
+        num_games = len(next_round_games)
+        num_winners = len(winners)
+        
+        for i in range(min(num_games, num_winners // 2)):
+            # Best seed vs worst seed
+            best_seed, best_team = winners[i]
+            worst_seed, worst_team = winners[-(i + 1)]
+            
+            next_round_games[i].home_team_id = best_team
+            next_round_games[i].away_team_id = worst_team
+            
+            # Clear scores for the new matchups
+            next_round_games[i].home_score = None
+            next_round_games[i].away_score = None
+
     db.session.commit()
-    # Debug: print the full bracket after save
-    games_after = (
+    
+    # Debug: print final state of all games
+    print("Final state after commit:")
+    final_games = (
         Game.query.filter_by(season_id=season_id, game_type="Playoff")
         .order_by(Game.week.asc(), Game.game_id.asc())
         .all()
     )
-    print("Bracket after save:")
-    for g in games_after:
-        print(f"Game {g.game_id}: {g.home_team_id} vs {g.away_team_id}, {g.home_score}-{g.away_score}, round={g.playoff_round}")
-    print(f"Updated game: id={game.game_id}, home_score={game.home_score}, away_score={game.away_score}")  # Debug log
-    return jsonify({"message": "Playoff result updated", "game_id": game_id}), 200
+    for game in final_games:
+        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+    
+    return jsonify({"message": "Batch playoff results updated and reseeding applied"}), 200
 
 
 @playoff_bp.route("/playoff/<int:season_id>/seed_bracket", methods=["POST"])
@@ -436,73 +548,85 @@ def manual_seed_bracket(season_id):
 @playoff_bp.route("/playoff/<int:season_id>/batch-playoff-result", methods=["POST"])
 def batch_playoff_result(season_id):
     data = request.json
+    print("Received data for batch-playoff-result:", data)  # Debug log
     results = data.get("results", [])
     if not isinstance(results, list) or not results:
+        print("Invalid or empty results list in request")
         return jsonify({"error": "results must be a non-empty list"}), 400
+    
+    print(f"Processing {len(results)} results for season {season_id}")
+    for i, result in enumerate(results):
+        print(f"  Result {i}: {result}")
+    
     from models import Game
+    
     # Helper: get all playoff games for this season, ordered by week and id
     games = (
         Game.query.filter_by(season_id=season_id, game_type="Playoff")
         .order_by(Game.week.asc(), Game.game_id.asc())
         .all()
     )
+    
+    print(f"Found {len(games)} playoff games in database")
+    for game in games:
+        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+    
+    # Track which rounds were modified
+    modified_rounds = set()
+    
     # Update all games in batch
     for result in results:
         game_id = result.get("game_id")
         home_score = result.get("home_score")
         away_score = result.get("away_score")
         playoff_round = result.get("playoff_round")
-        if not game_id or home_score is None or away_score is None:
-            continue
+        print(f"Processing result: game_id={game_id}, home_score={home_score}, away_score={away_score}, playoff_round={playoff_round}")
         game = Game.query.get(game_id)
         if not game or game.season_id != season_id:
+            print(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")
             continue
+        print(f"Found game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
         game.home_score = home_score
         game.away_score = away_score
         if playoff_round:
             game.playoff_round = playoff_round
+        print(f"Updated game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
+        modified_rounds.add(game.playoff_round)
+    
+    print(f"Modified rounds: {modified_rounds}")
+    
+    # Commit the score updates first
     db.session.commit()
-    # After all updates, trigger reseeding logic (reuse from single-game endpoint)
-    # Use the last updated game to determine round/propagation
-    if results:
-        last_game_id = results[-1].get("game_id")
-        last_game = Game.query.get(last_game_id) if last_game_id else None
-        if last_game:
-            # Reseeding logic (copy from add_playoff_result)
-            round_order = ['First Round', 'Quarterfinals', 'Semifinals', 'Championship']
-            current_round_idx = round_order.index(last_game.playoff_round) if last_game.playoff_round in round_order else -1
-            if current_round_idx != -1 and current_round_idx < len(round_order) - 1:
-                current_round = round_order[current_round_idx]
-                next_round = round_order[current_round_idx + 1]
-                games_in_round = [g for g in games if g.playoff_round == current_round]
-                next_games = [g for g in games if g.playoff_round == next_round]
-                all_complete = all(g.home_score is not None and g.away_score is not None for g in games_in_round)
-                if all_complete:
-                    seed_map = {}
-                    if 'First Round' in round_order:
-                        seeds = [5, 6, 7, 8, 12, 11, 10, 9]
-                        fr_games = [g for g in games if g.playoff_round == 'First Round']
-                        for idx, g in enumerate(fr_games):
-                            if g.home_team_id: seed_map[g.home_team_id] = seeds[idx]
-                            if g.away_team_id: seed_map[g.away_team_id] = seeds[4 + idx]
-                    if 'Quarterfinals' in round_order:
-                        qf_games = [g for g in games if g.playoff_round == 'Quarterfinals']
-                        for idx, g in enumerate(qf_games):
-                            if g.home_team_id: seed_map[g.home_team_id] = idx + 1
-                    winners = []
-                    for g in games_in_round:
-                        if g.home_score > g.away_score:
-                            winners.append((seed_map.get(g.home_team_id, 99), g.home_team_id))
-                        else:
-                            winners.append((seed_map.get(g.away_team_id, 99), g.away_team_id))
-                    winners.sort()
-                    n = len(winners)
-                    for i, g in enumerate(next_games):
-                        if i < n // 2:
-                            best = winners[i][1]
-                            worst = winners[-(i+1)][1]
-                            g.home_team_id = best
-                            g.away_team_id = worst
+    
+    # Refresh the games list to get the updated scores
+    games = (
+        Game.query.filter_by(season_id=season_id, game_type="Playoff")
+        .order_by(Game.week.asc(), Game.game_id.asc())
+        .all()
+    )
+    
+    # Also refresh the session to ensure we have the latest data
+    db.session.expire_all()
+    
+    print("Games after score updates:")
+    for game in games:
+        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+    
+    # Clear downstream games for all modified rounds
+    def clear_downstream_games(changed_round):
+        round_order = ['First Round', 'Quarterfinals', 'Semifinals', 'Championship']
+        try:
+            changed_idx = round_order.index(changed_round)
+            # Only clear rounds that come AFTER the changed round
+            downstream_rounds = round_order[changed_idx + 1:]
+            print(f"Clearing downstream rounds for {changed_round}: {downstream_rounds}")
+            for round_name in downstream_rounds:
+                for g in games:
+                    if g.playoff_round == round_name:
+                        print(f"Clearing game {g.game_id} in {round_name}")
+                        if round_name == 'Quarterfinals':
+                            # Only clear away_team_id and scores for QF, keep home_team_id (seeds 1-4)
+                            g.away_team_id = None
                             g.home_score = None
                             g.away_score = None
                         else:
@@ -510,11 +634,200 @@ def batch_playoff_result(season_id):
                             g.away_team_id = None
                             g.home_score = None
                             g.away_score = None
+        except ValueError:
+            pass
+    
+    # Check each round for completion and implement reseeding
+    round_order = ['First Round', 'Quarterfinals', 'Semifinals', 'Championship']
+    
+    for i in range(len(round_order) - 1):
+        current_round = round_order[i]
+        next_round = round_order[i + 1]
+        
+        # Get all games in current round
+        current_round_games = [g for g in games if g.playoff_round == current_round]
+        next_round_games = [g for g in games if g.playoff_round == next_round]
+        
+        # Check if all games in current round are complete
+        all_complete = all(g.home_score is not None and g.away_score is not None 
+                          and g.home_team_id is not None and g.away_team_id is not None 
+                          for g in current_round_games)
+        
+        print(f"Round {current_round}: {len(current_round_games)} games, all_complete={all_complete}")
+        
+        # Debug each game in the current round
+        for g in current_round_games:
+            print(f"  Game {g.game_id}: home_team_id={g.home_team_id}, away_team_id={g.away_team_id}, home_score={g.home_score}, away_score={g.away_score}")
+            game_complete = (g.home_score is not None and g.away_score is not None 
+                           and g.home_team_id is not None and g.away_team_id is not None)
+            print(f"    Game complete: {game_complete}")
+        
+        # If round is complete, implement reseeding logic
+        if all_complete and current_round in modified_rounds:
+            # If the next round has already started (any score recorded), we need to clear it
+            next_round_started = any(
+                (g.home_score is not None or g.away_score is not None) for g in next_round_games
+            )
+
+            if next_round_started:
+                print(
+                    f"Next round {next_round} already has recorded scores – clearing before reseeding"
+                )
+                clear_downstream_games(current_round)
+                # Refresh the lists after the clear so we reseed using the cleared slate
+                next_round_games = [g for g in games if g.playoff_round == next_round]
+
+            print(
+                f"All games in {current_round} complete, implementing reseeding for {next_round}"
+            )
+            
+            # Get the seed mapping for teams
+            seed_mapping = {}
+            
+            # For First Round, we need to get the original seeds from the bracket setup
+            if current_round == 'First Round':
+                # First Round seeds: 5,6,7,8 vs 12,11,10,9
+                first_round_seeds = [5, 6, 7, 8, 12, 11, 10, 9]
+                for i, g in enumerate(current_round_games):
+                    if g.home_team_id:
+                        seed_mapping[g.home_team_id] = first_round_seeds[i]
+                    if g.away_team_id:
+                        seed_mapping[g.away_team_id] = first_round_seeds[i + 4]
+            
+            # For Quarterfinals, we need to get the original seeds from the initial bracket setup
+            elif current_round == 'Quarterfinals':
+                # We need to reconstruct the original seeds for all teams
+                # First, get the original bracket structure to map team_ids to their original seeds
+                all_games = (
+                    Game.query.filter_by(season_id=season_id, game_type="Playoff")
+                    .order_by(Game.week.asc(), Game.game_id.asc())
+                    .all()
+                )
+                
+                # Reconstruct original seeds from the bracket setup
+                # First Round: 5,6,7,8 vs 12,11,10,9
+                first_round_games = [g for g in all_games if g.playoff_round == 'First Round']
+                first_round_seeds = [5, 6, 7, 8, 12, 11, 10, 9]
+                for i, g in enumerate(first_round_games):
+                    if g.home_team_id:
+                        seed_mapping[g.home_team_id] = first_round_seeds[i]
+                    if g.away_team_id:
+                        seed_mapping[g.away_team_id] = first_round_seeds[i + 4]
+                
+                # Quarterfinals home teams: 1,2,3,4
+                quarterfinal_games = [g for g in all_games if g.playoff_round == 'Quarterfinals']
+                for i, g in enumerate(quarterfinal_games):
+                    if g.home_team_id:
+                        seed_mapping[g.home_team_id] = i + 1  # Seeds 1-4
+            
+            # For Semifinals, we need to determine seeds based on previous round performance
+            elif current_round == 'Semifinals':
+                # We need to reconstruct the original seeds for all teams
+                # First, get the original bracket structure to map team_ids to their original seeds
+                all_games = (
+                    Game.query.filter_by(season_id=season_id, game_type="Playoff")
+                    .order_by(Game.week.asc(), Game.game_id.asc())
+                    .all()
+                )
+                
+                # Reconstruct original seeds from the bracket setup
+                # First Round: 5,6,7,8 vs 12,11,10,9
+                first_round_games = [g for g in all_games if g.playoff_round == 'First Round']
+                first_round_seeds = [5, 6, 7, 8, 12, 11, 10, 9]
+                for i, g in enumerate(first_round_games):
+                    if g.home_team_id:
+                        seed_mapping[g.home_team_id] = first_round_seeds[i]
+                    if g.away_team_id:
+                        seed_mapping[g.away_team_id] = first_round_seeds[i + 4]
+                
+                # Quarterfinals home teams: 1,2,3,4
+                quarterfinal_games = [g for g in all_games if g.playoff_round == 'Quarterfinals']
+                for i, g in enumerate(quarterfinal_games):
+                    if g.home_team_id:
+                        seed_mapping[g.home_team_id] = i + 1  # Seeds 1-4
+
+            # Get winners with their seeds
+            winners = []
+            for g in current_round_games:
+                if g.home_score > g.away_score:
+                    winner_id = g.home_team_id
                 else:
-                    for g in next_games:
-                        g.home_team_id = None
-                        g.away_team_id = None
-                        g.home_score = None
-                        g.away_score = None
-            db.session.commit()
-    return jsonify({"message": "Batch playoff results updated"}), 200
+                    winner_id = g.away_team_id
+                
+                winner_seed = seed_mapping.get(winner_id, 999)  # Default high seed for unknown teams
+                winners.append((winner_seed, winner_id))
+            
+            # Sort winners by seed (best seed first)
+            winners.sort(key=lambda x: x[0])
+            
+            # Special handling for First Round to Quarterfinals transition
+            if current_round == 'First Round' and next_round == 'Quarterfinals':
+                # Seeds 1-4 automatically advance to quarterfinals
+                # They should already be assigned as home teams in the bracket
+                # We just need to assign the winners from first round as away teams
+                
+                # Map first round winners to quarterfinal away slots
+                # QF1: 1 vs Winner G4, QF2: 2 vs Winner G3, QF3: 3 vs Winner G2, QF4: 4 vs Winner G1
+                if len(next_round_games) >= 4 and len(winners) >= 4:
+                    next_round_games[0].away_team_id = winners[3][1]  # QF1: 1 vs Winner G4 (worst seed)
+                    next_round_games[1].away_team_id = winners[2][1]  # QF2: 2 vs Winner G3
+                    next_round_games[2].away_team_id = winners[1][1]  # QF3: 3 vs Winner G2
+                    next_round_games[3].away_team_id = winners[0][1]  # QF4: 4 vs Winner G1 (best seed)
+            
+            # Special handling for Semifinals to Championship transition
+            elif current_round == 'Semifinals' and next_round == 'Championship':
+                # For Championship, assign as many winners as possible
+                print(f"Championship seeding logic: {len(next_round_games)} championship games, {len(winners)} winners")
+                if len(next_round_games) >= 1:
+                    if len(winners) == 1:
+                        # Only one semifinal complete, assign that team as home
+                        next_round_games[0].home_team_id = winners[0][1]
+                        next_round_games[0].away_team_id = None
+                        next_round_games[0].home_score = None
+                        next_round_games[0].away_score = None
+                        print(f"Championship partial seed: {winners[0][1]} (seed {winners[0][0]}) vs None")
+                    elif len(winners) >= 2:
+                        # Both semifinals complete, assign both
+                        next_round_games[0].home_team_id = winners[0][1]  # Best seed (home)
+                        next_round_games[0].away_team_id = winners[1][1]  # Worst seed (away)
+                        next_round_games[0].home_score = None
+                        next_round_games[0].away_score = None
+                        print(f"Championship seeded: {winners[0][1]} (seed {winners[0][0]}) vs {winners[1][1]} (seed {winners[1][0]})")
+                    # else: no winners yet, do nothing
+                else:
+                    print(f"Championship seeding failed: not enough games ({len(next_round_games)}) or winners ({len(winners)})")
+            
+            # For other rounds, implement best vs worst seeding
+            else:
+                num_games = len(next_round_games)
+                num_winners = len(winners)
+                
+                for i in range(min(num_games, num_winners // 2)):
+                    # Best seed vs worst seed
+                    best_seed, best_team = winners[i]
+                    worst_seed, worst_team = winners[-(i + 1)]
+                    
+                    next_round_games[i].home_team_id = best_team
+                    next_round_games[i].away_team_id = worst_team
+                    
+                    # Clear scores for the new matchups
+                    next_round_games[i].home_score = None
+                    next_round_games[i].away_score = None
+        
+        # Only clear downstream games if the current round was modified AND is incomplete
+        elif current_round in modified_rounds and not all_complete:
+            print(f"Clearing downstream games for incomplete modified round: {current_round}")
+            clear_downstream_games(current_round)
+            
+            # Debug: check what happened to the scores after clearing
+            print(f"After clearing downstream games for {current_round}:")
+            for g in current_round_games:
+                print(f"  Game {g.game_id}: home_score={g.home_score}, away_score={g.away_score}")
+    
+    # Debug: print final state of all games before final commit
+    print("Final state before commit:")
+    for game in games:
+        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+    
+    db.session.commit()
+    return jsonify({"message": "Batch playoff results updated and reseeding applied"}), 200

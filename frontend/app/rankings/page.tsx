@@ -16,7 +16,7 @@ import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui
 import { useSeason } from "@/context/SeasonContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api"
 
 export default function RankingsPage() {
   const apPoll = [

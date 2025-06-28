@@ -44,9 +44,9 @@ app.register_blueprint(rankings_bp, url_prefix='/api')
 app.register_blueprint(honors_bp, url_prefix='/api')
 app.register_blueprint(conferences_bp, url_prefix='/api')
 
-print("Registered routes:")
+'''print("Registered routes:")
 for rule in app.url_map.iter_rules():
-    print(rule)
+    print(rule)'''
 
 # Serve React frontend (placeholder)
 @app.route('/', defaults={'path': ''})
@@ -61,4 +61,4 @@ def serve_frontend(path):
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

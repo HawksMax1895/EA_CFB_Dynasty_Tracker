@@ -44,7 +44,13 @@ export default function Bracket({ seasonId }: BracketProps) {
           game.away_team_id !== prevGame.away_team_id
         ) {
           if (preserveGameId && game.game_id === preserveGameId) return;
-          updatedScoreInputs[game.game_id] = { home_score: '', away_score: '' };
+          // Only clear if the scores haven't been saved yet (i.e., they're in resultForms but not in the game data)
+          const hasUnsavedChanges = updatedScoreInputs[game.game_id] && 
+            (updatedScoreInputs[game.game_id].home_score !== (game.home_score?.toString() || '') ||
+             updatedScoreInputs[game.game_id].away_score !== (game.away_score?.toString() || ''));
+          if (hasUnsavedChanges) {
+            updatedScoreInputs[game.game_id] = { home_score: '', away_score: '' };
+          }
         }
       });
     }
@@ -59,6 +65,21 @@ export default function Bracket({ seasonId }: BracketProps) {
         .then(data => {
           console.log('Bracket data after save:', data); // Debug log
           setBracket(data);
+          
+          // Initialize resultForms with existing scores from the backend
+          const initialResultForms: { [key: number]: { home_score: string, away_score: string } } = {};
+          Object.values(data).forEach((roundGames: any) => {
+            roundGames.forEach((game: any) => {
+              if (game.home_score !== null && game.away_score !== null) {
+                initialResultForms[game.game_id] = {
+                  home_score: game.home_score.toString(),
+                  away_score: game.away_score.toString()
+                };
+              }
+            });
+          });
+          setResultForms(initialResultForms);
+          
           // Reset scoreInputs for games where teams changed
           setResultForms(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev));
           bracketRef.current = data;
@@ -191,33 +212,20 @@ export default function Bracket({ seasonId }: BracketProps) {
           playoff_round: game.playoff_round
         })
       });
-      // Advance winner logic (unchanged)
-      const winner = Number(home_score) > Number(away_score) ? game.home_team_id : game.away_team_id;
-      const next = getNextGameAndSlot(round, idx);
-      const bracket = bracketRef.current;
-      if (next && bracket && bracket[next.nextRound] && bracket[next.nextRound][next.nextIdx]) {
-        const nextGame = bracket[next.nextRound][next.nextIdx];
-        if (!nextGame[next.slot + '_team_id']) {
-          await fetch(`${API_BASE_URL}/games/${nextGame.game_id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [`${next.slot}_team_id`]: winner })
-          });
-        }
-      }
+      
       setSuccess('Score saved!');
       setTimeout(() => setSuccess(null), 1000);
-      // Refetch the bracket after a successful save
+      
+      // Refetch the bracket after a successful save to get updated reseeding
       fetchBracket(seasonId)
         .then(data => {
           console.log('Bracket data after save:', data); // Debug log
           setBracket(data);
           setResultForms(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev, game.game_id));
           bracketRef.current = data;
-          // Optionally, restore focus here using a ref if needed
         });
     } catch (e) {
-      setScoreError('Failed to save score or advance winner.');
+      setScoreError('Failed to save score.');
     } finally {
       setSavingScore(null);
     }
@@ -243,9 +251,11 @@ export default function Bracket({ seasonId }: BracketProps) {
   };
 
   const handleScoreBlur = async (game: any) => {
-    const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? '');
-    const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? '');
-    if (!isNaN(home_score) && !isNaN(away_score) && resultForms[game.game_id]?.home_score !== undefined && resultForms[game.game_id]?.away_score !== undefined) {
+    const home_score = resultForms[game.game_id]?.home_score;
+    const away_score = resultForms[game.game_id]?.away_score;
+    
+    // Only save if both scores are provided and valid
+    if (home_score && away_score && !isNaN(Number(home_score)) && !isNaN(Number(away_score))) {
       setSavingScore(game.game_id);
       setScoreError(null);
       try {
@@ -254,15 +264,28 @@ export default function Bracket({ seasonId }: BracketProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             game_id: game.game_id,
-            home_score,
-            away_score,
+            home_score: Number(home_score),
+            away_score: Number(away_score),
             playoff_round: game.playoff_round
           })
         });
+        setSuccess('Score saved!');
+        setTimeout(() => setSuccess(null), 2000);
         // Refetch the bracket after a successful save
         fetchBracket(Number(seasonId)).then(data => {
           setBracket(data);
           bracketRef.current = data;
+          // If this was a semifinal, check if all semifinals are complete and refetch again to show the final
+          if (game.playoff_round === 'Semifinals') {
+            const semis = (data['Semifinals'] || []);
+            const allSemisComplete = semis.length === 2 && semis.every((g: any) => g.home_score !== null && g.away_score !== null);
+            if (allSemisComplete) {
+              fetchBracket(Number(seasonId)).then(newData => {
+                setBracket(newData);
+                bracketRef.current = newData;
+              });
+            }
+          }
         });
       } catch (e) {
         setScoreError('Failed to save score.');
@@ -289,32 +312,68 @@ export default function Bracket({ seasonId }: BracketProps) {
 
   // Save all scores for a round in one batch (matches schedule & result tab)
   const handleSaveAllForRound = async (roundKey: string) => {
-    const gamesToSave = (bracket[roundKey] || []).filter((game: any) => {
-      const home = resultForms[game.game_id]?.home_score ?? game.home_score;
-      const away = resultForms[game.game_id]?.away_score ?? game.away_score;
-      return (
-        home !== undefined && home !== '' &&
-        away !== undefined && away !== '' &&
-        game.home_team_id && game.away_team_id
-      );
-    });
-    if (gamesToSave.length === 0) return;
-    const results = gamesToSave.map((game: any) => ({
+    const games = (bracket?.[roundKey] || []);
+    const results = games.map((game: any) => ({
       game_id: game.game_id,
-      home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score),
-      away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score),
+      home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? ''),
+      away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? ''),
       playoff_round: game.playoff_round
-    }));
-    await fetch(`${API_BASE_URL}/playoff/${seasonId}/batch-playoff-result`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ results })
-    });
-    // Refetch the bracket after a successful save
-    fetchBracket(Number(seasonId)).then(data => {
-      setBracket(data);
-      bracketRef.current = data;
-    });
+    })).filter(r => !isNaN(r.home_score) && !isNaN(r.away_score));
+    
+    console.log('Saving scores for round:', roundKey);
+    console.log('Games in round:', games);
+    console.log('Result forms:', resultForms);
+    console.log('Results to send:', results);
+    
+    if (results.length === 0) {
+      console.log('No valid results to save');
+      return;
+    }
+    
+    setSavingScore(-1);
+    setScoreError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/playoff/${seasonId}/batch-playoff-result`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ results })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Backend error:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const responseData = await response.json();
+      console.log('Backend response:', responseData);
+      
+      setSuccess('Scores saved!');
+      setTimeout(() => setSuccess(null), 2000);
+      fetchBracket(Number(seasonId)).then(data => {
+        console.log('Bracket after save:', data);
+        setBracket(data);
+        bracketRef.current = data;
+        // If this was the semifinals, check if all semifinals are complete and refetch again to show the final
+        if (roundKey === 'Semifinals') {
+          const semis = (data['Semifinals'] || []);
+          const allSemisComplete = semis.length === 2 && semis.every((g: any) => g.home_score !== null && g.away_score !== null);
+          console.log('Semifinals complete check:', { semis, allSemisComplete });
+          if (allSemisComplete) {
+            fetchBracket(Number(seasonId)).then(newData => {
+              console.log('Bracket after semifinal completion:', newData);
+              setBracket(newData);
+              bracketRef.current = newData;
+            });
+          }
+        }
+      });
+    } catch (e) {
+      console.error('Error saving scores:', e);
+      setScoreError('Failed to save scores.');
+    } finally {
+      setSavingScore(null);
+    }
   };
 
   // Build a map from team_id to playoff seed using the First Round
@@ -480,7 +539,9 @@ const BracketVisual = memo(function BracketVisual({
                       <Input
                         type="number"
                         placeholder="Home Score"
-                        value={resultForms[game.game_id]?.home_score ?? (game.home_score ?? '')}
+                        value={resultForms[game.game_id]?.home_score !== undefined 
+                          ? resultForms[game.game_id].home_score 
+                          : (game.home_score !== null ? game.home_score.toString() : '')}
                         onChange={e => handleScoreChange(game, 'home', e.target.value)}
                         onBlur={() => handleScoreBlur(game)}
                         className="w-20 text-center text-lg font-bold border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none transition-colors"
@@ -490,12 +551,17 @@ const BracketVisual = memo(function BracketVisual({
                       <Input
                         type="number"
                         placeholder="Away Score"
-                        value={resultForms[game.game_id]?.away_score ?? (game.away_score ?? '')}
+                        value={resultForms[game.game_id]?.away_score !== undefined 
+                          ? resultForms[game.game_id].away_score 
+                          : (game.away_score !== null ? game.away_score.toString() : '')}
                         onChange={e => handleScoreChange(game, 'away', e.target.value)}
                         onBlur={() => handleScoreBlur(game)}
                         className="w-20 text-center text-lg font-bold border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none transition-colors"
                         disabled={savingScore === game.game_id}
                       />
+                      {savingScore === game.game_id && (
+                        <span style={{ fontSize: 12, color: '#64748b' }}>Saving...</span>
+                      )}
                     </div>
                   )}
                   {scoreError && <div style={{ color: 'red', marginTop: 4 }}>{scoreError}</div>}
@@ -524,7 +590,79 @@ const BracketVisual = memo(function BracketVisual({
   return (
     <div>
       <h1>12-Team Playoff Bracket</h1>
-      <button onClick={handleRefreshBracket} style={{ marginBottom: 16 }}>Refresh Bracket</button>
+      
+      {/* Seeding Interface */}
+      {(!bracket || Object.keys(bracket).length === 0) && (
+        <div style={{ marginBottom: 24, padding: 24, background: '#f8fafc', borderRadius: 12, border: '2px dashed #cbd5e1' }}>
+          <h2 style={{ marginBottom: 16 }}>Seed the Bracket</h2>
+          <p style={{ marginBottom: 16, color: '#64748b' }}>Select teams for each seed (1-12) to create the playoff bracket.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 16 }}>
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Badge variant="secondary" style={{ minWidth: 32, textAlign: 'center' }}>
+                  {i + 1}
+                </Badge>
+                <select
+                  value={selectedTeams[i] ?? ''}
+                  onChange={e => handleSelectTeam(i, Number(e.target.value))}
+                  style={{ flex: 1, padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}
+                >
+                  <option value="">Select Team</option>
+                  {eligibleTeams.map((team: any) => {
+                    const isSelected = selectedTeams.includes(team.team_id);
+                    return (
+                      <option key={team.team_id} value={team.team_id} disabled={isSelected && selectedTeams[i] !== team.team_id}>
+                        {`${team.team_name} ${team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}`}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={handleSeedBracket}
+            disabled={seeding || selectedTeams.some(t => t === null)}
+            style={{
+              padding: '12px 24px',
+              borderRadius: 8,
+              background: seeding || selectedTeams.some(t => t === null) ? '#94a3b8' : '#2563eb',
+              color: '#fff',
+              fontWeight: 600,
+              border: 'none',
+              cursor: seeding || selectedTeams.some(t => t === null) ? 'not-allowed' : 'pointer',
+              fontSize: 16
+            }}
+          >
+            {seeding ? 'Seeding...' : 'Seed Bracket'}
+          </button>
+          {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
+          {success && <div style={{ color: 'green', marginTop: 8 }}>{success}</div>}
+        </div>
+      )}
+
+      {/* Bracket Controls */}
+      {bracket && Object.keys(bracket).length > 0 && (
+        <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button 
+            onClick={handleRefreshBracket} 
+            style={{ 
+              padding: '8px 16px', 
+              borderRadius: 6, 
+              background: '#64748b', 
+              color: '#fff', 
+              fontWeight: 600, 
+              border: 'none', 
+              cursor: 'pointer' 
+            }}
+          >
+            Refresh Bracket
+          </button>
+          {success && <div style={{ color: 'green', fontWeight: 500 }}>{success}</div>}
+          {error && <div style={{ color: 'red', fontWeight: 500 }}>{error}</div>}
+        </div>
+      )}
+
       {/* Bracket display */}
       <BracketVisual
         bracket={bracket}
