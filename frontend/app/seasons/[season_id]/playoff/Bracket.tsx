@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef, memo } from 'react';
 import { fetchPlayoffEligibleTeams, manualSeedBracket, fetchBracket, API_BASE_URL } from '../../../../lib/api';
 import { Badge } from '../../../../components/ui/badge';
 import { Input } from '../../../../components/ui/input';
+import React from 'react';
 
 function debounce(fn: (...args: any[]) => void, delay: number) {
   let timer: NodeJS.Timeout;
@@ -231,18 +232,6 @@ export default function Bracket({ seasonId }: BracketProps) {
     }
   };
 
-  // Add a manual refresh button for the bracket
-  const handleRefreshBracket = async () => {
-    setLoading(true);
-    fetchBracket(Number(seasonId))
-      .then(data => {
-        setBracket(data);
-        setResultForms(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev));
-        bracketRef.current = data;
-        setLoading(false);
-      });
-  };
-
   // Handle Enter key to save
   const handleScoreKeyDown = (e: React.KeyboardEvent, game: any, round: string, idx: number) => {
     if (e.key === 'Enter') {
@@ -250,64 +239,29 @@ export default function Bracket({ seasonId }: BracketProps) {
     }
   };
 
-  const handleScoreBlur = async (game: any) => {
-    const home_score = resultForms[game.game_id]?.home_score;
-    const away_score = resultForms[game.game_id]?.away_score;
-    
-    // Only save if both scores are provided and valid
-    if (home_score && away_score && !isNaN(Number(home_score)) && !isNaN(Number(away_score))) {
-      setSavingScore(game.game_id);
-      setScoreError(null);
-      try {
-        await fetch(`${API_BASE_URL}/playoff/${seasonId}/playoff-result`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            game_id: game.game_id,
-            home_score: Number(home_score),
-            away_score: Number(away_score),
-            playoff_round: game.playoff_round
-          })
-        });
-        setSuccess('Score saved!');
-        setTimeout(() => setSuccess(null), 2000);
-        // Refetch the bracket after a successful save
-        fetchBracket(Number(seasonId)).then(data => {
-          setBracket(data);
-          bracketRef.current = data;
-          // If this was a semifinal, check if all semifinals are complete and refetch again to show the final
-          if (game.playoff_round === 'Semifinals') {
-            const semis = (data['Semifinals'] || []);
-            const allSemisComplete = semis.length === 2 && semis.every((g: any) => g.home_score !== null && g.away_score !== null);
-            if (allSemisComplete) {
-              fetchBracket(Number(seasonId)).then(newData => {
-                setBracket(newData);
-                bracketRef.current = newData;
-              });
-            }
-          }
-        });
-      } catch (e) {
-        setScoreError('Failed to save score.');
-      } finally {
-        setSavingScore(null);
-      }
-    }
-  };
-
   // Score input change handler (matches schedule & result tab)
   const handleScoreChange = (game: any, team: 'home' | 'away', value: string) => {
-    setResultForms(prev => ({
-      ...prev,
-      [game.game_id]: {
-        ...prev[game.game_id],
+    setResultForms(prev => {
+      const currentForm = prev[game.game_id] || {};
+      const newForm = {
+        ...currentForm,
         [`${team}_score`]: value,
         // Ensure both fields are always present
         ...(team === 'home'
-          ? { away_score: prev[game.game_id]?.away_score ?? (game.away_score ?? '') }
-          : { home_score: prev[game.game_id]?.home_score ?? (game.home_score ?? '') })
+          ? { away_score: currentForm.away_score ?? (game.away_score ?? '') }
+          : { home_score: currentForm.home_score ?? (game.home_score ?? '') })
+      };
+      
+      // Only update if the value actually changed
+      if (currentForm[`${team}_score`] === value) {
+        return prev;
       }
-    }));
+      
+      return {
+        ...prev,
+        [game.game_id]: newForm
+      };
+    });
   };
 
   // Save all scores for a round in one batch (matches schedule & result tab)
@@ -398,6 +352,49 @@ export default function Bracket({ seasonId }: BracketProps) {
     return map;
   }
 
+  // Reusable score input that maintains its own internal state to avoid focus loss on re-renders
+  function ScoreInput({
+    value,
+    onChange,
+    disabled,
+    onEnter,
+  }: {
+    value: string;
+    onChange: (val: string) => void;
+    disabled?: boolean;
+    onEnter?: () => void;
+  }) {
+    const [local, setLocal] = React.useState<string>(value);
+
+    // Keep local state in sync when the prop value changes externally (e.g., after save or reset)
+    React.useEffect(() => {
+      setLocal(value);
+    }, [value]);
+
+    return (
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={local}
+        placeholder="Score"
+        disabled={disabled}
+        className="w-20 text-center text-lg font-bold border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none transition-colors"
+        onChange={(e) => {
+          const v = e.target.value;
+          // Accept only digits (optional empty) client-side
+          if (/^\d*$/.test(v)) {
+            setLocal(v);
+            onChange(v);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && onEnter) onEnter();
+        }}
+      />
+    );
+  }
+
 interface BracketVisualProps {
   bracket: any;
   eligibleTeams: any[];
@@ -408,7 +405,7 @@ interface BracketVisualProps {
   handleScoreChange: (game: any, team: 'home' | 'away', value: string) => void;
   savingScore: number | null;
   scoreError: string | null;
-  handleScoreBlur: (game: any) => void;
+  handleSaveAllForRound: (roundKey: string) => void;
 }
 
 const BracketVisual = memo(function BracketVisual({
@@ -421,7 +418,7 @@ const BracketVisual = memo(function BracketVisual({
   handleScoreChange,
   savingScore,
   scoreError,
-  handleScoreBlur,
+  handleSaveAllForRound,
 }: BracketVisualProps) {
   if (!bracket || Object.keys(bracket).length === 0) return null;
   const rounds = [
@@ -528,154 +525,140 @@ const BracketVisual = memo(function BracketVisual({
                     ) : (
                       <span>TBD</span>
                     )}
-                    {(() => {
-                      if (!game.away_team_id) return '';
-                      const seedIdx = selectedTeams.findIndex((id: number | null) => id === game.away_team_id);
-                      return seedIdx !== -1 ? ` (${seedIdx + 1})` : '';
-                    })()}
                   </div>
-                  {home && away && (
-                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Input
-                        type="number"
-                        placeholder="Home Score"
-                        value={resultForms[game.game_id]?.home_score !== undefined 
-                          ? resultForms[game.game_id].home_score 
-                          : (game.home_score !== null ? game.home_score.toString() : '')}
-                        onChange={e => handleScoreChange(game, 'home', e.target.value)}
-                        onBlur={() => handleScoreBlur(game)}
-                        className="w-20 text-center text-lg font-bold border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none transition-colors"
-                        disabled={savingScore === game.game_id}
+                  {(home && away) && (
+                    <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+                      <ScoreInput
+                        value={resultForms[game.game_id]?.home_score ?? (game.home_score ?? '')}
+                        onChange={(v) => handleScoreChange(game, 'home', v)}
+                        disabled={savingScore !== null}
+                        onEnter={() => saveScoreAndAdvance(game, round.key, idx)}
                       />
-                      <span>:</span>
-                      <Input
-                        type="number"
-                        placeholder="Away Score"
-                        value={resultForms[game.game_id]?.away_score !== undefined 
-                          ? resultForms[game.game_id].away_score 
-                          : (game.away_score !== null ? game.away_score.toString() : '')}
-                        onChange={e => handleScoreChange(game, 'away', e.target.value)}
-                        onBlur={() => handleScoreBlur(game)}
-                        className="w-20 text-center text-lg font-bold border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none transition-colors"
-                        disabled={savingScore === game.game_id}
+                      <ScoreInput
+                        value={resultForms[game.game_id]?.away_score ?? (game.away_score ?? '')}
+                        onChange={(v) => handleScoreChange(game, 'away', v)}
+                        disabled={savingScore !== null}
+                        onEnter={() => saveScoreAndAdvance(game, round.key, idx)}
                       />
-                      {savingScore === game.game_id && (
-                        <span style={{ fontSize: 12, color: '#64748b' }}>Saving...</span>
-                      )}
                     </div>
                   )}
-                  {scoreError && <div style={{ color: 'red', marginTop: 4 }}>{scoreError}</div>}
+                  {i < rounds.length - 1 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: -30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 20,
+                        height: 2,
+                        backgroundColor: '#d1d5db'
+                      }}
+                    />
+                  )}
+                  {i > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: -30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 20,
+                        height: 2,
+                        backgroundColor: '#d1d5db'
+                      }}
+                    />
+                  )}
+                  {savingScore === game.game_id && (
+                    <div style={{ fontSize: 13, color: 'blue', marginTop: 4, textAlign: 'right' }}>Saving...</div>
+                  )}
+                  {scoreError && (
+                    <div style={{ fontSize: 13, color: 'red', marginTop: 4, textAlign: 'right' }}>{scoreError}</div>
+                  )}
+                  {i < rounds.length - 1 && (bracket[rounds[i + 1].key] || []).find((nextGame: any) =>
+                    (idx === 0 && (nextGame.home_team_id === game.home_team_id || nextGame.home_team_id === game.away_team_id)) ||
+                    (idx === 1 && (nextGame.home_team_id === game.home_team_id || nextGame.home_team_id === game.away_team_id))
+                  ) && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: -30,
+                          top: '50%',
+                          height: (32 + 70) * (Math.pow(2, i) / 2),
+                          borderRight: '2px solid #d1d5db',
+                          borderTop: i === 0 || i === 1 ? '2px solid #d1d5db' : 'none',
+                          borderBottom: i === 0 || i === 1 ? '2px solid #d1d5db' : 'none',
+                          width: 10,
+                          zIndex: -1,
+                        }}
+                      />
+                    )}
                 </div>
               );
             })}
-            {/* Save All button for this round */}
+          </div>
+          <div style={{ marginTop: 24 }}>
             <button
               onClick={() => handleSaveAllForRound(round.key)}
-              style={{ marginTop: 16, alignSelf: 'flex-end', padding: '6px 18px', borderRadius: 6, background: '#2563eb', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer', fontSize: 15 }}
+              disabled={savingScore !== null}
+              className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              Save All
+              Save {round.label} Scores
             </button>
           </div>
-          {i < rounds.length - 1 && (
-            <div style={{ position: 'absolute', right: -20, top: 0, bottom: 0, width: 4, background: 'linear-gradient(to bottom, #e0e7ef 60%, transparent 100%)', borderRadius: 2, zIndex: 0 }} />
-          )}
         </div>
       ))}
     </div>
   );
 });
 
-  if (loading) return <div>Loading bracket...</div>;
+  if (loading) return <div>Loading...</div>;
 
   return (
-    <div>
-      <h1>12-Team Playoff Bracket</h1>
+    <>
+      {error && <div style={{ color: 'red', marginBottom: 16 }}>{error}</div>}
+      {success && <div style={{ color: 'green', marginBottom: 16 }}>{success}</div>}
       
-      {/* Seeding Interface */}
-      {(!bracket || Object.keys(bracket).length === 0) && (
-        <div style={{ marginBottom: 24, padding: 24, background: '#f8fafc', borderRadius: 12, border: '2px dashed #cbd5e1' }}>
-          <h2 style={{ marginBottom: 16 }}>Seed the Bracket</h2>
-          <p style={{ marginBottom: 16, color: '#64748b' }}>Select teams for each seed (1-12) to create the playoff bracket.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 16 }}>
-            {Array.from({ length: 12 }, (_, i) => (
+      {!bracket || Object.keys(bracket).every(r => bracket[r].length === 0) ? (
+        <div style={{ padding: 24, background: '#f9fafb', borderRadius: 8 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Seed the Playoff Bracket</h3>
+          <p style={{ marginBottom: 20, color: '#6b7280' }}>Select the top 12 teams for the playoff bracket.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 16 }}>
+            {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Badge variant="secondary" style={{ minWidth: 32, textAlign: 'center' }}>
-                  {i + 1}
-                </Badge>
+                <Badge variant="secondary" style={{ minWidth: 32, textAlign: 'center', fontSize: 14 }}>{i + 1}</Badge>
                 <select
                   value={selectedTeams[i] ?? ''}
                   onChange={e => handleSelectTeam(i, Number(e.target.value))}
-                  style={{ flex: 1, padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db' }}
                 >
                   <option value="">Select Team</option>
-                  {eligibleTeams.map((team: any) => {
-                    const isSelected = selectedTeams.includes(team.team_id);
-                    return (
-                      <option key={team.team_id} value={team.team_id} disabled={isSelected && selectedTeams[i] !== team.team_id}>
-                        {`${team.team_name} ${team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}`}
-                      </option>
-                    );
-                  })}
+                  {eligibleTeams.map(team => (
+                    <option key={team.team_id} value={team.team_id} disabled={selectedTeams.includes(team.team_id) && selectedTeams[i] !== team.team_id}>
+                      {team.team_name}
+                    </option>
+                  ))}
                 </select>
               </div>
             ))}
           </div>
-          <button
-            onClick={handleSeedBracket}
-            disabled={seeding || selectedTeams.some(t => t === null)}
-            style={{
-              padding: '12px 24px',
-              borderRadius: 8,
-              background: seeding || selectedTeams.some(t => t === null) ? '#94a3b8' : '#2563eb',
-              color: '#fff',
-              fontWeight: 600,
-              border: 'none',
-              cursor: seeding || selectedTeams.some(t => t === null) ? 'not-allowed' : 'pointer',
-              fontSize: 16
-            }}
-          >
+          <button onClick={handleSeedBracket} disabled={seeding} style={{ marginTop: 24, padding: '10px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', opacity: seeding ? 0.6 : 1 }}>
             {seeding ? 'Seeding...' : 'Seed Bracket'}
           </button>
-          {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
-          {success && <div style={{ color: 'green', marginTop: 8 }}>{success}</div>}
         </div>
+      ) : (
+        <BracketVisual
+          bracket={bracket}
+          eligibleTeams={eligibleTeams}
+          selectedTeams={selectedTeams}
+          seeding={seeding}
+          handleAssignTeam={handleAssignTeam}
+          resultForms={resultForms}
+          handleScoreChange={handleScoreChange}
+          savingScore={savingScore}
+          scoreError={scoreError}
+          handleSaveAllForRound={handleSaveAllForRound}
+        />
       )}
-
-      {/* Bracket Controls */}
-      {bracket && Object.keys(bracket).length > 0 && (
-        <div style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button 
-            onClick={handleRefreshBracket} 
-            style={{ 
-              padding: '8px 16px', 
-              borderRadius: 6, 
-              background: '#64748b', 
-              color: '#fff', 
-              fontWeight: 600, 
-              border: 'none', 
-              cursor: 'pointer' 
-            }}
-          >
-            Refresh Bracket
-          </button>
-          {success && <div style={{ color: 'green', fontWeight: 500 }}>{success}</div>}
-          {error && <div style={{ color: 'red', fontWeight: 500 }}>{error}</div>}
-        </div>
-      )}
-
-      {/* Bracket display */}
-      <BracketVisual
-        bracket={bracket}
-        eligibleTeams={eligibleTeams}
-        selectedTeams={selectedTeams}
-        seeding={seeding}
-        handleAssignTeam={handleAssignTeam}
-        resultForms={resultForms}
-        handleScoreChange={handleScoreChange}
-        savingScore={savingScore}
-        scoreError={scoreError}
-        handleScoreBlur={handleScoreBlur}
-      />
-    </div>
+    </>
   );
 } 
