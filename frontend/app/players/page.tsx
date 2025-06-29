@@ -10,6 +10,7 @@ import React, { useEffect, useState } from "react"
 import { fetchPlayers, setPlayerRedshirt, addPlayer, progressPlayerClass } from "@/lib/api"
 
 export default function PlayersPage() {
+  const teamId = 1; // You might want to make this configurable
   const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +23,7 @@ export default function PlayersPage() {
 
   useEffect(() => {
     setLoading(true)
-    fetchPlayers()
+    fetchPlayers(teamId)
       .then((data) => {
         setPlayers(data)
         setLoading(false)
@@ -31,7 +32,7 @@ export default function PlayersPage() {
         setError(err.message)
         setLoading(false)
       })
-  }, [])
+  }, [teamId])
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -44,7 +45,7 @@ export default function PlayersPage() {
     try {
       await addPlayer(form)
       setForm({ name: '', position: '', recruit_stars: 3, current_year: 'FR' })
-      const data = await fetchPlayers()
+      const data = await fetchPlayers(teamId)
       setPlayers(data)
     } catch (err: any) {
       setFormError(err.message)
@@ -58,7 +59,7 @@ export default function PlayersPage() {
     setProgressError(null)
     try {
       await progressPlayerClass()
-      const data = await fetchPlayers()
+      const data = await fetchPlayers(teamId)
       setPlayers(data)
     } catch (err: any) {
       setProgressError(err.message)
@@ -72,7 +73,7 @@ export default function PlayersPage() {
     try {
       await setPlayerRedshirt(playerId, !current)
       // Refetch players after redshirt change
-      const data = await fetchPlayers()
+      const data = await fetchPlayers(teamId)
       setPlayers(data)
     } catch (err) {
       alert("Failed to update redshirt status")
@@ -90,6 +91,9 @@ export default function PlayersPage() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Current Roster</h1>
           <p className="text-gray-600">View current season players and their performance</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            💡 Recruits and transfers from the previous season will automatically join the roster when you progress to the next season.
+          </p>
         </div>
 
         {/* Add Player Form and Progress Class Button */}
