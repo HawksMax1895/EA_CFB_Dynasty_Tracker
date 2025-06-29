@@ -248,4 +248,22 @@ def bulk_stats_entry(season_id, team_id):
         if ps and entry.get('stat_field') and entry.get('value') is not None:
             setattr(ps, entry['stat_field'], entry['value'])
     db.session.commit()
-    return jsonify({'message': 'Bulk stats updated'}) 
+    return jsonify({'message': 'Bulk stats updated'})
+
+@teams_bp.route('/teams/user-controlled', methods=['POST'])
+def set_user_controlled_team():
+    data = request.json
+    team_id = data.get('team_id')
+    if not team_id:
+        return jsonify({'error': 'team_id is required'}), 400
+    from models import Team
+    # Unset all
+    Team.query.update({Team.is_user_controlled: False})
+    # Set selected
+    team = Team.query.get(team_id)
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    team.is_user_controlled = True
+    from extensions import db
+    db.session.commit()
+    return jsonify({'message': f'Team {team_id} set as user-controlled'}), 200 

@@ -31,6 +31,7 @@ def create_season():
         return jsonify({'error': f'Season for year {year} already exists'}), 400
     season = Season(year=year)
     db.session.add(season)
+    db.session.flush()  # Get season_id
 
     # Find the user-controlled team
     user_team = Team.query.filter_by(is_user_controlled=True).first()
@@ -109,6 +110,20 @@ def create_season():
     # --- END NEW ---
 
     db.session.commit()
+
+    # --- NEW: Automatically progress players from the previous season ---
+    if prev_season:
+        try:
+            # Import the progression function
+            from routes.season_actions import progress_players_logic
+            # Call the progression function for the previous season
+            progression_result = progress_players_logic(prev_season.season_id)
+            print(f"Player progression completed: {progression_result}")
+        except Exception as e:
+            print(f"Error during player progression: {e}")
+            # Don't fail the season creation if progression fails
+            pass
+
     return jsonify({'season_id': season.season_id, 'year': season.year}), 201
 
 @seasons_bp.route('/conferences', methods=['GET'])

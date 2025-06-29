@@ -23,6 +23,16 @@ export async function progressPlayers(seasonId: number) {
   return response.json()
 }
 
+export async function progressPlayerClass() {
+  // Get the current season (you might want to make this configurable)
+  const seasons = await fetchSeasons()
+  const currentSeason = seasons[seasons.length - 1] // Get the most recent season
+  if (!currentSeason) {
+    throw new Error("No season found")
+  }
+  return progressPlayers(currentSeason.season_id)
+}
+
 // TEAMS
 export async function fetchTeams() {
   const response = await fetch(`${API_BASE_URL}/teams`)
@@ -71,6 +81,16 @@ export async function setPlayerRedshirt(playerId: number, redshirted: boolean) {
     body: JSON.stringify({ redshirted })
   })
   if (!response.ok) throw new Error("Failed to set redshirt status")
+  return response.json()
+}
+
+export async function addPlayer(data: any) {
+  const response = await fetch(`${API_BASE_URL}/players`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to add player")
   return response.json()
 }
 
@@ -247,5 +267,15 @@ export async function manualSeedBracket(seasonId: number, teamIds: number[]) {
 export async function fetchBracket(seasonId: number) {
   const response = await fetch(`${API_BASE_URL}/playoff/${seasonId}/bracket`)
   if (!response.ok) throw new Error("Failed to fetch bracket")
+  return response.json()
+}
+
+export async function setUserControlledTeam(teamId: number) {
+  const response = await fetch(`${API_BASE_URL}/teams/user-controlled`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ team_id: teamId })
+  })
+  if (!response.ok) throw new Error("Failed to set user-controlled team")
   return response.json()
 }
