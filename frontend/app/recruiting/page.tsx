@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Star, TrendingUp, GraduationCap, Building2 } from "lucide-react";
+import { Star, TrendingUp, GraduationCap, Building2, Pencil } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchRecruitingClass, addRecruitingClass, fetchTransferPortal, addTransferPortal } from "@/lib/api";
+import { fetchRecruitingClass, addRecruitingClass, fetchTransferPortal, addTransferPortal, updateTeamSeason, fetchTeamsBySeason } from "@/lib/api";
 import {
   Dialog,
   DialogTrigger,
@@ -21,6 +21,7 @@ import { RecruitCard } from "@/components/RecruitCard";
 import { TransferCard } from "@/components/TransferCard";
 import { AddRecruitModal } from "@/components/AddRecruitModal";
 import { AddTransferModal } from "@/components/AddTransferModal";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function RecruitingPage() {
   const teamId = 1;
@@ -34,6 +35,7 @@ export default function RecruitingPage() {
     position: '',
     recruit_stars: 3,
     recruit_rank_nat: 0,
+    recruit_rank_pos: 0,
     speed: '',
     dev_trait: '',
     height: '',
@@ -45,6 +47,8 @@ export default function RecruitingPage() {
     position: '',
     previous_school: '',
     ovr_rating: '',
+    recruit_stars: 3,
+    recruit_rank_pos: 0,
     dev_trait: '',
     height: '',
     weight: '',
@@ -55,16 +59,22 @@ export default function RecruitingPage() {
   const [transferFormLoading, setTransferFormLoading] = useState(false);
   const [recruitFormError, setRecruitFormError] = useState<string | null>(null);
   const [transferFormError, setTransferFormError] = useState<string | null>(null);
+  const [recruitingRank, setRecruitingRank] = useState<number | null>(null);
+  const [recruitingRankLoading, setRecruitingRankLoading] = useState(false);
+  const [editingRecruitingRank, setEditingRecruitingRank] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       fetchRecruitingClass(teamId, seasonId),
-      fetchTransferPortal(teamId, seasonId)
+      fetchTransferPortal(teamId, seasonId),
+      fetchTeamsBySeason(seasonId)
     ])
-      .then(([recruitData, transferData]) => {
+      .then(([recruitData, transferData, teamsData]) => {
         setRecruits(recruitData);
         setTransfers(transferData);
+        const userTeam = teamsData.find((t: any) => t.team_id === teamId);
+        setRecruitingRank(userTeam?.recruiting_rank ?? null);
         setLoading(false);
       })
       .catch((err) => {
@@ -87,7 +97,7 @@ export default function RecruitingPage() {
     setRecruitFormError(null);
     try {
       await addRecruitingClass({ team_id: teamId, season_id: seasonId, recruits: [recruitForm] });
-      setRecruitForm({ name: '', position: '', recruit_stars: 3, recruit_rank_nat: 0, speed: '', dev_trait: '', height: '', weight: '', state: '' });
+      setRecruitForm({ name: '', position: '', recruit_stars: 3, recruit_rank_nat: 0, recruit_rank_pos: 0, speed: '', dev_trait: '', height: '', weight: '', state: '' });
       const data = await fetchRecruitingClass(teamId, seasonId);
       setRecruits(data);
     } catch (err: any) {
@@ -108,6 +118,8 @@ export default function RecruitingPage() {
         position: '', 
         previous_school: '', 
         ovr_rating: '', 
+        recruit_stars: 3, 
+        recruit_rank_pos: 0, 
         dev_trait: '', 
         height: '', 
         weight: '', 
@@ -120,6 +132,33 @@ export default function RecruitingPage() {
       setTransferFormError(err.message);
     } finally {
       setTransferFormLoading(false);
+    }
+  };
+
+  const handleRecruitingRankChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRecruitingRank(e.target.value === '' ? null : parseInt(e.target.value));
+  };
+
+  const handleRecruitingRankClick = () => {
+    setEditingRecruitingRank(true);
+  };
+
+  const handleRecruitingRankInputBlur = async () => {
+    setEditingRecruitingRank(false);
+    if (recruitingRank == null) return;
+    setRecruitingRankLoading(true);
+    try {
+      await updateTeamSeason(seasonId, teamId, { recruiting_rank: recruitingRank });
+    } finally {
+      setRecruitingRankLoading(false);
+    }
+  };
+
+  const handleRecruitingRankInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      setEditingRecruitingRank(false);
     }
   };
 
@@ -161,40 +200,122 @@ export default function RecruitingPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">#-</div>
-                    <div className="text-sm text-muted-foreground">National Rank</div>
+                    {editingRecruitingRank ? (
+                      <input
+                        type="number"
+                        min={1}
+                        max={130}
+                        value={recruitingRank ?? ''}
+                        onChange={handleRecruitingRankChange}
+                        onBlur={handleRecruitingRankInputBlur}
+                        onKeyDown={handleRecruitingRankInputKeyDown}
+                        autoFocus
+                        className="text-3xl font-bold text-blue-600 text-center border-b-2 border-blue-400 bg-transparent w-16 focus:outline-none"
+                        style={{ lineHeight: '2.5rem' }}
+                      />
+                    ) : (
+                      <div
+                        className="text-3xl font-bold text-blue-600 cursor-pointer inline-flex items-center gap-1 group"
+                        onClick={handleRecruitingRankClick}
+                        tabIndex={0}
+                        onKeyDown={e => { if (e.key === 'Enter') handleRecruitingRankClick(); }}
+                        title="Click to edit recruiting rank"
+                        role="button"
+                        aria-label="Edit recruiting rank"
+                      >
+                        #{recruitingRank != null ? recruitingRank : '-'}
+                        <Pencil className="h-4 w-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                      </div>
+                    )}
+                    <div className="text-sm text-muted-foreground">Recruiting Rank</div>
+                    {recruitingRankLoading && <span className="text-xs text-muted-foreground mt-1">Saving...</span>}
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600">{recruits.length}</div>
-                    <div className="text-sm text-muted-foreground">Commits</div>
+                    <div className="text-3xl font-bold text-green-600">{recruits.length + transfers.length}</div>
+                    <div className="text-sm text-muted-foreground">Total Commits</div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-purple-600">-</div>
                     <div className="text-sm text-muted-foreground">Avg Rating</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-orange-600">-</div>
+                    <div className="text-3xl font-bold text-orange-600">{35 - (recruits.length + transfers.length)}</div>
                     <div className="text-sm text-muted-foreground">Open Slots</div>
                   </div>
                 </div>
                 <div className="mt-6">
                   <div className="flex justify-between text-sm mb-2">
-                    <span>Class Progress</span>
+                    <span>Recruiting Progress</span>
                     <span>
-                      {recruits.length}/-
+                      {recruits.length + transfers.length}/35
                     </span>
                   </div>
-                  <Progress value={0} className="h-2" />
+                  <Progress value={((recruits.length + transfers.length) / 35) * 100} className="h-2" />
+                </div>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <p>💡 Recruits and transfers will automatically join the roster when you progress to the next season.</p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* High School Recruits */}
-            <div className="grid gap-6">
-              {recruits.map((recruit, index) => (
-                <RecruitCard key={index} recruit={recruit} index={index} />
-              ))}
-            </div>
+            {/* High School Recruits Table */}
+            {recruits.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Committed Recruits</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Stars</TableHead>
+                        <TableHead>National Rank</TableHead>
+                        <TableHead>State</TableHead>
+                        <TableHead>Height</TableHead>
+                        <TableHead>Weight</TableHead>
+                        <TableHead>Dev Trait</TableHead>
+                        <TableHead>Speed</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recruits.map((recruit, index) => (
+                        <TableRow key={recruit.recruit_id || index}>
+                          <TableCell className="font-medium">{recruit.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{recruit.position}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: recruit.recruit_stars || 0 }).map((_, i) => (
+                                <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>#{recruit.recruit_rank_nat ?? '-'}</TableCell>
+                          <TableCell>{recruit.state || '-'}</TableCell>
+                          <TableCell>{recruit.height || '-'}</TableCell>
+                          <TableCell>{recruit.weight || '-'} lbs</TableCell>
+                          <TableCell>
+                            {recruit.dev_trait && <Badge variant="secondary">{recruit.dev_trait}</Badge>}
+                          </TableCell>
+                          <TableCell>{recruit.speed || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground">
+                    No recruits committed yet. Add some recruits to build your class!
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Transfer Portal Tab */}
@@ -218,40 +339,127 @@ export default function RecruitingPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">-</div>
-                    <div className="text-sm text-muted-foreground">Portal Rank</div>
+                    {editingRecruitingRank ? (
+                      <input
+                        type="number"
+                        min={1}
+                        max={130}
+                        value={recruitingRank ?? ''}
+                        onChange={handleRecruitingRankChange}
+                        onBlur={handleRecruitingRankInputBlur}
+                        onKeyDown={handleRecruitingRankInputKeyDown}
+                        autoFocus
+                        className="text-3xl font-bold text-blue-600 text-center border-b-2 border-blue-400 bg-transparent w-16 focus:outline-none"
+                        style={{ lineHeight: '2.5rem' }}
+                      />
+                    ) : (
+                      <div
+                        className="text-3xl font-bold text-blue-600 cursor-pointer inline-flex items-center gap-1 group"
+                        onClick={handleRecruitingRankClick}
+                        tabIndex={0}
+                        onKeyDown={e => { if (e.key === 'Enter') handleRecruitingRankClick(); }}
+                        title="Click to edit recruiting rank"
+                        role="button"
+                        aria-label="Edit recruiting rank"
+                      >
+                        #{recruitingRank != null ? recruitingRank : '-'}
+                        <Pencil className="h-4 w-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                      </div>
+                    )}
+                    <div className="text-sm text-muted-foreground">Recruiting Rank</div>
+                    {recruitingRankLoading && <span className="text-xs text-muted-foreground mt-1">Saving...</span>}
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-green-600">{transfers.length}</div>
                     <div className="text-sm text-muted-foreground">Transfers</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-600">-</div>
-                    <div className="text-sm text-muted-foreground">Avg Rating</div>
+                    <div className="text-3xl font-bold text-purple-600">
+                      {transfers.length > 0 
+                        ? Math.round(transfers.reduce((sum, t) => sum + (parseInt(t.ovr_rating) || 0), 0) / transfers.length)
+                        : '-'
+                      }
+                    </div>
+                    <div className="text-sm text-muted-foreground">Avg OVR</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-orange-600">-</div>
+                    <div className="text-3xl font-bold text-orange-600">{35 - (recruits.length + transfers.length)}</div>
                     <div className="text-sm text-muted-foreground">Open Slots</div>
                   </div>
                 </div>
                 <div className="mt-6">
                   <div className="flex justify-between text-sm mb-2">
-                    <span>Portal Progress</span>
+                    <span>Recruiting Progress</span>
                     <span>
-                      {transfers.length}/-
+                      {recruits.length + transfers.length}/35
                     </span>
                   </div>
-                  <Progress value={0} className="h-2" />
+                  <Progress value={((recruits.length + transfers.length) / 35) * 100} className="h-2" />
+                </div>
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <p>💡 Recruits and transfers will automatically join the roster when you progress to the next season.</p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Transfers */}
-            <div className="grid gap-6">
-              {transfers.map((transfer, index) => (
-                <TransferCard key={index} transfer={transfer} index={index} />
-              ))}
-            </div>
+            {/* Transfers Table */}
+            {transfers.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Transfers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Position</TableHead>
+                        <TableHead>Stars</TableHead>
+                        <TableHead>Previous School</TableHead>
+                        <TableHead>OVR</TableHead>
+                        <TableHead>Positional Rank</TableHead>
+                        <TableHead>State</TableHead>
+                        <TableHead>Height</TableHead>
+                        <TableHead>Weight</TableHead>
+                        <TableHead>Dev Trait</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transfers.map((transfer, index) => (
+                        <TableRow key={transfer.transfer_id || index}>
+                          <TableCell className="font-medium">{transfer.name}</TableCell>
+                          <TableCell>{transfer.position}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: transfer.recruit_stars || 0 }).map((_, i) => (
+                                <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>{transfer.previous_school || '-'}</TableCell>
+                          <TableCell>{transfer.ovr_rating || '-'}</TableCell>
+                          <TableCell>{transfer.recruit_rank_pos || '-'}</TableCell>
+                          <TableCell>{transfer.state || '-'}</TableCell>
+                          <TableCell>{transfer.height || '-'}</TableCell>
+                          <TableCell>{transfer.weight || '-'} lbs</TableCell>
+                          <TableCell>{transfer.dev_trait || '-'}</TableCell>
+                          <TableCell>{transfer.current_status || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-muted-foreground">
+                    No transfers added yet. Add some transfers to build your class!
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

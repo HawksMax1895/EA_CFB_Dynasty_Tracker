@@ -58,8 +58,8 @@ export async function uploadTeamLogo(teamId: number, file: File) {
 }
 
 // PLAYERS
-export async function fetchPlayers() {
-  const response = await fetch(`${API_BASE_URL}/players`)
+export async function fetchPlayers(teamId: number = 1) {
+  const response = await fetch(`${API_BASE_URL}/players?team_id=${teamId}`)
   if (!response.ok) throw new Error("Failed to fetch players")
   return response.json()
 }

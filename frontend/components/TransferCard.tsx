@@ -2,7 +2,7 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, GraduationCap, Building2 } from "lucide-react";
+import { TrendingUp, GraduationCap, Building2, Star } from "lucide-react";
 
 interface TransferCardProps {
   transfer: {
@@ -10,6 +10,7 @@ interface TransferCardProps {
     position: string;
     previous_school?: string;
     ovr_rating?: string;
+    recruit_stars?: number;
     dev_trait?: string;
     height?: string;
     weight?: string;
@@ -51,6 +52,13 @@ export function TransferCard({ transfer, index }: TransferCardProps) {
               <span className="text-2xl font-bold">{transfer.ovr_rating ?? '-'}</span>
               <span className="text-sm text-muted-foreground">OVR</span>
             </div>
+            {transfer.recruit_stars && (
+              <div className="flex items-center gap-1 mb-2">
+                {Array.from({ length: transfer.recruit_stars }).map((_, i) => (
+                  <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+            )}
             <Badge className="bg-blue-100 text-blue-800">
               <Building2 className="h-3 w-3 mr-1" />
               Committed

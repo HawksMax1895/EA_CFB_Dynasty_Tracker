@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from extensions import db
-from models import Player, PlayerSeason, Team
+from models import Player, PlayerSeason, Team, Season
 
 players_bp = Blueprint('players', __name__)
 
@@ -107,15 +107,49 @@ def set_redshirt(player_id):
 
 @players_bp.route('/players', methods=['GET'])
 def get_all_players():
-    players = Player.query.all()
+    # Get the current season (you might want to make this configurable)
+    current_season = Season.query.order_by(Season.year.desc()).first()
+    if not current_season:
+        return jsonify([])
+    
+    # Get team_id from query params (default to team 1 for now)
+    team_id = request.args.get('team_id', type=int, default=1)
+    
+    # Only return players who are on the current roster (have PlayerSeason records)
+    query = (
+        db.session.query(Player, PlayerSeason)
+        .join(PlayerSeason, Player.player_id == PlayerSeason.player_id)
+        .filter(
+            PlayerSeason.season_id == current_season.season_id,
+            PlayerSeason.team_id == team_id
+        )
+    )
+    
     return jsonify([
         {
             'player_id': p.player_id,
             'name': p.name,
             'position': p.position,
             'team_id': p.team_id,
-            'current_year': p.current_year,
-            'drafted_year': p.drafted_year
+            'current_year': ps.player_class,
+            'drafted_year': p.drafted_year,
+            'ovr_rating': ps.ovr_rating,
+            'redshirted': p.redshirted,
+            'recruit_stars': p.recruit_stars,
+            'dev_trait': p.dev_trait,
+            'height': p.height,
+            'weight': p.weight,
+            'state': p.state,
+            'pass_yards': ps.pass_yards,
+            'pass_tds': ps.pass_tds,
+            'rush_yards': ps.rush_yards,
+            'rush_tds': ps.rush_tds,
+            'rec_yards': ps.rec_yards,
+            'rec_tds': ps.rec_tds,
+            'tackles': ps.tackles,
+            'sacks': ps.sacks,
+            'interceptions': ps.interceptions,
+            'awards': ps.awards
         }
-        for p in players
+        for p, ps in query.all()
     ]) 
