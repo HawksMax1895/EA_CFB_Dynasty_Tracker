@@ -96,4 +96,36 @@ def get_transfer_portal():
             'current_status': t.current_status
         }
         for t in transfers
-    ]) 
+    ])
+
+@transfer_bp.route('/transfer-portal/<int:transfer_id>', methods=['PUT'])
+def update_transfer(transfer_id):
+    transfer = Transfer.query.get(transfer_id)
+    if not transfer:
+        return jsonify({'error': 'Transfer not found'}), 404
+    
+    data = request.json
+    transfer.name = data.get('name', transfer.name)
+    transfer.position = data.get('position', transfer.position)
+    transfer.previous_school = data.get('previous_school', transfer.previous_school)
+    transfer.ovr_rating = data.get('ovr_rating', transfer.ovr_rating)
+    transfer.recruit_stars = data.get('recruit_stars', transfer.recruit_stars)
+    transfer.recruit_rank_pos = data.get('recruit_rank_pos', transfer.recruit_rank_pos)
+    transfer.dev_trait = data.get('dev_trait', transfer.dev_trait)
+    transfer.height = data.get('height', transfer.height)
+    transfer.weight = data.get('weight', transfer.weight)
+    transfer.state = data.get('state', transfer.state)
+    transfer.current_status = data.get('current_status', transfer.current_status)
+    
+    db.session.commit()
+    return jsonify({'message': 'Transfer updated successfully'}), 200
+
+@transfer_bp.route('/transfer-portal/<int:transfer_id>', methods=['DELETE'])
+def delete_transfer(transfer_id):
+    transfer = Transfer.query.get(transfer_id)
+    if not transfer:
+        return jsonify({'error': 'Transfer not found'}), 404
+    
+    db.session.delete(transfer)
+    db.session.commit()
+    return jsonify({'message': 'Transfer deleted successfully'}), 200 

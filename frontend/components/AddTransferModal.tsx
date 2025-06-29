@@ -189,7 +189,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Add New Transfer</h2>
           <Button 

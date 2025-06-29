@@ -158,7 +158,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg p-8 w-full max-w-lg mx-4 shadow-xl">
+      <div className="bg-white rounded-lg p-8 w-full max-w-2xl mx-4 shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Add New High School Recruit</h2>
           <Button 

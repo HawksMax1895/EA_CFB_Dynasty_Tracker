@@ -93,3 +93,34 @@ def get_recruiting_class():
         }
         for r in recruits
     ])
+
+@recruiting_bp.route('/recruiting-class/<int:recruit_id>', methods=['PUT'])
+def update_recruit(recruit_id):
+    recruit = Recruit.query.get(recruit_id)
+    if not recruit:
+        return jsonify({'error': 'Recruit not found'}), 404
+    
+    data = request.json
+    recruit.name = data.get('name', recruit.name)
+    recruit.position = data.get('position', recruit.position)
+    recruit.recruit_stars = data.get('recruit_stars', recruit.recruit_stars)
+    recruit.recruit_rank_nat = data.get('recruit_rank_nat', recruit.recruit_rank_nat)
+    recruit.recruit_rank_pos = data.get('recruit_rank_pos', recruit.recruit_rank_pos)
+    recruit.speed = data.get('speed', recruit.speed)
+    recruit.dev_trait = data.get('dev_trait', recruit.dev_trait)
+    recruit.height = data.get('height', recruit.height)
+    recruit.weight = data.get('weight', recruit.weight)
+    recruit.state = data.get('state', recruit.state)
+    
+    db.session.commit()
+    return jsonify({'message': 'Recruit updated successfully'}), 200
+
+@recruiting_bp.route('/recruiting-class/<int:recruit_id>', methods=['DELETE'])
+def delete_recruit(recruit_id):
+    recruit = Recruit.query.get(recruit_id)
+    if not recruit:
+        return jsonify({'error': 'Recruit not found'}), 404
+    
+    db.session.delete(recruit)
+    db.session.commit()
+    return jsonify({'message': 'Recruit deleted successfully'}), 200

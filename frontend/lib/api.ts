@@ -91,6 +91,24 @@ export async function addRecruitingClass(data: { team_id: number; season_id: num
   return response.json()
 }
 
+export async function updateRecruit(recruitId: number, data: any) {
+  const response = await fetch(`${API_BASE_URL}/recruiting-class/${recruitId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update recruit")
+  return response.json()
+}
+
+export async function deleteRecruit(recruitId: number) {
+  const response = await fetch(`${API_BASE_URL}/recruiting-class/${recruitId}`, {
+    method: "DELETE"
+  })
+  if (!response.ok) throw new Error("Failed to delete recruit")
+  return response.json()
+}
+
 // TRANSFER PORTAL
 export async function fetchTransferPortal(teamId: number, seasonId: number) {
   const response = await fetch(`${API_BASE_URL}/transfer-portal?team_id=${teamId}&season_id=${seasonId}`)
@@ -105,6 +123,24 @@ export async function addTransferPortal(data: { team_id: number; season_id: numb
     body: JSON.stringify(data)
   })
   if (!response.ok) throw new Error("Failed to add transfer portal class")
+  return response.json()
+}
+
+export async function updateTransfer(transferId: number, data: any) {
+  const response = await fetch(`${API_BASE_URL}/transfer-portal/${transferId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update transfer")
+  return response.json()
+}
+
+export async function deleteTransfer(transferId: number) {
+  const response = await fetch(`${API_BASE_URL}/transfer-portal/${transferId}`, {
+    method: "DELETE"
+  })
+  if (!response.ok) throw new Error("Failed to delete transfer")
   return response.json()
 }
 

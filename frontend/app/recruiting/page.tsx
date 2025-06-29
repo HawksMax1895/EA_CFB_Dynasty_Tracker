@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Star, TrendingUp, GraduationCap, Building2, Pencil } from "lucide-react";
+import { Star, TrendingUp, GraduationCap, Building2, Pencil, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchRecruitingClass, addRecruitingClass, fetchTransferPortal, addTransferPortal, updateTeamSeason, fetchTeamsBySeason } from "@/lib/api";
+import { fetchRecruitingClass, addRecruitingClass, fetchTransferPortal, addTransferPortal, updateTeamSeason, fetchTeamsBySeason, updateRecruit, deleteRecruit, updateTransfer, deleteTransfer, fetchTeams } from "@/lib/api";
 import {
   Dialog,
   DialogTrigger,
@@ -22,6 +22,9 @@ import { TransferCard } from "@/components/TransferCard";
 import { AddRecruitModal } from "@/components/AddRecruitModal";
 import { AddTransferModal } from "@/components/AddTransferModal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export default function RecruitingPage() {
   const teamId = 1;
@@ -62,6 +65,11 @@ export default function RecruitingPage() {
   const [recruitingRank, setRecruitingRank] = useState<number | null>(null);
   const [recruitingRankLoading, setRecruitingRankLoading] = useState(false);
   const [editingRecruitingRank, setEditingRecruitingRank] = useState(false);
+  const [editingRecruit, setEditingRecruit] = useState<any>(null);
+  const [editingTransfer, setEditingTransfer] = useState<any>(null);
+  const [transferSchoolOpen, setTransferSchoolOpen] = useState(false);
+  const [transferSchools, setTransferSchools] = useState<Array<{ id: number; name: string; abbreviation?: string }>>([]);
+  const [transferSchoolsLoading, setTransferSchoolsLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -160,6 +168,90 @@ export default function RecruitingPage() {
     } else if (e.key === 'Escape') {
       setEditingRecruitingRank(false);
     }
+  };
+
+  const handleEditRecruit = (recruit: any) => {
+    setEditingRecruit({
+      recruit_id: recruit.recruit_id,
+      name: recruit.name,
+      position: recruit.position,
+      recruit_stars: recruit.recruit_stars || 3,
+      recruit_rank_nat: recruit.recruit_rank_nat || 0,
+      recruit_rank_pos: recruit.recruit_rank_pos || 0,
+      speed: recruit.speed || '',
+      dev_trait: recruit.dev_trait || '',
+      height: recruit.height || '',
+      weight: recruit.weight || '',
+      state: recruit.state || ''
+    });
+  };
+
+  const handleEditTransfer = (transfer: any) => {
+    setEditingTransfer({
+      transfer_id: transfer.transfer_id,
+      name: transfer.name,
+      position: transfer.position,
+      previous_school: transfer.previous_school || '',
+      ovr_rating: transfer.ovr_rating || '',
+      recruit_stars: transfer.recruit_stars || 3,
+      recruit_rank_pos: transfer.recruit_rank_pos || 0,
+      dev_trait: transfer.dev_trait || '',
+      height: transfer.height || '',
+      weight: transfer.weight || '',
+      state: transfer.state || '',
+      current_status: transfer.current_status || 'SO'
+    });
+    // Load schools when editing transfer
+    if (transferSchools.length === 0) {
+      loadTransferSchools();
+    }
+  };
+
+  const handleDeleteRecruit = async (recruitId: number) => {
+    if (confirm('Are you sure you want to delete this recruit?')) {
+      try {
+        await deleteRecruit(recruitId);
+        const data = await fetchRecruitingClass(teamId, seasonId);
+        setRecruits(data);
+      } catch (err: any) {
+        console.error('Failed to delete recruit:', err);
+      }
+    }
+  };
+
+  const handleDeleteTransfer = async (transferId: number) => {
+    if (confirm('Are you sure you want to delete this transfer?')) {
+      try {
+        await deleteTransfer(transferId);
+        const data = await fetchTransferPortal(teamId, seasonId);
+        setTransfers(data);
+      } catch (err: any) {
+        console.error('Failed to delete transfer:', err);
+      }
+    }
+  };
+
+  const loadTransferSchools = async () => {
+    console.log("Loading transfer schools...");
+    setTransferSchoolsLoading(true);
+    try {
+      const teamsData = await fetchTeams();
+      console.log("Loaded teams data:", teamsData);
+      setTransferSchools(teamsData);
+    } catch (error) {
+      console.error("Failed to load schools:", error);
+    } finally {
+      setTransferSchoolsLoading(false);
+    }
+  };
+
+  const handleTransferSchoolSelect = (schoolName: string) => {
+    if (schoolName === "clear") {
+      setEditingTransfer({...editingTransfer, previous_school: ''});
+    } else {
+      setEditingTransfer({...editingTransfer, previous_school: schoolName});
+    }
+    setTransferSchoolOpen(false);
   };
 
   if (loading) return <div className="p-8">Loading recruiting data...</div>;
@@ -277,6 +369,7 @@ export default function RecruitingPage() {
                         <TableHead>Weight</TableHead>
                         <TableHead>Dev Trait</TableHead>
                         <TableHead>Speed</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -301,6 +394,26 @@ export default function RecruitingPage() {
                             {recruit.dev_trait && <Badge variant="secondary">{recruit.dev_trait}</Badge>}
                           </TableCell>
                           <TableCell>{recruit.speed || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditRecruit(recruit)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteRecruit(recruit.recruit_id)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -423,6 +536,7 @@ export default function RecruitingPage() {
                         <TableHead>Weight</TableHead>
                         <TableHead>Dev Trait</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -445,6 +559,26 @@ export default function RecruitingPage() {
                           <TableCell>{transfer.weight || '-'} lbs</TableCell>
                           <TableCell>{transfer.dev_trait || '-'}</TableCell>
                           <TableCell>{transfer.current_status || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditTransfer(transfer)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteTransfer(transfer.transfer_id)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -462,6 +596,442 @@ export default function RecruitingPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Edit Recruit Modal */}
+        {editingRecruit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-lg p-8 w-full max-w-2xl mx-4 shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">Edit Recruit</h2>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setEditingRecruit(null)}
+                  className="h-6 w-6 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-medium">Name</Label>
+                    <Input
+                      value={editingRecruit.name}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, name: e.target.value})}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">Position</Label>
+                    <Input
+                      value={editingRecruit.position}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, position: e.target.value})}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="font-medium">Stars</Label>
+                  <div className="flex items-center gap-1 mt-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <button
+                        type="button"
+                        key={i}
+                        onClick={() => setEditingRecruit({...editingRecruit, recruit_stars: i + 1})}
+                      >
+                        <Star
+                          className={`h-5 w-5 ${i < (editingRecruit.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-medium">National Rank</Label>
+                    <Input
+                      type="number"
+                      value={editingRecruit.recruit_rank_nat || ''}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, recruit_rank_nat: parseInt(e.target.value) || 0})}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">Positional Rank</Label>
+                    <Input
+                      type="number"
+                      value={editingRecruit.recruit_rank_pos || ''}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, recruit_rank_pos: parseInt(e.target.value) || 0})}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-medium">Speed <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Input
+                      type="number"
+                      value={editingRecruit.speed || ''}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, speed: e.target.value})}
+                      placeholder="Optional"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">Dev Trait</Label>
+                    <Select 
+                      value={editingRecruit.dev_trait || "None"} 
+                      onValueChange={(value) => setEditingRecruit({...editingRecruit, dev_trait: value === "None" ? "" : value})}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select dev trait" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Elite">Elite</SelectItem>
+                        <SelectItem value="Star">Star</SelectItem>
+                        <SelectItem value="Impact">Impact</SelectItem>
+                        <SelectItem value="Normal">Normal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="font-medium">Height (ft/in)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type="number"
+                        min={4}
+                        max={7}
+                        value={editingRecruit.height ? editingRecruit.height.match(/(\d+)'/)?.[1] || '' : ''}
+                        onChange={(e) => {
+                          const inches = editingRecruit.height ? editingRecruit.height.match(/'(\d+)/)?.[1] || '' : '';
+                          const newHeight = `${e.target.value}'${inches}"`;
+                          setEditingRecruit({...editingRecruit, height: newHeight});
+                        }}
+                        placeholder="6"
+                        className="w-16"
+                      />
+                      <span className="self-center text-lg font-medium">'</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={11}
+                        value={editingRecruit.height ? editingRecruit.height.match(/'(\d+)/)?.[1] || '' : ''}
+                        onChange={(e) => {
+                          const feet = editingRecruit.height ? editingRecruit.height.match(/(\d+)'/)?.[1] || '' : '';
+                          const newHeight = `${feet}'${e.target.value}"`;
+                          setEditingRecruit({...editingRecruit, height: newHeight});
+                        }}
+                        placeholder="2"
+                        className="w-16"
+                      />
+                      <span className="self-center text-lg font-medium">"</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Weight</Label>
+                    <Input
+                      type="number"
+                      value={editingRecruit.weight || ''}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, weight: e.target.value})}
+                      placeholder="200"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">State</Label>
+                    <Input
+                      value={editingRecruit.state || ''}
+                      onChange={(e) => setEditingRecruit({...editingRecruit, state: e.target.value})}
+                      placeholder="TX"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <Button 
+                    onClick={async () => {
+                      await updateRecruit(editingRecruit.recruit_id, editingRecruit);
+                      const data = await fetchRecruitingClass(teamId, seasonId);
+                      setRecruits(data);
+                      setEditingRecruit(null);
+                    }}
+                    className="flex-1"
+                  >
+                    Save Changes
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setEditingRecruit(null)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Transfer Modal */}
+        {editingTransfer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-lg p-8 w-full max-w-2xl mx-4 shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">Edit Transfer</h2>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setEditingTransfer(null)}
+                  className="h-6 w-6 p-0"
+                >
+                  ×
+                </Button>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-medium">Name</Label>
+                    <Input
+                      value={editingTransfer.name}
+                      onChange={(e) => setEditingTransfer({...editingTransfer, name: e.target.value})}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">Position</Label>
+                    <Input
+                      value={editingTransfer.position}
+                      onChange={(e) => setEditingTransfer({...editingTransfer, position: e.target.value})}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="font-medium">Previous School</Label>
+                  <Popover open={transferSchoolOpen} onOpenChange={(open) => {
+                    console.log("Dropdown open state:", open, "Current schools count:", transferSchools.length);
+                    setTransferSchoolOpen(open);
+                    if (open && transferSchools.length === 0) {
+                      console.log("Loading schools because dropdown opened and no schools loaded");
+                      loadTransferSchools();
+                    }
+                  }}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={transferSchoolOpen}
+                        className="w-full justify-between mt-1"
+                        disabled={transferSchoolsLoading}
+                      >
+                        {editingTransfer.previous_school || (transferSchoolsLoading ? "Loading schools..." : "Select school...")}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search school..." />
+                        <CommandList>
+                          <CommandEmpty>No school found.</CommandEmpty>
+                          <CommandGroup>
+                            {editingTransfer.previous_school && (
+                              <CommandItem
+                                value="clear"
+                                onSelect={() => handleTransferSchoolSelect("clear")}
+                              >
+                                <div className="flex items-center text-red-600">
+                                  <span>Clear selection</span>
+                                </div>
+                              </CommandItem>
+                            )}
+                            {console.log("Rendering schools dropdown with", transferSchools.length, "schools:", transferSchools)}
+                            {transferSchools.map((school) => (
+                              <CommandItem
+                                key={school.id}
+                                value={school.name}
+                                onSelect={() => handleTransferSchoolSelect(school.name)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    editingTransfer.previous_school === school.name ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{school.name}</span>
+                                  {school.abbreviation && (
+                                    <span className="text-xs text-muted-foreground">{school.abbreviation}</span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                            {transferSchools.length === 0 && !transferSchoolsLoading && (
+                              <div className="p-2 text-sm text-muted-foreground">
+                                No schools available
+                              </div>
+                            )}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="font-medium">OVR</Label>
+                    <Input
+                      type="number"
+                      min={50}
+                      max={99}
+                      value={editingTransfer.ovr_rating || ''}
+                      onChange={(e) => setEditingTransfer({...editingTransfer, ovr_rating: e.target.value})}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">Stars</Label>
+                    <div className="flex items-center gap-1 mt-1">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <button
+                          type="button"
+                          key={i}
+                          onClick={() => setEditingTransfer({...editingTransfer, recruit_stars: i + 1})}
+                        >
+                          <Star
+                            className={`h-5 w-5 ${i < (editingTransfer.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Positional Rank</Label>
+                    <Input
+                      type="number"
+                      value={editingTransfer.recruit_rank_pos || ''}
+                      onChange={(e) => setEditingTransfer({...editingTransfer, recruit_rank_pos: parseInt(e.target.value) || 0})}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-medium">Dev Trait</Label>
+                    <Select 
+                      value={editingTransfer.dev_trait || "None"} 
+                      onValueChange={(value) => setEditingTransfer({...editingTransfer, dev_trait: value === "None" ? "" : value})}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select dev trait" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="None">None</SelectItem>
+                        <SelectItem value="Elite">Elite</SelectItem>
+                        <SelectItem value="Star">Star</SelectItem>
+                        <SelectItem value="Impact">Impact</SelectItem>
+                        <SelectItem value="Normal">Normal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Current Status</Label>
+                    <Select 
+                      value={editingTransfer.current_status} 
+                      onValueChange={(value) => setEditingTransfer({...editingTransfer, current_status: value})}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FR">FR (Freshman)</SelectItem>
+                        <SelectItem value="SO">SO (Sophomore)</SelectItem>
+                        <SelectItem value="JR">JR (Junior)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="font-medium">Height (ft/in)</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input
+                        type="number"
+                        min={4}
+                        max={7}
+                        value={editingTransfer.height ? editingTransfer.height.match(/(\d+)'/)?.[1] || '' : ''}
+                        onChange={(e) => {
+                          const inches = editingTransfer.height ? editingTransfer.height.match(/'(\d+)/)?.[1] || '' : '';
+                          const newHeight = `${e.target.value}'${inches}"`;
+                          setEditingTransfer({...editingTransfer, height: newHeight});
+                        }}
+                        placeholder="6"
+                        className="w-16"
+                      />
+                      <span className="self-center text-lg font-medium">'</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={11}
+                        value={editingTransfer.height ? editingTransfer.height.match(/'(\d+)/)?.[1] || '' : ''}
+                        onChange={(e) => {
+                          const feet = editingTransfer.height ? editingTransfer.height.match(/(\d+)'/)?.[1] || '' : '';
+                          const newHeight = `${feet}'${e.target.value}"`;
+                          setEditingTransfer({...editingTransfer, height: newHeight});
+                        }}
+                        placeholder="2"
+                        className="w-16"
+                      />
+                      <span className="self-center text-lg font-medium">"</span>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="font-medium">Weight</Label>
+                    <Input
+                      type="number"
+                      value={editingTransfer.weight || ''}
+                      onChange={(e) => setEditingTransfer({...editingTransfer, weight: e.target.value})}
+                      placeholder="200"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-medium">State</Label>
+                    <Input
+                      value={editingTransfer.state || ''}
+                      onChange={(e) => setEditingTransfer({...editingTransfer, state: e.target.value})}
+                      placeholder="TX"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <Button 
+                    onClick={async () => {
+                      await updateTransfer(editingTransfer.transfer_id, editingTransfer);
+                      const data = await fetchTransferPortal(teamId, seasonId);
+                      setTransfers(data);
+                      setEditingTransfer(null);
+                    }}
+                    className="flex-1"
+                  >
+                    Save Changes
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setEditingTransfer(null)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
