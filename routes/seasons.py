@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify # type: ignore
+from marshmallow import ValidationError
 from extensions import db
-from models import Season, Conference, TeamSeason, Game, Team, Player
+from models import Season, Conference, TeamSeason, Game, Team, PlayerSeason
+from schemas import CreateSeasonSchema
 import datetime
 
 seasons_bp = Blueprint('seasons', __name__)
@@ -13,7 +15,11 @@ def get_seasons():
 @seasons_bp.route('/seasons', methods=['POST'])
 def create_season():
     data = request.json or {}
-    year = data.get('year')
+    try:
+        validated = CreateSeasonSchema().load(data)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    year = validated.get('year')
     if not year:
         # Find the most recent season and increment year
         last_season = Season.query.order_by(Season.year.desc()).first()
@@ -343,35 +349,3 @@ def get_promotion_relegation(season_id):
                 'to_conference': conf_map.get(ts.conference_id, ts.conference_id)
             })
     return jsonify(changes)
-
-@seasons_bp.route('/seasons/<int:season_id>/progress_players', methods=['POST'])
-def progress_players(season_id):
-    PROGRESSION_MAP = {"FR": "SO", "SO": "JR", "JR": "SR", "SR": "GR", "GR": "GR"}
-    players = Player.query.all()
-    progressed = []
-    redshirted = []
-    for player in players:
-        if player.redshirted:
-            player.redshirted = False  # Remove redshirt for next year
-            redshirted.append(player.player_id)
-            continue
-        if player.current_year in PROGRESSION_MAP:
-            player.current_year = PROGRESSION_MAP[player.current_year]
-            progressed.append(player.player_id)
-    db.session.commit()
-    return jsonify({"progressed_player_ids": progressed, "redshirted_player_ids": redshirted}), 200
-
-@seasons_bp.route('/seasons/<int:season_id>/auto_assign_top25', methods=['POST'])
-def auto_assign_top25(season_id):
-    team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
-    # Sort by wins descending, then by team_id for tie-breaker
-    sorted_teams = sorted(team_seasons, key=lambda ts: (ts.wins if ts.wins is not None else 0, ts.team_id), reverse=True)
-    top25 = sorted_teams[:25]
-    # Assign final_rank 1-25
-    for i, ts in enumerate(top25):
-        ts.final_rank = i + 1
-    # Set all others to None
-    for ts in sorted_teams[25:]:
-        ts.final_rank = None
-    db.session.commit()
-    return jsonify({'message': 'Top 25 assigned by wins', 'assigned_team_ids': [ts.team_id for ts in top25]}), 200 
