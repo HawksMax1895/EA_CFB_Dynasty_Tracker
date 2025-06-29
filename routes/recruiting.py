@@ -18,6 +18,11 @@ def add_recruiting_class():
         position = recruit.get('position')
         recruit_stars = recruit.get('recruit_stars')
         recruit_rank_nat = recruit.get('recruit_rank_nat')
+        speed = recruit.get('speed')
+        dev_trait = recruit.get('dev_trait')
+        height = recruit.get('height')
+        weight = recruit.get('weight')
+        state = recruit.get('state')
         if not name or not position:
             continue
         player = Player(
@@ -25,6 +30,11 @@ def add_recruiting_class():
             position=position,
             recruit_stars=recruit_stars,
             recruit_rank_nat=recruit_rank_nat,
+            speed=speed,
+            dev_trait=dev_trait,
+            height=height,
+            weight=weight,
+            state=state,
             team_id=team_id,
             current_year='FR'
         )
@@ -68,7 +78,12 @@ def get_recruiting_class():
             'name': p.name,
             'position': p.position,
             'recruit_stars': p.recruit_stars,
-            'recruit_rank_nat': p.recruit_rank_nat
+            'recruit_rank_nat': p.recruit_rank_nat,
+            'speed': p.speed,
+            'dev_trait': p.dev_trait,
+            'height': p.height,
+            'weight': p.weight,
+            'state': p.state
         }
         for p in query.all()
     ]

@@ -81,6 +81,11 @@ class Player(db.Model):
     position = db.Column(db.String(8), nullable=False)
     recruit_stars = db.Column(db.Integer)
     recruit_rank_nat = db.Column(db.Integer)
+    speed = db.Column(db.Integer)  # New: Speed rating
+    dev_trait = db.Column(db.String(16))  # New: Dev Trait (e.g., Star, Impact, Normal)
+    height = db.Column(db.String(8))  # New: Height (e.g., 6'2")
+    weight = db.Column(db.Integer)  # New: Weight in lbs
+    state = db.Column(db.String(2))  # New: State abbreviation
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
     current_year = db.Column(db.String(8))
     redshirted = db.Column(db.Boolean, default=False)  # Prevents class progression for one season
