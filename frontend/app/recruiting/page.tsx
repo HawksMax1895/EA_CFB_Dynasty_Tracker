@@ -165,7 +165,7 @@ export default function RecruitingPage() {
                   name="height"
                   value={form.height}
                   onChange={handleFormChange}
-                  placeholder="Height (e.g. 6'2\")"
+                  placeholder={'Height (e.g. 6\'2")'}
                   className="border rounded px-2 py-1 w-24"
                   required
                 />
