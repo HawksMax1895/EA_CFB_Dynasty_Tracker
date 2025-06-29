@@ -18,7 +18,7 @@ export async function createSeason(year?: number) {
 }
 
 export async function progressPlayers(seasonId: number) {
-  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/progress_players`, { method: "POST" })
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/players/progression`, { method: "POST" })
   if (!response.ok) throw new Error("Failed to progress players")
   return response.json()
 }

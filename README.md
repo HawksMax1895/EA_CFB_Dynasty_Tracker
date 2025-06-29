@@ -7,6 +7,7 @@ This is the Flask backend for the College Football Dynasty Tracker. It provides 
 - RESTful API for integration with a React frontend
 - SQLite database (easy to switch to PostgreSQL)
 - Modular Flask blueprints for each resource
+- Input validation with Marshmallow
 
 ## Setup Instructions
 
@@ -46,7 +47,8 @@ The API will be available at `http://localhost:5000/api/`.
 │   ├── teams.py
 │   ├── players.py
 │   ├── games.py
-│   └── awards.py
+│   ├── awards.py
+│   └── season_actions.py
 ├── requirements.txt # Python dependencies
 └── README.md        # This file
 ```
@@ -54,4 +56,5 @@ The API will be available at `http://localhost:5000/api/`.
 ## Notes
 - The backend is designed for local use (e.g., on a Raspberry Pi)
 - No authentication is implemented (all endpoints are open)
-- Data entry is manual via the frontend 
+- Data entry is manual via the frontend
+- Additional actions like player progression are handled in a separate blueprint
