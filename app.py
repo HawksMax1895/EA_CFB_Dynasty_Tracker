@@ -26,6 +26,7 @@ from routes.draft import draft_bp
 from routes.rankings import rankings_bp
 from routes.honors import honors_bp
 from routes.conferences import conferences_bp
+from routes.season_actions import season_actions_bp
 
 # Register blueprints
 app.register_blueprint(seasons_bp, url_prefix='/api')
@@ -43,6 +44,7 @@ app.register_blueprint(draft_bp, url_prefix='/api')
 app.register_blueprint(rankings_bp, url_prefix='/api')
 app.register_blueprint(honors_bp, url_prefix='/api')
 app.register_blueprint(conferences_bp, url_prefix='/api')
+app.register_blueprint(season_actions_bp, url_prefix='/api')
 
 '''print("Registered routes:")
 for rule in app.url_map.iter_rules():

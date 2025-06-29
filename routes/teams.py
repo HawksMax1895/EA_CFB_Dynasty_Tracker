@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify, current_app # type: ignore
+from marshmallow import ValidationError
 from extensions import db
 from models import Team, TeamSeason
+from schemas import CreateTeamSchema
 import os
 
 teams_bp = Blueprint('teams', __name__)
@@ -22,13 +24,16 @@ def get_teams():
 
 @teams_bp.route('/teams', methods=['POST'])
 def create_team():
-    data = request.json
-    name = data.get('name')
-    abbreviation = data.get('abbreviation')
-    logo_url = data.get('logo_url')
-    if not name:
-        return jsonify({'error': 'Name is required'}), 400
-    team = Team(name=name, abbreviation=abbreviation, logo_url=logo_url)
+    data = request.json or {}
+    try:
+        validated = CreateTeamSchema().load(data)
+    except ValidationError as err:
+        return jsonify(err.messages), 400
+    team = Team(
+        name=validated['name'],
+        abbreviation=validated.get('abbreviation'),
+        logo_url=validated.get('logo_url')
+    )
     db.session.add(team)
     db.session.commit()
     return jsonify({'team_id': team.team_id, 'name': team.name, 'abbreviation': team.abbreviation, 'logo_url': team.logo_url}), 201
