@@ -146,7 +146,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
                 name="height"
                 value={form.height}
                 onChange={onFormChange}
-                placeholder="6'2\""
+                placeholder={"6'2\""}
                 required
               />
             </div>
