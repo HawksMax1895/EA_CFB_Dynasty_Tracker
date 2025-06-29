@@ -10,7 +10,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command"
 import { useSeason } from "@/context/SeasonContext"
 import { Team, Game } from "@/types";
-import Bracket from '../seasons/[season_id]/playoff/Bracket';
+import Bracket from './Bracket';
 
 export default function GamesPage() {
   // Component State
@@ -31,6 +31,8 @@ export default function GamesPage() {
   const [teamSeasonStats, setTeamSeasonStats] = useState<Team | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [editableStats, setEditableStats] = useState<Partial<Team>>({});
+
+  console.log('GamesPage: selectedSeason', selectedSeason);
 
   // Effects
   useEffect(() => {

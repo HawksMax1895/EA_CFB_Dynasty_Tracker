@@ -280,24 +280,6 @@ def get_season_standings(season_id):
         })
     return jsonify(standings)
 
-@seasons_bp.route('/seasons/<int:season_id>/bracket', methods=['GET'])
-def get_season_bracket(season_id):
-    games = Game.query.filter_by(season_id=season_id, game_type='Playoff').all()
-    bracket = {}
-    for g in games:
-        round_name = g.playoff_round or 'Unknown'
-        if round_name not in bracket:
-            bracket[round_name] = []
-        bracket[round_name].append({
-            'game_id': g.game_id,
-            'week': g.week,
-            'home_team_id': g.home_team_id,
-            'away_team_id': g.away_team_id,
-            'home_score': g.home_score,
-            'away_score': g.away_score
-        })
-    return jsonify(bracket)
-
 @seasons_bp.route('/conferences/<int:conference_id>/teams', methods=['GET'])
 def get_conference_teams(conference_id):
     season_id = request.args.get('season_id', type=int)

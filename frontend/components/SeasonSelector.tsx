@@ -7,8 +7,12 @@ export const SeasonSelector: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  console.log('SeasonSelector: seasons', seasons);
+  console.log('SeasonSelector: selectedSeason', selectedSeason);
+
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const seasonId = Number(e.target.value);
+    console.log('SeasonSelector: handleChange', seasonId);
     setSelectedSeason(seasonId);
     const params = new URLSearchParams(searchParams.toString());
     params.set('season', String(seasonId));
