@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Trophy, TrendingUp, Users, Target, Shield, Sword } from "lucide-react"
 import React, { useEffect, useState } from "react"
-import { fetchSeasons, createSeason, fetchTeamsBySeason } from "@/lib/api"
+import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason } from "@/lib/api"
 import { useSeason } from "@/context/SeasonContext"
 import { Team } from "@/types"
 import Link from "next/link"
@@ -65,6 +65,23 @@ export default function SeasonsPage() {
     }
   }
 
+  const handleDeleteLatestSeason = async () => {
+    if (!seasons.length) return;
+    const latest = seasons[seasons.length - 1];
+    if (!window.confirm(`Are you sure you want to delete the latest season (${latest.year}) and all its data? This cannot be undone.`)) return;
+    setCreating(true);
+    setError(null);
+    try {
+      await deleteSeason(latest.season_id);
+      const data = await fetchSeasons();
+      setSeasons(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (loading) return <div className="p-8">Loading seasons...</div>
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>
 
@@ -76,9 +93,14 @@ export default function SeasonsPage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Season History</h1>
             <p className="text-gray-600">Track your dynasty progress across seasons</p>
           </div>
-          <Button onClick={handleCreateSeason} disabled={creating} variant="default">
-            {creating ? "Creating..." : "Add New Season"}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleCreateSeason} disabled={creating} variant="default">
+              {creating ? "Creating..." : "Add New Season"}
+            </Button>
+            <Button onClick={handleDeleteLatestSeason} disabled={creating || !seasons.length} variant="destructive">
+              Delete Latest Season
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6">

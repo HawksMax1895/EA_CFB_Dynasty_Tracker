@@ -279,3 +279,17 @@ export async function setUserControlledTeam(teamId: number) {
   if (!response.ok) throw new Error("Failed to set user-controlled team")
   return response.json()
 }
+
+export async function deleteSeason(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) throw new Error("Failed to delete season");
+  return response.json();
+}
+
+export async function fetchPlayersBySeason(seasonId: number, teamId: number = 1) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/teams/${teamId}/players`)
+  if (!response.ok) throw new Error("Failed to fetch players for season")
+  return response.json()
+}

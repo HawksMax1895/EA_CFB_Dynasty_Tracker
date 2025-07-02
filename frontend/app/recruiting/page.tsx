@@ -25,10 +25,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { SeasonSelector } from "@/components/SeasonSelector";
+import { useSeason } from "@/context/SeasonContext";
 
 export default function RecruitingPage() {
-  const teamId = 1;
-  const seasonId = 2025;
+  const { selectedSeason, userTeam } = useSeason();
+  const teamId = userTeam?.team_id;
+  const seasonId = selectedSeason;
   const [recruits, setRecruits] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,10 +75,11 @@ export default function RecruitingPage() {
   const [transferSchoolsLoading, setTransferSchoolsLoading] = useState(false);
 
   useEffect(() => {
+    if (!seasonId || !teamId) return;
     setLoading(true);
     Promise.all([
-      fetchRecruitingClass(teamId, seasonId),
-      fetchTransferPortal(teamId, seasonId),
+      fetchRecruitingClass(Number(teamId || 0), seasonId),
+      fetchTransferPortal(Number(teamId || 0), seasonId),
       fetchTeamsBySeason(seasonId)
     ])
       .then(([recruitData, transferData, teamsData]) => {
@@ -101,12 +105,13 @@ export default function RecruitingPage() {
 
   const handleAddRecruit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!seasonId || teamId === undefined) return;
     setRecruitFormLoading(true);
     setRecruitFormError(null);
     try {
-      await addRecruitingClass({ team_id: teamId, season_id: seasonId, recruits: [recruitForm] });
+      await addRecruitingClass({ team_id: Number(teamId), season_id: seasonId, recruits: [recruitForm] });
       setRecruitForm({ name: '', position: '', recruit_stars: 3, recruit_rank_nat: 0, recruit_rank_pos: 0, speed: '', dev_trait: '', height: '', weight: '', state: '' });
-      const data = await fetchRecruitingClass(teamId, seasonId);
+      const data = await fetchRecruitingClass(Number(teamId || 0), seasonId);
       setRecruits(data);
     } catch (err: any) {
       setRecruitFormError(err.message);
@@ -117,10 +122,11 @@ export default function RecruitingPage() {
 
   const handleAddTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!seasonId || teamId === undefined) return;
     setTransferFormLoading(true);
     setTransferFormError(null);
     try {
-      await addTransferPortal({ team_id: teamId, season_id: seasonId, transfers: [transferForm] });
+      await addTransferPortal({ team_id: Number(teamId), season_id: seasonId, transfers: [transferForm] });
       setTransferForm({ 
         name: '', 
         position: '', 
@@ -134,7 +140,7 @@ export default function RecruitingPage() {
         state: '', 
         current_status: 'SO' 
       });
-      const data = await fetchTransferPortal(teamId, seasonId);
+      const data = await fetchTransferPortal(Number(teamId || 0), seasonId);
       setTransfers(data);
     } catch (err: any) {
       setTransferFormError(err.message);
@@ -153,7 +159,7 @@ export default function RecruitingPage() {
 
   const handleRecruitingRankInputBlur = async () => {
     setEditingRecruitingRank(false);
-    if (recruitingRank == null) return;
+    if (recruitingRank == null || !seasonId) return;
     setRecruitingRankLoading(true);
     try {
       await updateTeamSeason(seasonId, teamId, { recruiting_rank: recruitingRank });
@@ -208,10 +214,11 @@ export default function RecruitingPage() {
   };
 
   const handleDeleteRecruit = async (recruitId: number) => {
+    if (!seasonId) return;
     if (confirm('Are you sure you want to delete this recruit?')) {
       try {
         await deleteRecruit(recruitId);
-        const data = await fetchRecruitingClass(teamId, seasonId);
+        const data = await fetchRecruitingClass(Number(teamId || 0), seasonId);
         setRecruits(data);
       } catch (err: any) {
         console.error('Failed to delete recruit:', err);
@@ -220,10 +227,11 @@ export default function RecruitingPage() {
   };
 
   const handleDeleteTransfer = async (transferId: number) => {
+    if (!seasonId) return;
     if (confirm('Are you sure you want to delete this transfer?')) {
       try {
         await deleteTransfer(transferId);
-        const data = await fetchTransferPortal(teamId, seasonId);
+        const data = await fetchTransferPortal(Number(teamId || 0), seasonId);
         setTransfers(data);
       } catch (err: any) {
         console.error('Failed to delete transfer:', err);
@@ -260,9 +268,14 @@ export default function RecruitingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Recruiting</h1>
-          <p className="text-gray-600">Build your program through high school recruiting and the transfer portal</p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Recruiting</h1>
+            <p className="text-gray-600">Build your program through high school recruiting and the transfer portal</p>
+          </div>
+          <div>
+            <SeasonSelector />
+          </div>
         </div>
 
         <Tabs defaultValue="highschool" className="w-full">
@@ -754,8 +767,9 @@ export default function RecruitingPage() {
                 <div className="flex gap-4 pt-4">
                   <Button 
                     onClick={async () => {
+                      if (!seasonId) return;
                       await updateRecruit(editingRecruit.recruit_id, editingRecruit);
-                      const data = await fetchRecruitingClass(teamId, seasonId);
+                      const data = await fetchRecruitingClass(Number(teamId || 0), seasonId);
                       setRecruits(data);
                       setEditingRecruit(null);
                     }}
@@ -1011,8 +1025,9 @@ export default function RecruitingPage() {
                 <div className="flex gap-4 pt-4">
                   <Button 
                     onClick={async () => {
+                      if (!seasonId) return;
                       await updateTransfer(editingTransfer.transfer_id, editingTransfer);
-                      const data = await fetchTransferPortal(teamId, seasonId);
+                      const data = await fetchTransferPortal(Number(teamId || 0), seasonId);
                       setTransfers(data);
                       setEditingTransfer(null);
                     }}

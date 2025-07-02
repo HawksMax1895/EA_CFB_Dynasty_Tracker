@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Star, TrendingUp, Award } from "lucide-react"
 import React, { useEffect, useState } from "react"
-import { fetchPlayers, setPlayerRedshirt, addPlayer, progressPlayerClass } from "@/lib/api"
+import { fetchPlayers, setPlayerRedshirt, addPlayer, fetchPlayersBySeason } from "@/lib/api"
+import { SeasonSelector } from "@/components/SeasonSelector";
+import { useSeason } from "@/context/SeasonContext";
 
 export default function PlayersPage() {
   const teamId = 1; // You might want to make this configurable
+  const { selectedSeason } = useSeason();
   const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -18,12 +21,11 @@ export default function PlayersPage() {
   const [form, setForm] = useState({ name: '', position: '', recruit_stars: 3, current_year: 'FR' })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [progressing, setProgressing] = useState(false)
-  const [progressError, setProgressError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!selectedSeason) return;
     setLoading(true)
-    fetchPlayers(teamId)
+    fetchPlayersBySeason(selectedSeason, teamId)
       .then((data) => {
         setPlayers(data)
         setLoading(false)
@@ -32,7 +34,7 @@ export default function PlayersPage() {
         setError(err.message)
         setLoading(false)
       })
-  }, [teamId])
+  }, [teamId, selectedSeason])
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -51,20 +53,6 @@ export default function PlayersPage() {
       setFormError(err.message)
     } finally {
       setFormLoading(false)
-    }
-  }
-
-  const handleProgressClass = async () => {
-    setProgressing(true)
-    setProgressError(null)
-    try {
-      await progressPlayerClass()
-      const data = await fetchPlayers(teamId)
-      setPlayers(data)
-    } catch (err: any) {
-      setProgressError(err.message)
-    } finally {
-      setProgressing(false)
     }
   }
 
@@ -88,12 +76,17 @@ export default function PlayersPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Current Roster</h1>
-          <p className="text-gray-600">View current season players and their performance</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            💡 Recruits and transfers from the previous season will automatically join the roster when you progress to the next season.
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Current Roster</h1>
+            <p className="text-gray-600">View current season players and their performance</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              💡 Recruits and transfers from the previous season will automatically join the roster when you progress to the next season.
+            </p>
+          </div>
+          <div>
+            <SeasonSelector />
+          </div>
         </div>
 
         {/* Add Player Form and Progress Class Button */}
@@ -147,12 +140,6 @@ export default function PlayersPage() {
               </Button>
               {formError && <span className="text-red-500 ml-2">{formError}</span>}
             </form>
-            <div className="mt-4 flex gap-4 items-center">
-              <Button onClick={handleProgressClass} disabled={progressing} variant="secondary">
-                {progressing ? "Progressing..." : "Progress Class"}
-              </Button>
-              {progressError && <span className="text-red-500 ml-2">{progressError}</span>}
-            </div>
           </CardContent>
         </Card>
 

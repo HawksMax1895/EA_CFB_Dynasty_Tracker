@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from marshmallow import ValidationError
 from extensions import db
-from models import Season, Conference, TeamSeason, Game, Team, PlayerSeason
+from models import Season, Conference, TeamSeason, Game, Team, PlayerSeason, AwardWinner, Honor
 from schemas import CreateSeasonSchema
 import datetime
 
@@ -110,18 +110,21 @@ def create_season():
     # --- END NEW ---
 
     db.session.commit()
+    db.session.expire_all()  # Ensure session is up-to-date
+
+    # Debug: print all seasons after commit
+    all_seasons = Season.query.order_by(Season.year).all()
+    print('All seasons after commit:', [(s.season_id, s.year) for s in all_seasons])
 
     # --- NEW: Automatically progress players from the previous season ---
     if prev_season:
         try:
-            # Import the progression function
             from routes.season_actions import progress_players_logic
-            # Call the progression function for the previous season
+            print(f'Progressing players for prev_season.year={prev_season.year}, prev_season.season_id={prev_season.season_id}')
             progression_result = progress_players_logic(prev_season.season_id)
             print(f"Player progression completed: {progression_result}")
         except Exception as e:
             print(f"Error during player progression: {e}")
-            # Don't fail the season creation if progression fails
             pass
 
     return jsonify({'season_id': season.season_id, 'year': season.year}), 201
@@ -364,3 +367,39 @@ def get_promotion_relegation(season_id):
                 'to_conference': conf_map.get(ts.conference_id, ts.conference_id)
             })
     return jsonify(changes)
+
+@seasons_bp.route('/seasons/<int:season_id>', methods=['DELETE'])
+def delete_season(season_id):
+    season = Season.query.get_or_404(season_id)
+    # Only allow deleting the latest season
+    latest_season = Season.query.order_by(Season.year.desc()).first()
+    if not latest_season or latest_season.season_id != season_id:
+        return jsonify({'error': 'Only the latest season can be deleted.'}), 400
+
+    # Delete all related data
+    # TeamSeason
+    TeamSeason.query.filter_by(season_id=season_id).delete()
+    # Game
+    Game.query.filter_by(season_id=season_id).delete()
+    # PlayerSeason
+    PlayerSeason.query.filter_by(season_id=season_id).delete()
+    # AwardWinner
+    AwardWinner.query.filter_by(season_id=season_id).delete()
+    # Honor
+    Honor.query.filter_by(season_id=season_id).delete()
+    # Recruit (if exists)
+    try:
+        from routes.recruiting import Recruit
+        Recruit.query.filter_by(season_id=season_id).delete()
+    except Exception:
+        pass
+    # Transfer (if exists)
+    try:
+        from routes.transfer import Transfer
+        Transfer.query.filter_by(season_id=season_id).delete()
+    except Exception:
+        pass
+    # Finally, delete the season itself
+    db.session.delete(season)
+    db.session.commit()
+    return jsonify({'message': f'Season {season.year} and all related data deleted.'}), 200

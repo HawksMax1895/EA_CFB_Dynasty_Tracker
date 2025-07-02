@@ -11,11 +11,13 @@ def progress_players_logic(season_id):
     
     # Get the next season
     current_season = Season.query.get(season_id)
-    if not current_season:
-        raise ValueError("Season not found")
-    
-    next_season = Season.query.filter(Season.year == current_season.year + 1).first()
+    print(f'progress_players_logic: current_season.year={getattr(current_season, "year", None)}, id={getattr(current_season, "season_id", None)}')
+    next_season_year = current_season.year + 1 if current_season else None
+    print(f'progress_players_logic: looking for next_season.year={next_season_year}')
+    next_season = Season.query.filter(Season.year == next_season_year).first()
+    print(f'progress_players_logic: found next_season={getattr(next_season, "season_id", None)}, year={getattr(next_season, "year", None)}')
     if not next_season:
+        print('progress_players_logic: next season not found!')
         raise ValueError("Next season not found")
     
     # Progress existing players (all players, not just user-controlled teams)
@@ -30,22 +32,56 @@ def progress_players_logic(season_id):
         if player.current_year in PROGRESSION_MAP:
             player.current_year = PROGRESSION_MAP[player.current_year]
             progressed.append(player.player_id)
-    
-    # Activate recruits and transfers for all user-controlled teams
+
+    # --- NEW: Ensure every progressed/returning player gets a PlayerSeason record for the next season ---
+    from models import PlayerSeason  # Local import to avoid circular dependency
+    # Build a lookup of existing PlayerSeason records for the next season to avoid duplicates
+    existing_next_season_ps = {
+        ps.player_id for ps in PlayerSeason.query.filter_by(season_id=next_season.season_id).all()
+    }
+
+    for player in players:
+        # Skip if a PlayerSeason already exists for this player in the next season (might happen for activated recruits/transfers)
+        if player.player_id in existing_next_season_ps:
+            continue
+
+        # Try to copy selected attributes (e.g., ovr_rating) from the player's most recent season record if available
+        prev_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
+        ovr_rating = prev_ps.ovr_rating if prev_ps else None
+
+        new_player_season = PlayerSeason(
+            player_id=player.player_id,
+            season_id=next_season.season_id,
+            team_id=player.team_id,
+            player_class=player.current_year,
+            ovr_rating=ovr_rating
+        )
+        db.session.add(new_player_season)
+
+    # Activate recruits/transfers for all teams (not only user-controlled)
     from models import Team
-    user_teams = Team.query.filter_by(is_user_controlled=True).all()
+    user_team = Team.query.filter_by(is_user_controlled=True).first()
     activated_recruits = []
     activated_transfers = []
     from routes.transfer import Transfer
-    from models import PlayerSeason
-    for team in user_teams:
-        team_id = team.team_id
-        # Get all committed recruits for the current season
+    if user_team:
+        team_id = user_team.team_id
+        # Update all committed recruits for this season to the user-controlled team
         recruits = Recruit.query.filter_by(
-            team_id=team_id,
             season_id=season_id,
             committed=True
         ).all()
+        for recruit in recruits:
+            recruit.team_id = team_id  # Ensure recruit is mapped to user team
+        # Update all committed transfers for this season to the user-controlled team
+        transfers = Transfer.query.filter_by(
+            season_id=season_id,
+            committed=True
+        ).all()
+        for transfer in transfers:
+            transfer.team_id = team_id  # Ensure transfer is mapped to user team
+        db.session.flush()  # Persist changes before creating Player records
+        # Now create Player records for recruits
         for recruit in recruits:
             # Create Player record
             player = Player(
@@ -72,14 +108,8 @@ def progress_players_logic(season_id):
             )
             db.session.add(player_season)
             # Mark recruit as activated
-            recruit.committed = False
             activated_recruits.append(player.player_id)
-        # Handle transfers (they should also be activated for the next season)
-        transfers = Transfer.query.filter_by(
-            team_id=team_id,
-            season_id=season_id,
-            committed=True
-        ).all()
+        # Now create Player records for transfers
         for transfer in transfers:
             # Progress transfer's year by one when they join the new team
             progressed_year = PROGRESSION_MAP.get(transfer.current_status, transfer.current_status)
@@ -110,7 +140,6 @@ def progress_players_logic(season_id):
             )
             db.session.add(player_season)
             # Mark transfer as activated
-            transfer.committed = False
             activated_transfers.append(player.player_id)
     db.session.commit()
     return {
