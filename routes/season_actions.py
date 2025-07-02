@@ -59,88 +59,73 @@ def progress_players_logic(season_id):
         db.session.add(new_player_season)
 
     # Activate recruits/transfers for all teams (not only user-controlled)
-    from models import Team
-    user_team = Team.query.filter_by(is_user_controlled=True).first()
     activated_recruits = []
     activated_transfers = []
     from routes.transfer import Transfer
-    if user_team:
-        team_id = user_team.team_id
-        # Update all committed recruits for this season to the user-controlled team
-        recruits = Recruit.query.filter_by(
-            season_id=season_id,
-            committed=True
-        ).all()
-        for recruit in recruits:
-            recruit.team_id = team_id  # Ensure recruit is mapped to user team
-        # Update all committed transfers for this season to the user-controlled team
-        transfers = Transfer.query.filter_by(
-            season_id=season_id,
-            committed=True
-        ).all()
-        for transfer in transfers:
-            transfer.team_id = team_id  # Ensure transfer is mapped to user team
-        db.session.flush()  # Persist changes before creating Player records
-        # Now create Player records for recruits
-        for recruit in recruits:
-            # Create Player record
-            player = Player(
-                name=recruit.name,
-                position=recruit.position,
-                recruit_stars=recruit.recruit_stars,
-                recruit_rank_nat=recruit.recruit_rank_nat,
-                speed=recruit.speed,
-                dev_trait=recruit.dev_trait,
-                height=recruit.height,
-                weight=recruit.weight,
-                state=recruit.state,
-                team_id=team_id,
-                current_year='FR'
-            )
-            db.session.add(player)
-            db.session.flush()  # Get player_id
-            # Create PlayerSeason record for the NEXT season
-            player_season = PlayerSeason(
-                player_id=player.player_id,
-                season_id=next_season.season_id,
-                team_id=team_id,
-                player_class='FR'
-            )
-            db.session.add(player_season)
-            # Mark recruit as activated
-            activated_recruits.append(player.player_id)
-        # Now create Player records for transfers
-        for transfer in transfers:
-            # Progress transfer's year by one when they join the new team
-            progressed_year = PROGRESSION_MAP.get(transfer.current_status, transfer.current_status)
-            # Create Player record
-            player = Player(
-                name=transfer.name,
-                position=transfer.position,
-                recruit_stars=transfer.recruit_stars,
-                recruit_rank_nat=transfer.recruit_rank_pos,  # Use positional rank as national rank for transfers
-                speed=transfer.speed if hasattr(transfer, 'speed') else None,
-                team_id=team_id,
-                current_year=progressed_year,
-                dev_trait=transfer.dev_trait,
-                height=transfer.height,
-                weight=transfer.weight,
-                state=transfer.state,
-                career_stats=f'Transferred from {transfer.previous_school}' if transfer.previous_school else None
-            )
-            db.session.add(player)
-            db.session.flush()  # Get player_id
-            # Create PlayerSeason record for the NEXT season
-            player_season = PlayerSeason(
-                player_id=player.player_id,
-                season_id=next_season.season_id,
-                team_id=team_id,
-                player_class=progressed_year,
-                ovr_rating=transfer.ovr_rating
-            )
-            db.session.add(player_season)
-            # Mark transfer as activated
-            activated_transfers.append(player.player_id)
+    # Process recruits for every team
+    recruits = Recruit.query.filter_by(season_id=season_id, committed=True).all()
+    transfers = Transfer.query.filter_by(season_id=season_id, committed=True).all()
+
+    db.session.flush()  # Ensure existing data is written before creating players
+
+    for recruit in recruits:
+        team_id = recruit.team_id
+        if not team_id:
+            continue
+        player = Player(
+            name=recruit.name,
+            position=recruit.position,
+            recruit_stars=recruit.recruit_stars,
+            recruit_rank_nat=recruit.recruit_rank_nat,
+            speed=recruit.speed,
+            dev_trait=recruit.dev_trait,
+            height=recruit.height,
+            weight=recruit.weight,
+            state=recruit.state,
+            team_id=team_id,
+            current_year='FR'
+        )
+        db.session.add(player)
+        db.session.flush()
+        ps = PlayerSeason(
+            player_id=player.player_id,
+            season_id=next_season.season_id,
+            team_id=team_id,
+            player_class='FR'
+        )
+        db.session.add(ps)
+        activated_recruits.append(player.player_id)
+
+    for transfer in transfers:
+        team_id = transfer.team_id
+        if not team_id:
+            continue
+        progressed_year = PROGRESSION_MAP.get(transfer.current_status, transfer.current_status)
+        player = Player(
+            name=transfer.name,
+            position=transfer.position,
+            recruit_stars=transfer.recruit_stars,
+            recruit_rank_nat=transfer.recruit_rank_pos,
+            speed=getattr(transfer, 'speed', None),
+            team_id=team_id,
+            current_year=progressed_year,
+            dev_trait=transfer.dev_trait,
+            height=transfer.height,
+            weight=transfer.weight,
+            state=transfer.state,
+            career_stats=f'Transferred from {transfer.previous_school}' if transfer.previous_school else None
+        )
+        db.session.add(player)
+        db.session.flush()
+        ps = PlayerSeason(
+            player_id=player.player_id,
+            season_id=next_season.season_id,
+            team_id=team_id,
+            player_class=progressed_year,
+            ovr_rating=transfer.ovr_rating
+        )
+        db.session.add(ps)
+        activated_transfers.append(player.player_id)
     db.session.commit()
     return {
         "progressed_player_ids": progressed, 
