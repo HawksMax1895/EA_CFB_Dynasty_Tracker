@@ -23,12 +23,19 @@ def add_player_to_team(team_id):
     position = data.get('position')
     ovr_rating = data.get('ovr_rating')
     season_id = data.get('season_id')
+    current_year = data.get('current_year', 'FR')
     if not all([name, position, ovr_rating, season_id]):
         return jsonify({'error': 'Missing required fields'}), 400
-    player = Player(name=name, position=position, team_id=team_id)
+    player = Player(name=name, position=position, team_id=team_id, current_year=current_year)
     db.session.add(player)
     db.session.commit()
-    player_season = PlayerSeason(player_id=player.player_id, season_id=season_id, team_id=team_id, ovr_rating=ovr_rating, player_class=player.current_year)
+    player_season = PlayerSeason(
+        player_id=player.player_id,
+        season_id=season_id,
+        team_id=team_id,
+        ovr_rating=ovr_rating,
+        player_class=current_year
+    )
     db.session.add(player_season)
     db.session.commit()
     return jsonify({'player_id': player.player_id, 'name': player.name, 'position': player.position}), 201

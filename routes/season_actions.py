@@ -59,6 +59,11 @@ def progress_players_logic(season_id):
         # Skip if a PlayerSeason already exists for this player in the next season (might happen for activated recruits/transfers)
         if player.player_id in existing_next_season_ps:
             continue
+        # Graduated players should not appear on future rosters
+        if player.current_year == "GR":
+            player.team_id = None
+            continue
+
         # Try to copy selected attributes (e.g., ovr_rating) from the player's most recent season record if available
         prev_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
         ovr_rating = prev_ps.ovr_rating if prev_ps else None
