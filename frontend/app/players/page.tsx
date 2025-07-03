@@ -12,8 +12,8 @@ import { SeasonSelector } from "@/components/SeasonSelector";
 import { useSeason } from "@/context/SeasonContext";
 
 export default function PlayersPage() {
-  const teamId = 1; // You might want to make this configurable
-  const { selectedSeason } = useSeason();
+  const { selectedSeason, userTeam } = useSeason();
+  const teamId = userTeam?.team_id;
   const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +23,7 @@ export default function PlayersPage() {
   const [formError, setFormError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!selectedSeason) return;
+    if (!selectedSeason || !teamId) return;
     setLoading(true)
     fetchPlayersBySeason(selectedSeason, teamId)
       .then((data) => {
@@ -47,8 +47,10 @@ export default function PlayersPage() {
     try {
       await addPlayer(form)
       setForm({ name: '', position: '', recruit_stars: 3, current_year: 'FR' })
-      const data = await fetchPlayers(teamId)
-      setPlayers(data)
+      if (teamId) {
+        const data = await fetchPlayers(teamId)
+        setPlayers(data)
+      }
     } catch (err: any) {
       setFormError(err.message)
     } finally {
@@ -61,8 +63,10 @@ export default function PlayersPage() {
     try {
       await setPlayerRedshirt(playerId, !current)
       // Refetch players after redshirt change
-      const data = await fetchPlayers(teamId)
-      setPlayers(data)
+      if (teamId) {
+        const data = await fetchPlayers(teamId)
+        setPlayers(data)
+      }
     } catch (err) {
       alert("Failed to update redshirt status")
     } finally {
@@ -183,13 +187,25 @@ export default function PlayersPage() {
                     <CardTitle className="text-xl">{player.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline">{player.position}</Badge>
-                      <Badge variant="secondary">{player.current_year}</Badge>
+                      <Badge variant="secondary">{player.class}</Badge>
                       <div className="flex items-center gap-1">
                         {Array.from({ length: player.recruit_stars || 0 }).map((_, i) => (
                           <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
                       {player.redshirted && <Badge className="bg-red-100 text-red-800 ml-2">Redshirt</Badge>}
+                    </div>
+                    {/* New: Player Details */}
+                    <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-700">
+                      {player.dev_trait && (
+                        <span><strong>Dev Trait:</strong> {player.dev_trait}</span>
+                      )}
+                      {player.height && (
+                        <span><strong>Height:</strong> {player.height}</span>
+                      )}
+                      {player.weight && (
+                        <span><strong>Weight:</strong> {player.weight} lbs</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">

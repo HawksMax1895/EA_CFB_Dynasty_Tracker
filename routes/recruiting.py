@@ -73,34 +73,6 @@ def add_recruiting_class():
         )
         db.session.add(recruit_obj)
         db.session.flush()
-
-        player = Player(
-            name=name,
-            position=position,
-            recruit_stars=recruit_stars,
-            recruit_rank_nat=recruit_rank_nat,
-            speed=speed,
-            dev_trait=dev_trait,
-            height=height,
-            weight=weight,
-            state=state,
-            team_id=team_id,
-            current_year="FR"
-        )
-        db.session.add(player)
-        db.session.flush()
-
-        for idx, s in enumerate(future_seasons[: len(progression)]):
-            player_class = progression[idx]
-            if not PlayerSeason.query.filter_by(player_id=player.player_id, season_id=s.season_id).first():
-                ps = PlayerSeason(
-                    player_id=player.player_id,
-                    season_id=s.season_id,
-                    team_id=team_id,
-                    player_class=player_class
-                )
-                db.session.add(ps)
-
         created_recruits.append(recruit_obj.recruit_id)
 
     db.session.commit()

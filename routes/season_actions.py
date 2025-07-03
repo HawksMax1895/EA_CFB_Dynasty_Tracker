@@ -24,16 +24,6 @@ def progress_players_logic(season_id):
     players = Player.query.all()
     progressed = []
     redshirted = []
-    for player in players:
-        if player.redshirted:
-            player.redshirted = False
-            redshirted.append(player.player_id)
-            continue
-        if player.current_year in PROGRESSION_MAP:
-            player.current_year = PROGRESSION_MAP[player.current_year]
-            progressed.append(player.player_id)
-
-    # --- NEW: Ensure every progressed/returning player gets a PlayerSeason record for the next season ---
     from models import PlayerSeason  # Local import to avoid circular dependency
     # Build a lookup of existing PlayerSeason records for the next season to avoid duplicates
     existing_next_season_ps = {
@@ -41,14 +31,37 @@ def progress_players_logic(season_id):
     }
 
     for player in players:
+        # Store the old class before progression
+        old_class = player.current_year
+        # Ensure previous season's PlayerSeason exists and is correct
+        prev_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
+        if not prev_ps:
+            prev_ps = PlayerSeason(
+                player_id=player.player_id,
+                season_id=season_id,
+                team_id=player.team_id,
+                player_class=old_class
+            )
+            db.session.add(prev_ps)
+        elif not prev_ps.player_class:
+            prev_ps.player_class = old_class
+
+        # Progression logic
+        if player.redshirted:
+            player.redshirted = False
+            redshirted.append(player.player_id)
+            # Redshirted players do not progress class
+        elif player.current_year in PROGRESSION_MAP:
+            player.current_year = PROGRESSION_MAP[player.current_year]
+            progressed.append(player.player_id)
+
+    for player in players:
         # Skip if a PlayerSeason already exists for this player in the next season (might happen for activated recruits/transfers)
         if player.player_id in existing_next_season_ps:
             continue
-
         # Try to copy selected attributes (e.g., ovr_rating) from the player's most recent season record if available
         prev_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
         ovr_rating = prev_ps.ovr_rating if prev_ps else None
-
         new_player_season = PlayerSeason(
             player_id=player.player_id,
             season_id=next_season.season_id,

@@ -86,7 +86,18 @@ def get_team_players(team_id):
     from models import Player
     players = Player.query.filter_by(team_id=team_id).all()
     return jsonify([
-        {'player_id': p.player_id, 'name': p.name, 'position': p.position, 'current_year': p.current_year, 'drafted_year': p.drafted_year}
+        {
+            'player_id': p.player_id,
+            'name': p.name,
+            'position': p.position,
+            'current_year': p.current_year,
+            'drafted_year': p.drafted_year,
+            'recruit_stars': p.recruit_stars,
+            'dev_trait': p.dev_trait,
+            'height': p.height,
+            'weight': p.weight,
+            'state': p.state
+        }
         for p in players
     ])
 
@@ -266,4 +277,27 @@ def set_user_controlled_team():
     team.is_user_controlled = True
     from extensions import db
     db.session.commit()
-    return jsonify({'message': f'Team {team_id} set as user-controlled'}), 200 
+    return jsonify({'message': f'Team {team_id} set as user-controlled'}), 200
+
+@teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/players', methods=['GET'])
+def get_team_players_by_season(season_id, team_id):
+    from models import Player, PlayerSeason
+    # Get all players who have a PlayerSeason for this team and season
+    player_seasons = PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).all()
+    player_ids = [ps.player_id for ps in player_seasons]
+    players = Player.query.filter(Player.player_id.in_(player_ids)).all()
+    return jsonify([
+        {
+            'player_id': p.player_id,
+            'name': p.name,
+            'position': p.position,
+            'current_year': p.current_year,
+            'drafted_year': p.drafted_year,
+            'recruit_stars': p.recruit_stars,
+            'dev_trait': p.dev_trait,
+            'height': p.height,
+            'weight': p.weight,
+            'state': p.state
+        }
+        for p in players
+    ]) 

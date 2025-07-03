@@ -6,15 +6,16 @@ import { Trophy, Award, Star, Medal } from "lucide-react"
 import React, { useEffect, useState } from "react"
 import { fetchAwards, fetchHonors, addAward, addHonor } from "@/lib/api"
 import { Button } from "@/components/ui/button"
+import { useSeason } from "@/context/SeasonContext";
 
 export default function AwardsPage() {
   const [awards, setAwards] = useState<any[]>([])
   const [honors, setHonors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // For demo, use seasonId=2025 and teamId=1 for honors
-  const seasonId = 2025
-  const teamId = 1
+  const { selectedSeason, userTeam } = useSeason();
+  const seasonId = selectedSeason;
+  const teamId = userTeam?.team_id;
 
   // Add Award form state
   const [awardForm, setAwardForm] = useState({ name: '', description: '' })
@@ -27,6 +28,7 @@ export default function AwardsPage() {
   const [honorError, setHonorError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!seasonId || !teamId) return;
     setLoading(true)
     Promise.all([
       fetchAwards(),
@@ -70,6 +72,7 @@ export default function AwardsPage() {
     setHonorLoading(true)
     setHonorError(null)
     try {
+      if (!seasonId || !teamId) return;
       await addHonor({ ...honorForm, season_id: seasonId, team_id: teamId })
       setHonorForm({ player_id: '', honor_type: '' })
       const data = await fetchHonors(seasonId, teamId)

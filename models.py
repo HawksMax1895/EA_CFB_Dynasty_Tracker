@@ -113,6 +113,9 @@ class PlayerSeason(db.Model):
     sacks = db.Column(db.Integer)
     interceptions = db.Column(db.Integer)
     awards = db.Column(db.String(128))
+    speed = db.Column(db.Integer)
+    dev_trait = db.Column(db.String(16))
+    weight = db.Column(db.Integer)
 
 class Game(db.Model):
     __tablename__ = 'games'

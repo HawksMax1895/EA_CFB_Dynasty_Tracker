@@ -165,6 +165,103 @@ with app.app_context():
         ))
     db.session.commit()
 
+    # --- Add a random freshman recruit, a transfer, and a couple of players to the user team roster ---
+    if user_team:
+        # Add a random freshman recruit (committed)
+        from routes.recruiting import Recruit
+        recruit = Recruit(
+            name="Dylan Freshman",
+            position="QB",
+            recruit_stars=4,
+            recruit_rank_nat=101,
+            recruit_rank_pos=10,
+            speed=88,
+            dev_trait="Star",
+            height="6'3\"",
+            weight=210,
+            state="TX",
+            team_id=user_team.team_id,
+            season_id=season.season_id,
+            committed=True
+        )
+        db.session.add(recruit)
+        db.session.flush()
+
+        # Add a random transfer (committed)
+        from routes.transfer import Transfer
+        transfer = Transfer(
+            name="Marcus Transfer",
+            position="RB",
+            previous_school="Old U",
+            ovr_rating=85,
+            recruit_stars=3,
+            recruit_rank_pos=22,
+            dev_trait="Impact",
+            height="5'11\"",
+            weight=200,
+            state="CA",
+            current_status="SO",
+            team_id=user_team.team_id,
+            season_id=season.season_id,
+            committed=True
+        )
+        db.session.add(transfer)
+        db.session.flush()
+
+        # Add a couple of players directly to the roster
+        player1 = Player(
+            name="Chris Junior",
+            position="WR",
+            recruit_stars=3,
+            recruit_rank_nat=200,
+            speed=92,
+            dev_trait="Normal",
+            height="6'0\"",
+            weight=185,
+            state="FL",
+            team_id=user_team.team_id,
+            current_year="JR"
+        )
+        db.session.add(player1)
+        db.session.flush()
+        db.session.add(PlayerSeason(
+            player_id=player1.player_id,
+            season_id=season.season_id,
+            team_id=user_team.team_id,
+            player_class=player1.current_year,
+            ovr_rating=82,
+            speed=player1.speed,
+            dev_trait=player1.dev_trait,
+            weight=player1.weight
+        ))
+
+        player2 = Player(
+            name="Alex Senior",
+            position="LB",
+            recruit_stars=2,
+            recruit_rank_nat=350,
+            speed=80,
+            dev_trait="Normal",
+            height="6'2\"",
+            weight=225,
+            state="GA",
+            team_id=user_team.team_id,
+            current_year="SR"
+        )
+        db.session.add(player2)
+        db.session.flush()
+        db.session.add(PlayerSeason(
+            player_id=player2.player_id,
+            season_id=season.season_id,
+            team_id=user_team.team_id,
+            player_class=player2.current_year,
+            ovr_rating=79,
+            speed=player2.speed,
+            dev_trait=player2.dev_trait,
+            weight=player2.weight
+        ))
+        db.session.commit()
+
     # --- Generate schedule and record for user team ---
     if user_team:
         other_teams = [t for t in all_teams if t.team_id != user_team.team_id]
@@ -278,4 +375,15 @@ with app.app_context():
         db.session.add(game)
     db.session.commit()
 
-    print("Database has been populated with a single season and randomized data.") 
+    print("Database has been populated with a single season and randomized data.")
+
+# --- BACKFILL: Ensure all PlayerSeason.player_class fields are set ---
+with app.app_context():
+    player_seasons = PlayerSeason.query.filter((PlayerSeason.player_class == None) | (PlayerSeason.player_class == "")).all()
+    for ps in player_seasons:
+        player = Player.query.get(ps.player_id)
+        if player and player.current_year:
+            ps.player_class = player.current_year
+        else:
+            ps.player_class = "FR"  # Default to FR if unknown
+    db.session.commit() 
