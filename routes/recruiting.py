@@ -30,6 +30,17 @@ def add_recruiting_class():
     recruits = data.get('recruits', [])
     if not team_id or not season_id or not isinstance(recruits, list):
         return jsonify({'error': 'team_id, season_id, and recruits list are required'}), 400
+    season = Season.query.get(season_id)
+    if not season:
+        return jsonify({'error': 'Season not found'}), 404
+
+    progression = ["FR", "SO", "JR", "SR"]
+    future_seasons = (
+        Season.query.filter(Season.year >= season.year)
+        .order_by(Season.year)
+        .all()
+    )
+
     created_recruits = []
     for recruit in recruits:
         name = recruit.get('name')
@@ -44,6 +55,7 @@ def add_recruiting_class():
         state = recruit.get('state')
         if not name or not position:
             continue
+
         recruit_obj = Recruit(
             name=name,
             position=position,
@@ -60,7 +72,37 @@ def add_recruiting_class():
             committed=True
         )
         db.session.add(recruit_obj)
+        db.session.flush()
+
+        player = Player(
+            name=name,
+            position=position,
+            recruit_stars=recruit_stars,
+            recruit_rank_nat=recruit_rank_nat,
+            speed=speed,
+            dev_trait=dev_trait,
+            height=height,
+            weight=weight,
+            state=state,
+            team_id=team_id,
+            current_year="FR"
+        )
+        db.session.add(player)
+        db.session.flush()
+
+        for idx, s in enumerate(future_seasons[: len(progression)]):
+            player_class = progression[idx]
+            if not PlayerSeason.query.filter_by(player_id=player.player_id, season_id=s.season_id).first():
+                ps = PlayerSeason(
+                    player_id=player.player_id,
+                    season_id=s.season_id,
+                    team_id=team_id,
+                    player_class=player_class
+                )
+                db.session.add(ps)
+
         created_recruits.append(recruit_obj.recruit_id)
+
     db.session.commit()
     return jsonify({'created_recruit_ids': created_recruits}), 201
 

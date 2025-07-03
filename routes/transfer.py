@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from extensions import db
-from models import Player, Team, Season
+from models import Player, Team, Season, PlayerSeason
 
 transfer_bp = Blueprint('transfer', __name__)
 
@@ -31,6 +31,17 @@ def add_transfer_portal():
     transfers = data.get('transfers', [])
     if not team_id or not season_id or not isinstance(transfers, list):
         return jsonify({'error': 'team_id, season_id, and transfers list are required'}), 400
+    season = Season.query.get(season_id)
+    if not season:
+        return jsonify({'error': 'Season not found'}), 404
+
+    progression = ["FR", "SO", "JR", "SR", "GR"]
+    future_seasons = (
+        Season.query.filter(Season.year >= season.year)
+        .order_by(Season.year)
+        .all()
+    )
+
     created_transfers = []
     for transfer in transfers:
         name = transfer.get('name')
@@ -63,7 +74,39 @@ def add_transfer_portal():
             committed=True
         )
         db.session.add(transfer_obj)
+        db.session.flush()
+
+        player = Player(
+            name=name,
+            position=position,
+            recruit_stars=recruit_stars,
+            recruit_rank_nat=recruit_rank_pos,
+            team_id=team_id,
+            current_year=current_status,
+            dev_trait=dev_trait,
+            height=height,
+            weight=weight,
+            state=state,
+            career_stats=f'Transferred from {previous_school}' if previous_school else None
+        )
+        db.session.add(player)
+        db.session.flush()
+
+        start_index = progression.index(current_status) if current_status in progression else 0
+        for idx, s in enumerate(future_seasons[: len(progression) - start_index]):
+            player_class = progression[start_index + idx]
+            if not PlayerSeason.query.filter_by(player_id=player.player_id, season_id=s.season_id).first():
+                ps = PlayerSeason(
+                    player_id=player.player_id,
+                    season_id=s.season_id,
+                    team_id=team_id,
+                    player_class=player_class,
+                    ovr_rating=ovr_rating if idx == 0 else None
+                )
+                db.session.add(ps)
+
         created_transfers.append(transfer_obj.transfer_id)
+
     db.session.commit()
     return jsonify({'created_transfer_ids': created_transfers}), 201
 
