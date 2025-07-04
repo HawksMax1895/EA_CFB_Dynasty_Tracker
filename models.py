@@ -87,8 +87,6 @@ class Player(db.Model):
     weight = db.Column(db.Integer)  # New: Weight in lbs
     state = db.Column(db.String(2))  # New: State abbreviation
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
-    current_year = db.Column(db.String(8))
-    redshirted = db.Column(db.Boolean, default=False)  # Prevents class progression for one season
     career_stats = db.Column(db.Text)
     drafted_year = db.Column(db.Integer)
     player_seasons = db.relationship('PlayerSeason', backref='player', lazy=True)
@@ -101,6 +99,8 @@ class PlayerSeason(db.Model):
     season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
     player_class = db.Column(db.String(16))
+    current_year = db.Column(db.String(8))  # Moved from Player table
+    redshirted = db.Column(db.Boolean, default=False)  # Moved from Player table - Prevents class progression for one season
     ovr_rating = db.Column(db.Integer)
     games_played = db.Column(db.Integer)
     pass_yards = db.Column(db.Integer)

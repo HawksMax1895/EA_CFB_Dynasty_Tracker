@@ -219,8 +219,7 @@ with app.app_context():
             height="6'0\"",
             weight=185,
             state="FL",
-            team_id=user_team.team_id,
-            current_year="JR"
+            team_id=user_team.team_id
         )
         db.session.add(player1)
         db.session.flush()
@@ -228,7 +227,9 @@ with app.app_context():
             player_id=player1.player_id,
             season_id=season.season_id,
             team_id=user_team.team_id,
-            player_class=player1.current_year,
+            player_class="JR",
+            current_year="JR",
+            redshirted=False,
             ovr_rating=82,
             speed=player1.speed,
             dev_trait=player1.dev_trait,
@@ -245,8 +246,7 @@ with app.app_context():
             height="6'2\"",
             weight=225,
             state="GA",
-            team_id=user_team.team_id,
-            current_year="SR"
+            team_id=user_team.team_id
         )
         db.session.add(player2)
         db.session.flush()
@@ -254,7 +254,9 @@ with app.app_context():
             player_id=player2.player_id,
             season_id=season.season_id,
             team_id=user_team.team_id,
-            player_class=player2.current_year,
+            player_class="SR",
+            current_year="SR",
+            redshirted=False,
             ovr_rating=79,
             speed=player2.speed,
             dev_trait=player2.dev_trait,
@@ -377,13 +379,18 @@ with app.app_context():
 
     print("Database has been populated with a single season and randomized data.")
 
-# --- BACKFILL: Ensure all PlayerSeason.player_class fields are set ---
+# --- BACKFILL: Ensure all PlayerSeason.player_class and current_year fields are set ---
 with app.app_context():
-    player_seasons = PlayerSeason.query.filter((PlayerSeason.player_class == None) | (PlayerSeason.player_class == "")).all()
+    player_seasons = PlayerSeason.query.filter(
+        (PlayerSeason.player_class == None) | 
+        (PlayerSeason.player_class == "") |
+        (PlayerSeason.current_year == None)
+    ).all()
     for ps in player_seasons:
-        player = Player.query.get(ps.player_id)
-        if player and player.current_year:
-            ps.player_class = player.current_year
-        else:
+        if not ps.player_class:
             ps.player_class = "FR"  # Default to FR if unknown
+        if not ps.current_year:
+            ps.current_year = ps.player_class  # Use player_class as current_year
+        if ps.redshirted is None:
+            ps.redshirted = False  # Default redshirt status
     db.session.commit() 

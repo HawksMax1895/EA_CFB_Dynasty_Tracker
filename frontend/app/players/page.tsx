@@ -61,7 +61,11 @@ export default function PlayersPage() {
   const handleRedshirt = async (playerId: number, current: boolean) => {
     setRedshirting(playerId)
     try {
-      await setPlayerRedshirt(playerId, !current)
+      if (!selectedSeason) {
+        alert("No season selected")
+        return
+      }
+      await setPlayerRedshirt(playerId, !current, selectedSeason)
       // Refetch players after redshirt change
       if (teamId && selectedSeason) {
         const data = await fetchPlayersBySeason(selectedSeason, teamId)
@@ -187,7 +191,7 @@ export default function PlayersPage() {
                     <CardTitle className="text-xl">{player.name}</CardTitle>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline">{player.position}</Badge>
-                      <Badge variant="secondary">{player.class}</Badge>
+                      <Badge variant="secondary">{player.current_year}</Badge>
                       <div className="flex items-center gap-1">
                         {Array.from({ length: player.recruit_stars || 0 }).map((_, i) => (
                           <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />

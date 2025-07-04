@@ -83,14 +83,27 @@ def update_team(team_id):
 
 @teams_bp.route('/teams/<int:team_id>/players', methods=['GET'])
 def get_team_players(team_id):
-    from models import Player
-    players = Player.query.filter_by(team_id=team_id).all()
+    from models import Player, PlayerSeason, Season
+    # Get the current season to show current class info
+    current_season = Season.query.order_by(Season.year.desc()).first()
+    
+    if not current_season:
+        return jsonify([])
+    
+    # Join with PlayerSeason to get current class info
+    query = (
+        db.session.query(Player, PlayerSeason)
+        .join(PlayerSeason, (Player.player_id == PlayerSeason.player_id) & 
+                             (PlayerSeason.season_id == current_season.season_id))
+        .filter(Player.team_id == team_id)
+    )
+    
     return jsonify([
         {
             'player_id': p.player_id,
             'name': p.name,
             'position': p.position,
-            'current_year': p.current_year,
+            'current_year': ps.current_year,
             'drafted_year': p.drafted_year,
             'recruit_stars': p.recruit_stars,
             'dev_trait': p.dev_trait,
@@ -98,7 +111,7 @@ def get_team_players(team_id):
             'weight': p.weight,
             'state': p.state
         }
-        for p in players
+        for p, ps in query.all()
     ])
 
 @teams_bp.route('/teams/<int:team_id>/drafted', methods=['GET'])
@@ -198,9 +211,12 @@ def get_team_recruits(season_id, team_id):
     query = (
         db.session.query(Player)
         .join(first_season_sub, Player.player_id == first_season_sub.c.player_id)
+        .join(PlayerSeason, (Player.player_id == PlayerSeason.player_id) & 
+                             (PlayerSeason.season_id == season_id) &
+                             (PlayerSeason.team_id == team_id))
         .filter(
             Player.team_id == team_id,
-            Player.current_year == 'FR',
+            PlayerSeason.current_year == 'FR',
             first_season_sub.c.first_season == season_id
         )
     )
@@ -286,12 +302,16 @@ def get_team_players_by_season(season_id, team_id):
     player_seasons = PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).all()
     player_ids = [ps.player_id for ps in player_seasons]
     players = Player.query.filter(Player.player_id.in_(player_ids)).all()
+    
+    # Create a lookup for PlayerSeason data
+    ps_lookup = {ps.player_id: ps for ps in player_seasons}
+    
     return jsonify([
         {
             'player_id': p.player_id,
             'name': p.name,
             'position': p.position,
-            'current_year': p.current_year,
+            'current_year': ps_lookup[p.player_id].current_year if p.player_id in ps_lookup else None,
             'drafted_year': p.drafted_year,
             'recruit_stars': p.recruit_stars,
             'dev_trait': p.dev_trait,

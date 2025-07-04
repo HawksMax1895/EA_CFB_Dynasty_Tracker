@@ -74,11 +74,11 @@ export async function fetchPlayers(teamId: number = 1) {
   return response.json()
 }
 
-export async function setPlayerRedshirt(playerId: number, redshirted: boolean) {
+export async function setPlayerRedshirt(playerId: number, redshirted: boolean, seasonId: number) {
   const response = await fetch(`${API_BASE_URL}/players/${playerId}/redshirt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ redshirted })
+    body: JSON.stringify({ redshirted, season_id: seasonId })
   })
   if (!response.ok) throw new Error("Failed to set redshirt status")
   return response.json()
