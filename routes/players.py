@@ -289,6 +289,19 @@ def get_all_players():
     print(f"[DEBUG] Query SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
     results = query.all()
     print(f"[DEBUG] Number of players found: {len(results)}")
+
+    # Determine if each player previously redshirted before the current season
+    prior_rs_lookup = {
+        p.player_id: (
+            PlayerSeason.query.filter(
+                PlayerSeason.player_id == p.player_id,
+                PlayerSeason.redshirted == True,
+                PlayerSeason.season_id < current_season.season_id,
+            ).count()
+            > 0
+        )
+        for p, _ in results
+    }
     
     return jsonify([
         {
@@ -298,7 +311,7 @@ def get_all_players():
             'team_id': p.team_id,
             'class': ps.current_year,
             'ovr_rating': ps.ovr_rating,
-            'redshirted': ps.redshirted,
+            'redshirted': ps.redshirted and prior_rs_lookup.get(p.player_id, False),
             'recruit_stars': p.recruit_stars,
             'dev_trait': ps.dev_trait,
             'height': ps.height,
