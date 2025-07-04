@@ -234,6 +234,22 @@ export async function deleteAward(awardId: number) {
   return response.json()
 }
 
+export async function fetchAwardWinnersBySeason(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/awards`)
+  if (!response.ok) throw new Error("Failed to fetch award winners")
+  return response.json()
+}
+
+export async function updateAwardWinner(awardWinnerId: number, data: { player_id: number; team_id: number }) {
+  const response = await fetch(`${API_BASE_URL}/award-winners/${awardWinnerId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update award winner")
+  return response.json()
+}
+
 // GAMES
 export async function fetchGames() {
   const response = await fetch(`${API_BASE_URL}/games`)
@@ -341,4 +357,14 @@ export async function updatePlayerProfile(playerId: number, data: any) {
   })
   if (!response.ok) throw new Error("Failed to update player profile")
   return response.json()
+}
+
+export async function fetchAllPlayersBySeason(seasonId: number) {
+  const teams = await fetchTeamsBySeason(seasonId);
+  const allPlayers: any[] = [];
+  for (const team of teams) {
+    const players = await fetchPlayersBySeason(seasonId, team.team_id);
+    allPlayers.push(...players.map((p: any) => ({ ...p, team_id: team.team_id, team_name: team.name || team.team_name })));
+  }
+  return allPlayers;
 }

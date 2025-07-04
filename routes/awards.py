@@ -50,8 +50,25 @@ def get_award_winners_by_season(season_id):
         team = Team.query.get(w.team_id)
         award = Award.query.get(w.award_id)
         result.append({
+            'award_winner_id': w.award_winner_id,
             'award': award.name,
             'player': player.name,
-            'team': team.name
+            'player_id': player.player_id,
+            'team': team.name,
+            'team_id': team.team_id,
+            'team_logo_url': team.logo_url
         })
-    return jsonify(result) 
+    return jsonify(result)
+
+@awards_bp.route('/award-winners/<int:award_winner_id>', methods=['PUT'])
+def update_award_winner(award_winner_id):
+    data = request.json
+    player_id = data.get('player_id')
+    team_id = data.get('team_id')
+    if not player_id or not team_id:
+        return jsonify({'error': 'player_id and team_id are required'}), 400
+    aw = AwardWinner.query.get_or_404(award_winner_id)
+    aw.player_id = player_id
+    aw.team_id = team_id
+    db.session.commit()
+    return jsonify({'message': 'Award winner updated successfully'}) 

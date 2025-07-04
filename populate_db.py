@@ -427,4 +427,59 @@ with app.app_context():
             ps.current_year = ps.player_class  # Use player_class as current_year
         if ps.redshirted is None:
             ps.redshirted = False  # Default redshirt status
-    db.session.commit() 
+    db.session.commit()
+
+# --- Add National Awards and Winners for 2024 Season ---
+    # Re-query season and teams to avoid DetachedInstanceError
+    season = Season.query.filter_by(year=2024).first()
+    teams = Team.query.all()
+    abbr_to_team = {t.abbreviation: t for t in teams}
+    national_awards = [
+        {"name": "Bear Bryant COTY Award", "recipient": "Brian Hunter", "team_abbr": "LIB", "position": "HC"},
+        {"name": "Broyles Award", "recipient": "Greg Daniels", "team_abbr": "GAST", "position": "AST"},
+        {"name": "Heisman Trophy Award", "recipient": "JeyQuan Smith", "team_abbr": "USF", "position": "QB"},
+        {"name": "Davey O'Brien Award (QB)", "recipient": "Byrum Brown", "team_abbr": "USF", "position": "QB"},
+        {"name": "Doak Walker Award (RB)", "recipient": "Phil Mafah", "team_abbr": "CLEM", "position": "RB"},
+        {"name": "Biletnikoff Award (WR)", "recipient": "JeyQuan Smith", "team_abbr": "USF", "position": "WR"},
+        {"name": "John Mackey Award (TE)", "recipient": "Jake Briningstool", "team_abbr": "CLEM", "position": "TE"},
+        {"name": "Rimington Trophy (OL)", "recipient": "Tate Ratledge", "team_abbr": "UGA", "position": "OL"},
+        {"name": "Nagurski Award (DPOTY)", "recipient": "Jason Henderson", "team_abbr": "ODU", "position": "LB"},
+        {"name": "Ted Hendricks Award (DE)", "recipient": "T.J. Parker", "team_abbr": "CLEM", "position": "DE"},
+        {"name": "Butkus Award (LB)", "recipient": "Jason Henderson", "team_abbr": "ODU", "position": "LB"},
+        {"name": "Jim Thorpe Award (DB)", "recipient": "Jeremiah Johnson", "team_abbr": "GAST", "position": "DB"},
+    ]
+    
+    for award_info in national_awards:
+        # Create or get Award
+        award = Award.query.filter_by(name=award_info["name"]).first()
+        if not award:
+            award = Award(name=award_info["name"], description=f"{award_info['name']} winner")
+            db.session.add(award)
+            db.session.flush()
+        
+        # Get team
+        team = abbr_to_team.get(award_info["team_abbr"])
+        if not team:
+            continue  # skip if team not found
+        
+        # Find or create player
+        player = Player.query.filter_by(name=award_info["recipient"], team_id=team.team_id).first()
+        if not player:
+            player = Player(name=award_info["recipient"], position=award_info["position"], team_id=team.team_id)
+            db.session.add(player)
+            db.session.flush()
+        
+        # Ensure PlayerSeason exists for this player/team/season
+        ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season.season_id, team_id=team.team_id).first()
+        if not ps:
+            ps = PlayerSeason(player_id=player.player_id, season_id=season.season_id, team_id=team.team_id, player_class="SR", current_year="SR", redshirted=False)
+            db.session.add(ps)
+            db.session.flush()
+        
+        # Create AwardWinner
+        aw = AwardWinner.query.filter_by(award_id=award.award_id, season_id=season.season_id, player_id=player.player_id, team_id=team.team_id).first()
+        if not aw:
+            aw = AwardWinner(award_id=award.award_id, season_id=season.season_id, player_id=player.player_id, team_id=team.team_id)
+            db.session.add(aw)
+    db.session.commit()
+# --- End National Awards --- 
