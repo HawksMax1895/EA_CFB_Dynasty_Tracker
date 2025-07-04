@@ -19,9 +19,11 @@ def add_drafted_players():
             continue
         player = Player.query.get(player_id)
         if player:
-            player.drafted_year = season_id
-            # Optionally store draft_round in career_stats or another field
-            db.session.add(player)
-            updated_players.append(player_id)
+            # Since drafted_year was removed from Player model, we'll need to track this differently
+            # For now, we'll skip this until we implement a proper draft tracking system
+            # player.drafted_year = season_id
+            # db.session.add(player)
+            # updated_players.append(player_id)
+            pass
     db.session.commit()
     return jsonify({'updated_player_ids': updated_players}), 201 

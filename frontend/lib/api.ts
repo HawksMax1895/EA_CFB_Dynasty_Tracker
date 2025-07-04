@@ -85,7 +85,8 @@ export async function setPlayerRedshirt(playerId: number, redshirted: boolean, s
 }
 
 export async function addPlayer(data: any) {
-  const response = await fetch(`${API_BASE_URL}/players`, {
+  const teamId = data.team_id;
+  const response = await fetch(`${API_BASE_URL}/teams/${teamId}/players`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)

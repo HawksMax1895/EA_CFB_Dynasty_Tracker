@@ -81,14 +81,8 @@ class Player(db.Model):
     position = db.Column(db.String(8), nullable=False)
     recruit_stars = db.Column(db.Integer)
     recruit_rank_nat = db.Column(db.Integer)
-    speed = db.Column(db.Integer)  # New: Speed rating
-    dev_trait = db.Column(db.String(16))  # New: Dev Trait (e.g., Star, Impact, Normal)
-    height = db.Column(db.String(8))  # New: Height (e.g., 6'2")
-    weight = db.Column(db.Integer)  # New: Weight in lbs
-    state = db.Column(db.String(2))  # New: State abbreviation
+    state = db.Column(db.String(2))  # State abbreviation
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
-    career_stats = db.Column(db.Text)
-    drafted_year = db.Column(db.Integer)
     player_seasons = db.relationship('PlayerSeason', backref='player', lazy=True)
     award_winners = db.relationship('AwardWinner', backref='player', lazy=True)
 
@@ -103,19 +97,36 @@ class PlayerSeason(db.Model):
     redshirted = db.Column(db.Boolean, default=False)  # Moved from Player table - Prevents class progression for one season
     ovr_rating = db.Column(db.Integer)
     games_played = db.Column(db.Integer)
+    # Passing stats
+    completions = db.Column(db.Integer)
+    attempts = db.Column(db.Integer)
     pass_yards = db.Column(db.Integer)
     pass_tds = db.Column(db.Integer)
+    interceptions = db.Column(db.Integer)
+    # Rushing stats
+    rush_attempts = db.Column(db.Integer)
     rush_yards = db.Column(db.Integer)
     rush_tds = db.Column(db.Integer)
+    longest_rush = db.Column(db.Integer)
+    rush_fumbles = db.Column(db.Integer)
+    # Receiving stats
+    receptions = db.Column(db.Integer)
     rec_yards = db.Column(db.Integer)
     rec_tds = db.Column(db.Integer)
+    longest_rec = db.Column(db.Integer)
+    rec_drops = db.Column(db.Integer)
+    # Defensive stats
     tackles = db.Column(db.Integer)
+    tfl = db.Column(db.Integer)  # Tackles for loss
     sacks = db.Column(db.Integer)
-    interceptions = db.Column(db.Integer)
+    forced_fumbles = db.Column(db.Integer)
+    def_tds = db.Column(db.Integer)  # Defensive touchdowns
+    # Awards and other info
     awards = db.Column(db.String(128))
     speed = db.Column(db.Integer)
     dev_trait = db.Column(db.String(16))
     weight = db.Column(db.Integer)
+    height = db.Column(db.String(8))  # Height (e.g., 6'2") - Can change as player grows
 
 class Game(db.Model):
     __tablename__ = 'games'

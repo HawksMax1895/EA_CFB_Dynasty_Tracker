@@ -214,10 +214,6 @@ with app.app_context():
             position="WR",
             recruit_stars=3,
             recruit_rank_nat=200,
-            speed=92,
-            dev_trait="Normal",
-            height="6'0\"",
-            weight=185,
             state="FL",
             team_id=user_team.team_id
         )
@@ -231,9 +227,30 @@ with app.app_context():
             current_year="JR",
             redshirted=False,
             ovr_rating=82,
-            speed=player1.speed,
-            dev_trait=player1.dev_trait,
-            weight=player1.weight
+            speed=92,
+            dev_trait="Normal",
+            weight=185,
+            height="6'0\"",
+            completions=60,
+            attempts=100,
+            pass_yards=800,
+            pass_tds=7,
+            interceptions=3,
+            rush_attempts=20,
+            rush_yards=120,
+            rush_tds=2,
+            longest_rush=25,
+            rush_fumbles=1,
+            receptions=40,
+            rec_yards=600,
+            rec_tds=5,
+            longest_rec=55,
+            rec_drops=3,
+            tackles=0,
+            tfl=0,
+            sacks=0,
+            forced_fumbles=0,
+            def_tds=0
         ))
 
         player2 = Player(
@@ -241,10 +258,6 @@ with app.app_context():
             position="LB",
             recruit_stars=2,
             recruit_rank_nat=350,
-            speed=80,
-            dev_trait="Normal",
-            height="6'2\"",
-            weight=225,
             state="GA",
             team_id=user_team.team_id
         )
@@ -258,9 +271,30 @@ with app.app_context():
             current_year="SR",
             redshirted=False,
             ovr_rating=79,
-            speed=player2.speed,
-            dev_trait=player2.dev_trait,
-            weight=player2.weight
+            speed=80,
+            dev_trait="Normal",
+            weight=225,
+            height="6'2\"",
+            completions=0,
+            attempts=0,
+            pass_yards=0,
+            pass_tds=0,
+            interceptions=1,
+            rush_attempts=5,
+            rush_yards=20,
+            rush_tds=0,
+            longest_rush=8,
+            rush_fumbles=0,
+            receptions=0,
+            rec_yards=0,
+            rec_tds=0,
+            longest_rec=0,
+            rec_drops=0,
+            tackles=90,
+            tfl=12,
+            sacks=4,
+            forced_fumbles=2,
+            def_tds=1
         ))
         db.session.commit()
 

@@ -15,7 +15,8 @@ def dashboard_overview():
     # Placeholder logic for all-conference, all-american, drafted counts
     all_conference = 0
     all_american = 0
-    drafted = Player.query.filter_by(team_id=team_id, drafted_year=season.year+1 if season else None).count()
+    # Since drafted_year was removed from Player model, we'll need to track this differently
+    drafted = 0
     overview = {
         'team_name': team.name,
         'overall_record': f"{ts.wins}-{ts.losses}" if ts else None,

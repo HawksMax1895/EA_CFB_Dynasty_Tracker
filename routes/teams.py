@@ -104,11 +104,10 @@ def get_team_players(team_id):
             'name': p.name,
             'position': p.position,
             'current_year': ps.current_year,
-            'drafted_year': p.drafted_year,
             'recruit_stars': p.recruit_stars,
-            'dev_trait': p.dev_trait,
-            'height': p.height,
-            'weight': p.weight,
+            'dev_trait': ps.dev_trait,
+            'height': ps.height,
+            'weight': ps.weight,
             'state': p.state
         }
         for p, ps in query.all()
@@ -118,16 +117,9 @@ def get_team_players(team_id):
 def get_team_drafted_players(team_id):
     from models import Player, PlayerSeason
     season_id = request.args.get('season_id', type=int)
-    query = Player.query.filter(Player.team_id == team_id, Player.drafted_year != None)
-    if season_id:
-        # Only players who played for this team in the given season and were drafted after that season
-        drafted = [p for p in query.all() if PlayerSeason.query.filter_by(player_id=p.player_id, team_id=team_id, season_id=season_id).first() and p.drafted_year == season_id + 1]
-    else:
-        drafted = query.all()
-    return jsonify([
-        {'player_id': p.player_id, 'name': p.name, 'drafted_year': p.drafted_year}
-        for p in drafted
-    ])
+    # Since drafted_year was removed from Player model, we'll need to track this differently
+    # For now, return empty list until we implement a proper draft tracking system
+    return jsonify([])
 
 @teams_bp.route('/teams/<int:team_id>/history', methods=['GET'])
 def get_team_history(team_id):
@@ -312,12 +304,13 @@ def get_team_players_by_season(season_id, team_id):
             'name': p.name,
             'position': p.position,
             'current_year': ps_lookup[p.player_id].current_year if p.player_id in ps_lookup else None,
-            'drafted_year': p.drafted_year,
             'recruit_stars': p.recruit_stars,
-            'dev_trait': p.dev_trait,
-            'height': p.height,
-            'weight': p.weight,
-            'state': p.state
+            'dev_trait': ps_lookup[p.player_id].dev_trait if p.player_id in ps_lookup else None,
+            'height': ps_lookup[p.player_id].height if p.player_id in ps_lookup else None,
+            'weight': ps_lookup[p.player_id].weight if p.player_id in ps_lookup else None,
+            'state': p.state,
+            'redshirted': ps_lookup[p.player_id].redshirted if p.player_id in ps_lookup else False,
+            'has_ever_redshirted': any(ps.redshirted for ps in PlayerSeason.query.filter_by(player_id=p.player_id).all())
         }
         for p in players
     ]) 

@@ -7,7 +7,7 @@ players_bp = Blueprint('players', __name__)
 @players_bp.route('/players/<int:player_id>', methods=['GET'])
 def get_player(player_id):
     player = Player.query.get_or_404(player_id)
-    # Get the most recent PlayerSeason to get current class info
+    # Get the most recent PlayerSeason to get current class and dynamic info
     current_season = Season.query.order_by(Season.year.desc()).first()
     current_ps = None
     if current_season:
@@ -15,14 +15,18 @@ def get_player(player_id):
             player_id=player.player_id, 
             season_id=current_season.season_id
         ).first()
-    
     return jsonify({
         'player_id': player.player_id,
         'name': player.name,
         'position': player.position,
         'team_id': player.team_id,
         'class': current_ps.current_year if current_ps else None,
-        'drafted_year': player.drafted_year
+        'dev_trait': current_ps.dev_trait if current_ps else None,
+        'height': current_ps.height if current_ps else None,
+        'weight': current_ps.weight if current_ps else None,
+        'state': player.state,
+        'recruit_stars': player.recruit_stars,
+        'awards': current_ps.awards if current_ps else None
     })
 
 @players_bp.route('/teams/<int:team_id>/players', methods=['POST'])
@@ -33,11 +37,28 @@ def add_player_to_team(team_id):
     ovr_rating = data.get('ovr_rating')
     season_id = data.get('season_id')
     current_year = data.get('current_year', 'FR')
+    
+    # Additional player stats
+    recruit_stars = data.get('recruit_stars', 3)
+    speed = data.get('speed', 70)
+    dev_trait = data.get('dev_trait', 'Normal')
+    height = data.get('height', '')
+    weight = data.get('weight', 200)
+    state = data.get('state', '')
+    
     if not all([name, position, ovr_rating, season_id]):
         return jsonify({'error': 'Missing required fields'}), 400
-    player = Player(name=name, position=position, team_id=team_id)
+    
+    player = Player(
+        name=name, 
+        position=position, 
+        team_id=team_id,
+        recruit_stars=recruit_stars,
+        state=state
+    )
     db.session.add(player)
     db.session.commit()
+    
     player_season = PlayerSeason(
         player_id=player.player_id,
         season_id=season_id,
@@ -45,7 +66,11 @@ def add_player_to_team(team_id):
         ovr_rating=ovr_rating,
         player_class=current_year,
         current_year=current_year,
-        redshirted=False
+        redshirted=False,
+        speed=speed,
+        dev_trait=dev_trait,
+        weight=weight,
+        height=height
     )
     db.session.add(player_season)
     db.session.commit()
@@ -102,46 +127,142 @@ def get_team_roster_for_season(season_id, team_id):
 
 @players_bp.route('/players/<int:player_id>/career', methods=['GET'])
 def get_player_career(player_id):
-    from models import PlayerSeason
-    seasons = PlayerSeason.query.filter_by(player_id=player_id).order_by(PlayerSeason.season_id).all()
-    return jsonify([
-        {
-            'season_id': ps.season_id,
-            'team_id': ps.team_id,
-            'class': ps.player_class,
-            'ovr_rating': ps.ovr_rating,
-            'games_played': ps.games_played,
-            'pass_yards': ps.pass_yards,
-            'rush_yards': ps.rush_yards,
-            'rec_yards': ps.rec_yards,
-            'tackles': ps.tackles,
-            'sacks': ps.sacks,
-            'interceptions': ps.interceptions
-        }
-        for ps in seasons
-    ])
+    from models import PlayerSeason, Team
+    # Join PlayerSeason with Team to get team names
+    season_team_query = (
+        db.session.query(PlayerSeason, Team.name)
+        .join(Team, PlayerSeason.team_id == Team.team_id)
+        .filter(PlayerSeason.player_id == player_id)
+        .order_by(PlayerSeason.season_id)
+    )
+    seasons = [ps for ps, _ in season_team_query]
+    team_names = {ps.player_season_id: team_name for ps, team_name in season_team_query}
+    if not seasons:
+        return jsonify([])
+
+    # Aggregate sums and maxes
+    def sum_stat(attr):
+        return sum(getattr(ps, attr) or 0 for ps in seasons)
+    def max_stat(attr):
+        return max((getattr(ps, attr) or 0) for ps in seasons)
+    def safe_div(n, d):
+        return n / d if d else 0
+
+    games_played = sum_stat('games_played')
+    completions = sum_stat('completions')
+    attempts = sum_stat('attempts')
+    pass_yards = sum_stat('pass_yards')
+    pass_tds = sum_stat('pass_tds')
+    interceptions = sum_stat('interceptions')
+    rush_attempts = sum_stat('rush_attempts')
+    rush_yards = sum_stat('rush_yards')
+    rush_tds = sum_stat('rush_tds')
+    rush_fumbles = sum_stat('rush_fumbles')
+    longest_rush = max_stat('longest_rush')
+    receptions = sum_stat('receptions')
+    rec_yards = sum_stat('rec_yards')
+    rec_tds = sum_stat('rec_tds')
+    rec_drops = sum_stat('rec_drops')
+    longest_rec = max_stat('longest_rec')
+    tackles = sum_stat('tackles')
+    tfl = sum_stat('tfl')
+    sacks = sum_stat('sacks')
+    forced_fumbles = sum_stat('forced_fumbles')
+    def_tds = sum_stat('def_tds')
+
+    # Averages and percentages
+    completion_pct = safe_div(completions, attempts) * 100 if attempts else 0
+    pass_yds_per_game = safe_div(pass_yards, games_played)
+    rush_yds_per_game = safe_div(rush_yards, games_played)
+    rec_yds_per_game = safe_div(rec_yards, games_played)
+    tackles_per_game = safe_div(tackles, games_played)
+
+    return jsonify({
+        'career_totals': {
+            'games_played': games_played,
+            'completions': completions,
+            'attempts': attempts,
+            'completion_pct': round(completion_pct, 1),
+            'pass_yards': pass_yards,
+            'pass_tds': pass_tds,
+            'interceptions': interceptions,
+            'pass_yds_per_game': round(pass_yds_per_game, 1),
+            'rush_attempts': rush_attempts,
+            'rush_yards': rush_yards,
+            'rush_tds': rush_tds,
+            'rush_fumbles': rush_fumbles,
+            'longest_rush': longest_rush,
+            'rush_yds_per_game': round(rush_yds_per_game, 1),
+            'receptions': receptions,
+            'rec_yards': rec_yards,
+            'rec_tds': rec_tds,
+            'rec_drops': rec_drops,
+            'longest_rec': longest_rec,
+            'rec_yds_per_game': round(rec_yds_per_game, 1),
+            'tackles': tackles,
+            'tfl': tfl,
+            'sacks': sacks,
+            'forced_fumbles': forced_fumbles,
+            'def_tds': def_tds,
+            'tackles_per_game': round(tackles_per_game, 1)
+        },
+        'seasons': [
+            {
+                'season_id': ps.season_id,
+                'team_id': ps.team_id,
+                'team_name': team_names.get(ps.player_season_id),
+                'class': ps.player_class,
+                'ovr_rating': ps.ovr_rating,
+                'games_played': ps.games_played,
+                'completions': ps.completions,
+                'attempts': ps.attempts,
+                'completion_pct': round(safe_div(ps.completions, ps.attempts) * 100, 1) if ps.attempts else 0,
+                'pass_yards': ps.pass_yards,
+                'pass_tds': ps.pass_tds,
+                'interceptions': ps.interceptions,
+                'pass_yds_per_game': round(safe_div(ps.pass_yards, ps.games_played), 1) if ps.games_played else 0,
+                'rush_attempts': ps.rush_attempts,
+                'rush_yards': ps.rush_yards,
+                'rush_tds': ps.rush_tds,
+                'rush_fumbles': ps.rush_fumbles,
+                'longest_rush': ps.longest_rush,
+                'rush_yds_per_game': round(safe_div(ps.rush_yards, ps.games_played), 1) if ps.games_played else 0,
+                'receptions': ps.receptions,
+                'rec_yards': ps.rec_yards,
+                'rec_tds': ps.rec_tds,
+                'rec_drops': ps.rec_drops,
+                'longest_rec': ps.longest_rec,
+                'rec_yds_per_game': round(safe_div(ps.rec_yards, ps.games_played), 1) if ps.games_played else 0,
+                'tackles': ps.tackles,
+                'tfl': ps.tfl,
+                'sacks': ps.sacks,
+                'forced_fumbles': ps.forced_fumbles,
+                'def_tds': ps.def_tds,
+                'tackles_per_game': round(safe_div(ps.tackles, ps.games_played), 1) if ps.games_played else 0
+            }
+            for ps in seasons
+        ]
+    })
 
 @players_bp.route('/players/<int:player_id>/redshirt', methods=['POST'])
 def set_redshirt(player_id):
-    player = Player.query.get_or_404(player_id)
+    from models import PlayerSeason
     data = request.json
-    redshirted = data.get('redshirted')
     season_id = data.get('season_id')
-    if redshirted is None or season_id is None:
-        return jsonify({'error': 'redshirted and season_id fields are required'}), 400
-    
-    # Find the PlayerSeason record for this player and season
-    player_season = PlayerSeason.query.filter_by(
-        player_id=player_id, 
-        season_id=season_id
-    ).first()
-    
-    if not player_season:
-        return jsonify({'error': 'PlayerSeason record not found'}), 404
-    
-    player_season.redshirted = bool(redshirted)
+    redshirted = data.get('redshirted', False)
+    if season_id is None:
+        return jsonify({'error': 'Missing season_id'}), 400
+    # Prevent redshirting more than once
+    if redshirted:
+        already_redshirted = PlayerSeason.query.filter_by(player_id=player_id, redshirted=True).count() > 0
+        if already_redshirted:
+            return jsonify({'error': 'Player has already used their redshirt'}), 400
+    ps = PlayerSeason.query.filter_by(player_id=player_id, season_id=season_id).first()
+    if not ps:
+        return jsonify({'error': 'PlayerSeason not found'}), 404
+    ps.redshirted = redshirted
     db.session.commit()
-    return jsonify({'player_id': player_id, 'redshirted': player_season.redshirted}), 200
+    return jsonify({'player_id': player_id, 'redshirted': ps.redshirted})
 
 @players_bp.route('/players', methods=['GET'])
 def get_all_players():
@@ -176,13 +297,12 @@ def get_all_players():
             'position': p.position,
             'team_id': p.team_id,
             'class': ps.current_year,
-            'drafted_year': p.drafted_year,
             'ovr_rating': ps.ovr_rating,
             'redshirted': ps.redshirted,
             'recruit_stars': p.recruit_stars,
-            'dev_trait': p.dev_trait,
-            'height': p.height,
-            'weight': p.weight,
+            'dev_trait': ps.dev_trait,
+            'height': ps.height,
+            'weight': ps.weight,
             'state': p.state,
             'pass_yards': ps.pass_yards,
             'pass_tds': ps.pass_tds,

@@ -9,7 +9,7 @@ def progress_players_logic(season_id):
     """Logic for progressing players from one season to the next"""
     PROGRESSION_MAP = {"FR": "SO", "SO": "JR", "JR": "SR", "SR": "GR", "GR": "GR"}
     
-    # Get the next season
+    # Get the current season
     current_season = Season.query.get(season_id)
     print(f'progress_players_logic: current_season.year={getattr(current_season, "year", None)}, id={getattr(current_season, "season_id", None)}')
     next_season_year = current_season.year + 1 if current_season else None
@@ -25,12 +25,18 @@ def progress_players_logic(season_id):
     progressed = []
     redshirted = []
     from models import PlayerSeason  # Local import to avoid circular dependency
+    
     # Build a lookup of existing PlayerSeason records for the next season to avoid duplicates
     existing_next_season_ps = {
         ps.player_id for ps in PlayerSeason.query.filter_by(season_id=next_season.season_id).all()
     }
 
+    # First pass: ensure all players have PlayerSeason records for the current season
     for player in players:
+        # Skip players with no team (e.g., graduated)
+        if player.team_id is None:
+            print(f'[DEBUG] Skipping player {player.player_id} ({player.name}) in first pass: no team_id')
+            continue
         # Get the current season's PlayerSeason record
         current_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
         if not current_ps:
@@ -38,7 +44,7 @@ def progress_players_logic(season_id):
             current_ps = PlayerSeason(
                 player_id=player.player_id,
                 season_id=season_id,
-                team_id=player.team_id,
+                team_id=player.team_id,  # Safe: already checked above
                 player_class='FR',  # Default for new players
                 current_year='FR',
                 redshirted=False
@@ -46,11 +52,12 @@ def progress_players_logic(season_id):
             db.session.add(current_ps)
             db.session.flush()
         
-        # Store the old class before progression
+        # Store the old class and redshirt status before progression
         old_class = current_ps.current_year or current_ps.player_class or 'FR'
+        was_redshirted = current_ps.redshirted
         
         # Progression logic
-        if current_ps.redshirted:
+        if was_redshirted:
             current_ps.redshirted = False
             redshirted.append(player.player_id)
             # Redshirted players do not progress class
@@ -58,41 +65,68 @@ def progress_players_logic(season_id):
             new_class = PROGRESSION_MAP[old_class]
             progressed.append(player.player_id)
 
+    # Second pass: create PlayerSeason records for the next season
     for player in players:
-        # Skip if a PlayerSeason already exists for this player in the next season (might happen for activated recruits/transfers)
+        # Skip if a PlayerSeason already exists for this player in the next season
         if player.player_id in existing_next_season_ps:
             continue
         
         # Get the current season's PlayerSeason to determine progression
         current_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
         if not current_ps:
-            continue  # Skip if no current season record exists
+            print(f'[DEBUG] Skipping player {player.player_id} ({player.name}): no PlayerSeason for previous season {season_id}')
+            continue
         
+        # Skip players with no team (e.g., graduated)
+        if current_ps.team_id is None or player.team_id is None:
+            print(f'[DEBUG] Skipping player {player.player_id} ({player.name}): no team (current_ps.team_id={current_ps.team_id}, player.team_id={player.team_id})')
+            continue
+        
+        # Determine if player has ever been redshirted before this season
+        redshirt_seasons = [ps.season_id for ps in PlayerSeason.query.filter_by(player_id=player.player_id, redshirted=True).all()]
+        has_ever_redshirted = len(redshirt_seasons) > 0
+        just_redshirted = current_ps.redshirted and (season_id in redshirt_seasons)
+
         # Determine the new class for the next season
-        if current_ps.redshirted:
-            # Redshirted players don't progress class
+        if just_redshirted:
+            # Just redshirted: stay in the same class
             new_class = current_ps.current_year or current_ps.player_class or 'FR'
+            print(f'[DEBUG] Player {player.player_id} ({player.name}) was just redshirted, staying in class {new_class}')
         elif current_ps.current_year in PROGRESSION_MAP:
             new_class = PROGRESSION_MAP[current_ps.current_year]
         else:
             new_class = current_ps.current_year or current_ps.player_class or 'FR'
-        
+
         # Graduated players should not appear on future rosters
         if new_class == "GR":
             player.team_id = None
+            print(f'[DEBUG] Player {player.player_id} ({player.name}) graduated, setting team_id=None')
             continue
+
+        # Final safeguard: do not create PlayerSeason if team_id is None
+        if current_ps.team_id is None or player.team_id is None:
+            print(f'[DEBUG] FINAL SAFEGUARD: Skipping player {player.player_id} ({player.name}) - would create PlayerSeason with team_id=None')
+            continue
+
+        # Carry redshirted status forward if ever redshirted
+        next_redshirted = has_ever_redshirted or just_redshirted
 
         # Create PlayerSeason for next season
         new_player_season = PlayerSeason(
             player_id=player.player_id,
             season_id=next_season.season_id,
-            team_id=player.team_id,
+            team_id=current_ps.team_id,
             player_class=new_class,
             current_year=new_class,
-            redshirted=False,  # Reset redshirt status for new season
-            ovr_rating=current_ps.ovr_rating
+            redshirted=next_redshirted,
+            ovr_rating=current_ps.ovr_rating,
+            speed=current_ps.speed,
+            dev_trait=current_ps.dev_trait,
+            height=current_ps.height,
+            weight=current_ps.weight
         )
         db.session.add(new_player_season)
+        print(f'Created PlayerSeason for player {player.player_id} in season {next_season.season_id} with class {new_class}')
 
     # Activate recruits/transfers for all teams (not only user-controlled)
     activated_recruits = []
@@ -113,10 +147,6 @@ def progress_players_logic(season_id):
             position=recruit.position,
             recruit_stars=recruit.recruit_stars,
             recruit_rank_nat=recruit.recruit_rank_nat,
-            speed=recruit.speed,
-            dev_trait=recruit.dev_trait,
-            height=recruit.height,
-            weight=recruit.weight,
             state=recruit.state,
             team_id=team_id
         )
@@ -143,13 +173,8 @@ def progress_players_logic(season_id):
             position=transfer.position,
             recruit_stars=transfer.recruit_stars,
             recruit_rank_nat=transfer.recruit_rank_pos,
-            speed=getattr(transfer, 'speed', None),
             team_id=team_id,
-            dev_trait=transfer.dev_trait,
-            height=transfer.height,
-            weight=transfer.weight,
-            state=transfer.state,
-            career_stats=f'Transferred from {transfer.previous_school}' if transfer.previous_school else None
+            state=transfer.state
         )
         db.session.add(player)
         db.session.flush()
