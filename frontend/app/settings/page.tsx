@@ -22,10 +22,11 @@ import {
   ArrowUpRight,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason, fetchTeams, setUserControlledTeam, API_BASE_URL } from "@/lib/api";
+import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason, fetchTeams, setUserControlledTeam, API_BASE_URL, fetchAwards, createAward, updateAward, deleteAward } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
 import { Team } from "@/types";
 import Link from "next/link";
@@ -51,6 +52,11 @@ export default function SettingsPage() {
     const [loadingTeams, setLoadingTeams] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    
+    // Awards state
+    const [awards, setAwards] = useState<any[]>([]);
+    const [loadingAwards, setLoadingAwards] = useState(true);
+    const [awardError, setAwardError] = useState<string | null>(null);
 
     useEffect(() => {
         setLoadingTeams(true);
@@ -64,6 +70,21 @@ export default function SettingsPage() {
             setSelectedTeam(userTeam ? userTeam.team_id : null);
             setLoadingTeams(false);
         });
+    }, []);
+
+    useEffect(() => {
+        const fetchAwardsData = async () => {
+            setLoadingAwards(true);
+            try {
+                const awardsData = await fetchAwards();
+                setAwards(awardsData);
+            } catch (err: any) {
+                setAwardError(err.message);
+            } finally {
+                setLoadingAwards(false);
+            }
+        };
+        fetchAwardsData();
     }, []);
 
     useEffect(() => {
@@ -157,7 +178,7 @@ export default function SettingsPage() {
                 </div>
 
                 <Tabs defaultValue="teams" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-gray-200/50">
+                    <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm border border-gray-200/50">
                         <TabsTrigger value="teams" className="flex items-center gap-2">
                             <Building2 className="h-4 w-4" />
                             Teams
@@ -165,6 +186,10 @@ export default function SettingsPage() {
                         <TabsTrigger value="conferences" className="flex items-center gap-2">
                             <Users className="h-4 w-4" />
                             Conferences
+                        </TabsTrigger>
+                        <TabsTrigger value="awards" className="flex items-center gap-2">
+                            <Trophy className="h-4 w-4" />
+                            Awards
                         </TabsTrigger>
                         <TabsTrigger value="seasons" className="flex items-center gap-2">
                             <Calendar className="h-4 w-4" />
@@ -278,6 +303,47 @@ export default function SettingsPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    <TabsContent value="awards" className="space-y-6">
+                        {loadingAwards ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="flex items-center gap-2 text-gray-500">
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                    Loading awards...
+                                </div>
+                            </div>
+                        ) : awardError ? (
+                            <Card className="border-red-200 bg-red-50">
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-2 text-red-700">
+                                        <AlertCircle className="h-5 w-5" />
+                                        Error: {awardError}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <div className="space-y-6">
+                                {/* Awards Management */}
+                                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-xl">
+                                            <Trophy className="h-5 w-5 text-yellow-600" />
+                                            Manage Awards
+                                        </CardTitle>
+                                        <p className="text-gray-600 text-sm">Create, edit, and delete awards that can be given to players</p>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            {awards.map((award) => (
+                                                <AwardEditCard key={award.award_id} award={award} onUpdate={setAwards} />
+                                            ))}
+                                            <AddAwardCard onAdd={setAwards} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="seasons" className="space-y-6">
@@ -760,5 +826,261 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+function AwardEditCard({ award, onUpdate }: { award: any, onUpdate: (awards: any[]) => void }) {
+    const [editAward, setEditAward] = React.useState({ ...award });
+    const [saving, setSaving] = React.useState(false);
+    const [deleting, setDeleting] = React.useState(false);
+    const [success, setSuccess] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setEditAward({ ...editAward, [name]: value });
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setSuccess(null);
+        setError(null);
+        try {
+            await updateAward(editAward.award_id, {
+                name: editAward.name,
+                description: editAward.description
+            });
+            setSuccess('Award updated successfully!');
+            // Refresh the awards list
+            const updatedAwards = await fetchAwards();
+            onUpdate(updatedAwards);
+        } catch (err: any) {
+            setError('Failed to update award.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm(`Are you sure you want to delete the award "${editAward.name}"? This cannot be undone.`)) {
+            return;
+        }
+        setDeleting(true);
+        setSuccess(null);
+        setError(null);
+        try {
+            await deleteAward(editAward.award_id);
+            setSuccess('Award deleted successfully!');
+            // Refresh the awards list
+            const updatedAwards = await fetchAwards();
+            onUpdate(updatedAwards);
+        } catch (err: any) {
+            setError('Failed to delete award.');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    return (
+        <div className="border border-gray-200 rounded-lg p-4 bg-white/50 backdrop-blur-sm hover:shadow-md transition-all">
+            <div className="flex items-center gap-4 mb-4">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                    <Trophy className="h-6 w-6 text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                    <h3 className="font-semibold text-lg">{editAward.name}</h3>
+                    <p className="text-sm text-gray-600">Award ID: {editAward.award_id}</p>
+                </div>
+            </div>
+            
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor={`award-name-${editAward.award_id}`}>Award Name</Label>
+                    <Input
+                        id={`award-name-${editAward.award_id}`}
+                        name="name"
+                        value={editAward.name || ''}
+                        onChange={handleChange}
+                        placeholder="Enter award name"
+                    />
+                </div>
+                
+                <div className="space-y-2">
+                    <Label htmlFor={`award-description-${editAward.award_id}`}>Description</Label>
+                    <textarea
+                        id={`award-description-${editAward.award_id}`}
+                        name="description"
+                        value={editAward.description || ''}
+                        onChange={handleChange}
+                        placeholder="Enter award description"
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-3 mt-4">
+                <Button 
+                    onClick={handleSave} 
+                    disabled={saving || deleting}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                >
+                    {saving ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Saving...
+                        </>
+                    ) : (
+                        <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Save Changes
+                        </>
+                    )}
+                </Button>
+                
+                <Button 
+                    onClick={handleDelete} 
+                    disabled={saving || deleting}
+                    variant="destructive"
+                    size="sm"
+                >
+                    {deleting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Deleting...
+                        </>
+                    ) : (
+                        <>
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Delete Award
+                        </>
+                    )}
+                </Button>
+                
+                {success && (
+                    <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-4 w-4" />
+                        {success}
+                    </div>
+                )}
+                {error && (
+                    <div className="flex items-center gap-2 text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        {error}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function AddAwardCard({ onAdd }: { onAdd: (awards: any[]) => void }) {
+    const [newAward, setNewAward] = React.useState({ name: '', description: '' });
+    const [creating, setCreating] = React.useState(false);
+    const [success, setSuccess] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setNewAward({ ...newAward, [name]: value });
+    };
+
+    const handleCreate = async () => {
+        if (!newAward.name.trim()) {
+            setError('Award name is required.');
+            return;
+        }
+        
+        setCreating(true);
+        setSuccess(null);
+        setError(null);
+        try {
+            await createAward({
+                name: newAward.name.trim(),
+                description: newAward.description.trim() || undefined
+            });
+            setSuccess('Award created successfully!');
+            setNewAward({ name: '', description: '' });
+            // Refresh the awards list
+            const updatedAwards = await fetchAwards();
+            onAdd(updatedAwards);
+        } catch (err: any) {
+            setError('Failed to create award.');
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    return (
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50/50 backdrop-blur-sm hover:border-gray-400 transition-all">
+            <div className="flex items-center gap-4 mb-4">
+                <div className="p-2 bg-green-100 rounded-lg">
+                    <Plus className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                    <h3 className="font-semibold text-lg">Add New Award</h3>
+                    <p className="text-sm text-gray-600">Create a new award for players</p>
+                </div>
+            </div>
+            
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="new-award-name">Award Name</Label>
+                    <Input
+                        id="new-award-name"
+                        name="name"
+                        value={newAward.name}
+                        onChange={handleChange}
+                        placeholder="Enter award name"
+                    />
+                </div>
+                
+                <div className="space-y-2">
+                    <Label htmlFor="new-award-description">Description (Optional)</Label>
+                    <textarea
+                        id="new-award-description"
+                        name="description"
+                        value={newAward.description}
+                        onChange={handleChange}
+                        placeholder="Enter award description"
+                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-3 mt-4">
+                <Button 
+                    onClick={handleCreate} 
+                    disabled={creating || !newAward.name.trim()}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                >
+                    {creating ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Creating...
+                        </>
+                    ) : (
+                        <>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Award
+                        </>
+                    )}
+                </Button>
+                
+                {success && (
+                    <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle className="h-4 w-4" />
+                        {success}
+                    </div>
+                )}
+                {error && (
+                    <div className="flex items-center gap-2 text-red-600">
+                        <AlertCircle className="h-4 w-4" />
+                        {error}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 } 

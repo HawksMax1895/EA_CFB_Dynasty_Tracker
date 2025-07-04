@@ -206,6 +206,34 @@ export async function fetchAwards() {
   return response.json()
 }
 
+export async function createAward(data: { name: string; description?: string }) {
+  const response = await fetch(`${API_BASE_URL}/awards`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to create award")
+  return response.json()
+}
+
+export async function updateAward(awardId: number, data: { name: string; description?: string }) {
+  const response = await fetch(`${API_BASE_URL}/awards/${awardId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update award")
+  return response.json()
+}
+
+export async function deleteAward(awardId: number) {
+  const response = await fetch(`${API_BASE_URL}/awards/${awardId}`, {
+    method: "DELETE"
+  })
+  if (!response.ok) throw new Error("Failed to delete award")
+  return response.json()
+}
+
 // GAMES
 export async function fetchGames() {
   const response = await fetch(`${API_BASE_URL}/games`)
