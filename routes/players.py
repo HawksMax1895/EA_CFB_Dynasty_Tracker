@@ -26,7 +26,8 @@ def get_player(player_id):
         'weight': current_ps.weight if current_ps else None,
         'state': player.state,
         'recruit_stars': player.recruit_stars,
-        'awards': current_ps.awards if current_ps else None
+        'awards': current_ps.awards if current_ps else None,
+        'ovr_rating': current_ps.ovr_rating if current_ps else None
     })
 
 @players_bp.route('/teams/<int:team_id>/players', methods=['POST'])
@@ -77,7 +78,7 @@ def add_player_to_team(team_id):
     return jsonify({'player_id': player.player_id, 'name': player.name, 'position': player.position}), 201
 
 @players_bp.route('/players/<int:player_id>/seasons', methods=['POST'])
-def add_player_season(player_id):
+def add_or_update_player_season(player_id):
     data = request.json
     season_id = data.get('season_id')
     team_id = data.get('team_id')
@@ -85,16 +86,30 @@ def add_player_season(player_id):
     current_year = data.get('current_year', 'FR')
     if not all([season_id, team_id, ovr_rating]):
         return jsonify({'error': 'Missing required fields'}), 400
-    player_season = PlayerSeason(
-        player_id=player_id, 
-        season_id=season_id, 
-        team_id=team_id, 
-        ovr_rating=ovr_rating, 
-        player_class=current_year,
-        current_year=current_year,
-        redshirted=False
-    )
-    db.session.add(player_season)
+
+    # Try to find an existing PlayerSeason
+    player_season = PlayerSeason.query.filter_by(
+        player_id=player_id,
+        season_id=season_id,
+        team_id=team_id
+    ).first()
+
+    if player_season:
+        player_season.ovr_rating = ovr_rating
+        player_season.player_class = current_year
+        # update other fields if needed
+    else:
+        player_season = PlayerSeason(
+            player_id=player_id,
+            season_id=season_id,
+            team_id=team_id,
+            ovr_rating=ovr_rating,
+            player_class=current_year,
+            current_year=current_year,
+            redshirted=False
+        )
+        db.session.add(player_season)
+
     db.session.commit()
     return jsonify({'player_season_id': player_season.player_season_id}), 201
 
@@ -113,30 +128,53 @@ def get_team_roster_for_season(season_id, team_id):
         .join(Player, PlayerSeason.player_id == Player.player_id)
         .filter(PlayerSeason.season_id == season_id, PlayerSeason.team_id == team_id)
     )
-
-    return jsonify([
+    result = [
         {
             'player_id': ps.player_id,
             'name': player.name,
             'position': player.position,
-            'class': ps.player_class,
-            'ovr_rating': ps.ovr_rating
+            'current_year': ps.current_year,
+            'dev_trait': ps.dev_trait,
+            'height': ps.height,
+            'weight': ps.weight,
+            'state': player.state,
+            'recruit_stars': player.recruit_stars,
+            'redshirted': ps.redshirted,
+            'has_ever_redshirted': db.session.query(PlayerSeason.redshirted).filter(
+                PlayerSeason.player_id == ps.player_id,
+                PlayerSeason.redshirted == True
+            ).count() > 0,
+            'ovr_rating': ps.ovr_rating,
+            'player_class': ps.player_class,
+            'pass_yards': ps.pass_yards,
+            'pass_tds': ps.pass_tds,
+            'rush_yards': ps.rush_yards,
+            'rush_tds': ps.rush_tds,
+            'rec_yards': ps.rec_yards,
+            'rec_tds': ps.rec_tds,
+            'tackles': ps.tackles,
+            'sacks': ps.sacks,
+            'interceptions': ps.interceptions,
+            'awards': ps.awards
         }
         for ps, player in query.all()
-    ])
+    ]
+    return jsonify(result)
 
 @players_bp.route('/players/<int:player_id>/career', methods=['GET'])
 def get_player_career(player_id):
-    from models import PlayerSeason, Team
-    # Join PlayerSeason with Team to get team names
+    from models import PlayerSeason, Team, Season
+    # Join PlayerSeason with Team and Season to get team names and season years
     season_team_query = (
-        db.session.query(PlayerSeason, Team.name)
+        db.session.query(PlayerSeason, Team.name, Season.year)
         .join(Team, PlayerSeason.team_id == Team.team_id)
+        .join(Season, PlayerSeason.season_id == Season.season_id)
         .filter(PlayerSeason.player_id == player_id)
         .order_by(PlayerSeason.season_id)
     )
-    seasons = [ps for ps, _ in season_team_query]
-    team_names = {ps.player_season_id: team_name for ps, team_name in season_team_query}
+    seasons = [ps for ps, _, _ in season_team_query]
+    team_names = {ps.player_season_id: team_name for ps, team_name, _ in season_team_query}
+    season_years = {ps.player_season_id: year for ps, _, year in season_team_query}
     if not seasons:
         return jsonify([])
 
@@ -146,7 +184,9 @@ def get_player_career(player_id):
     def max_stat(attr):
         return max((getattr(ps, attr) or 0) for ps in seasons)
     def safe_div(n, d):
-        return n / d if d else 0
+        if n is None or d is None or d == 0:
+            return 0
+        return n / d
 
     games_played = sum_stat('games_played')
     completions = sum_stat('completions')
@@ -209,6 +249,7 @@ def get_player_career(player_id):
         'seasons': [
             {
                 'season_id': ps.season_id,
+                'season_year': season_years.get(ps.player_season_id),
                 'team_id': ps.team_id,
                 'team_name': team_names.get(ps.player_season_id),
                 'class': ps.player_class,
@@ -329,4 +370,52 @@ def get_all_players():
             'awards': ps.awards
         }
         for p, ps in results
-    ]) 
+    ])
+
+@players_bp.route('/players/<int:player_id>/seasons/<int:season_id>/stats', methods=['PUT'])
+def update_player_season_stats(player_id, season_id):
+    data = request.json
+    player_season = PlayerSeason.query.filter_by(
+        player_id=player_id,
+        season_id=season_id
+    ).first()
+    
+    if not player_season:
+        return jsonify({'error': 'PlayerSeason not found'}), 404
+    
+    # Update all the stats that can be modified
+    stat_fields = [
+        'ovr_rating', 'games_played', 'completions', 'attempts', 'pass_yards', 
+        'pass_tds', 'interceptions', 'rush_attempts', 'rush_yards', 'rush_tds',
+        'longest_rush', 'rush_fumbles', 'receptions', 'rec_yards', 'rec_tds',
+        'longest_rec', 'rec_drops', 'tackles', 'tfl', 'sacks', 'forced_fumbles',
+        'def_tds', 'awards'
+    ]
+    
+    for field in stat_fields:
+        if field in data:
+            setattr(player_season, field, data[field])
+    
+    db.session.commit()
+    return jsonify({'message': 'Player season stats updated'})
+
+@players_bp.route('/players/<int:player_id>/profile', methods=['PATCH'])
+def update_player_profile(player_id):
+    data = request.json
+    # Find the most recent season for this player
+    current_season = Season.query.order_by(Season.year.desc()).first()
+    if not current_season:
+        return jsonify({'error': 'No current season found'}), 404
+    ps = PlayerSeason.query.filter_by(player_id=player_id, season_id=current_season.season_id).first()
+    if not ps:
+        return jsonify({'error': 'PlayerSeason not found for current season'}), 404
+    updated = False
+    for field in ['height', 'weight', 'dev_trait']:
+        if field in data:
+            setattr(ps, field, data[field])
+            updated = True
+    if updated:
+        db.session.commit()
+        return jsonify({'message': 'Player profile updated'})
+    else:
+        return jsonify({'error': 'No valid fields to update'}), 400 

@@ -287,45 +287,45 @@ def set_user_controlled_team():
     db.session.commit()
     return jsonify({'message': f'Team {team_id} set as user-controlled'}), 200
 
-@teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/players', methods=['GET'])
-def get_team_players_by_season(season_id, team_id):
-    from models import Player, PlayerSeason
-    # Get all players who have a PlayerSeason for this team and season
-    player_seasons = PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).all()
-    player_ids = [ps.player_id for ps in player_seasons]
-    players = Player.query.filter(Player.player_id.in_(player_ids)).all()
-    
-    # Create a lookup for PlayerSeason data
-    ps_lookup = {ps.player_id: ps for ps in player_seasons}
-
-    # Track whether each player used a redshirt prior to this season
-    prior_rs_lookup = {
-        ps.player_id: (
-            PlayerSeason.query.filter(
-                PlayerSeason.player_id == ps.player_id,
-                PlayerSeason.redshirted == True,
-                PlayerSeason.season_id < season_id,
-            ).count()
-            > 0
-        )
-        for ps in player_seasons
-    }
-    
-    return jsonify([
-        {
-            'player_id': p.player_id,
-            'name': p.name,
-            'position': p.position,
-            'current_year': ps_lookup[p.player_id].current_year if p.player_id in ps_lookup else None,
-            'recruit_stars': p.recruit_stars,
-            'dev_trait': ps_lookup[p.player_id].dev_trait if p.player_id in ps_lookup else None,
-            'height': ps_lookup[p.player_id].height if p.player_id in ps_lookup else None,
-            'weight': ps_lookup[p.player_id].weight if p.player_id in ps_lookup else None,
-            'state': p.state,
-            'redshirted': (
-                ps_lookup[p.player_id].redshirted and prior_rs_lookup.get(p.player_id, False)
-            ) if p.player_id in ps_lookup else False,
-            'has_ever_redshirted': any(ps.redshirted for ps in PlayerSeason.query.filter_by(player_id=p.player_id).all())
-        }
-        for p in players
-    ])
+# @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/players', methods=['GET'])
+# def get_team_players_by_season(season_id, team_id):
+#     from models import Player, PlayerSeason
+#     # Get all players who have a PlayerSeason for this team and season
+#     player_seasons = PlayerSeason.query.filter_by(season_id=season_id, team_id=team_id).all()
+#     player_ids = [ps.player_id for ps in player_seasons]
+#     players = Player.query.filter(Player.player_id.in_(player_ids)).all()
+#     
+#     # Create a lookup for PlayerSeason data
+#     ps_lookup = {ps.player_id: ps for ps in player_seasons}
+#
+#     # Track whether each player used a redshirt prior to this season
+#     prior_rs_lookup = {
+#         ps.player_id: (
+#             PlayerSeason.query.filter(
+#                 PlayerSeason.player_id == ps.player_id,
+#                 PlayerSeason.redshirted == True,
+#                 PlayerSeason.season_id < season_id,
+#             ).count()
+#             > 0
+#         )
+#         for ps in player_seasons
+#     }
+#     
+#     return jsonify([
+#         {
+#             'player_id': p.player_id,
+#             'name': p.name,
+#             'position': p.position,
+#             'current_year': ps_lookup[p.player_id].current_year if p.player_id in ps_lookup else None,
+#             'recruit_stars': p.recruit_stars,
+#             'dev_trait': ps_lookup[p.player_id].dev_trait if p.player_id in ps_lookup else None,
+#             'height': ps_lookup[p.player_id].height if p.player_id in ps_lookup else None,
+#             'weight': ps_lookup[p.player_id].weight if p.player_id in ps_lookup else None,
+#             'state': p.state,
+#             'redshirted': (
+#                 ps_lookup[p.player_id].redshirted and prior_rs_lookup.get(p.player_id, False)
+#             ) if p.player_id in ps_lookup else False,
+#             'has_ever_redshirted': any(ps.redshirted for ps in PlayerSeason.query.filter_by(player_id=p.player_id).all())
+#         }
+#         for p in players
+#     ])

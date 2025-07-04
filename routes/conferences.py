@@ -30,4 +30,15 @@ def assign_teams_to_conference(conference_id):
             db.session.add(team)
             updated.append(team_id)
     db.session.commit()
-    return jsonify({'updated_team_ids': updated}), 201 
+    return jsonify({'updated_team_ids': updated}), 201
+
+@conferences_bp.route('/conferences', methods=['GET'])
+def get_conferences():
+    conferences = Conference.query.all()
+    return jsonify([
+        {
+            'conference_id': c.conference_id,
+            'name': c.name,
+            'tier': c.tier
+        } for c in conferences
+    ]) 

@@ -91,20 +91,6 @@ export default function Dashboard() {
 
         {/* Main Navigation */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Link href="/seasons">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Seasons
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">View season history, records, and team performance</p>
-              </CardContent>
-            </Card>
-          </Link>
-
           <Link href="/players">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>

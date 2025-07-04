@@ -174,7 +174,9 @@ def progress_players_logic(season_id):
             team_id=team_id,
             player_class='FR',
             current_year='FR',
-            redshirted=False
+            redshirted=False,
+            height=recruit.height,
+            weight=recruit.weight
         )
         db.session.add(ps)
         activated_recruits.append(player.player_id)
@@ -201,7 +203,9 @@ def progress_players_logic(season_id):
             player_class=progressed_year,
             current_year=progressed_year,
             redshirted=False,
-            ovr_rating=transfer.ovr_rating
+            ovr_rating=transfer.ovr_rating,
+            height=transfer.height,
+            weight=transfer.weight
         )
         db.session.add(ps)
         activated_transfers.append(player.player_id)

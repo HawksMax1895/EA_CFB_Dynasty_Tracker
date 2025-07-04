@@ -25,13 +25,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { SeasonSelector } from "@/components/SeasonSelector";
 import { useSeason } from "@/context/SeasonContext";
 
 export default function RecruitingPage() {
-  const { selectedSeason, userTeam } = useSeason();
+  const { selectedSeason, userTeam, seasons } = useSeason();
   const teamId = userTeam?.team_id;
   const seasonId = selectedSeason;
+  const seasonYear = seasons.find(s => s.season_id === selectedSeason)?.year || seasonId;
   const [recruits, setRecruits] = useState<any[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,9 +273,6 @@ export default function RecruitingPage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Recruiting</h1>
             <p className="text-gray-600">Build your program through high school recruiting and the transfer portal</p>
           </div>
-          <div>
-            <SeasonSelector />
-          </div>
         </div>
 
         <Tabs defaultValue="highschool" className="w-full">
@@ -300,7 +297,7 @@ export default function RecruitingPage() {
             {/* High School Class Overview */}
             <Card className="mb-8">
               <CardHeader>
-                <CardTitle className="text-2xl">{seasonId} High School Recruiting Class</CardTitle>
+                <CardTitle className="text-2xl">{seasonYear} High School Recruiting Class</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -460,7 +457,7 @@ export default function RecruitingPage() {
             {/* Transfer Portal Overview */}
             <Card className="mb-8">
               <CardHeader>
-                <CardTitle className="text-2xl">{seasonId} Transfer Portal</CardTitle>
+                <CardTitle className="text-2xl">{seasonYear} Transfer Portal</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

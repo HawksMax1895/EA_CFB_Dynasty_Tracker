@@ -294,3 +294,23 @@ export async function fetchPlayersBySeason(seasonId: number, teamId: number = 1)
   if (!response.ok) throw new Error("Failed to fetch players for season")
   return response.json()
 }
+
+export async function updatePlayerSeasonStats(playerId: number, seasonId: number, stats: any) {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/seasons/${seasonId}/stats`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(stats)
+  })
+  if (!response.ok) throw new Error("Failed to update player season stats")
+  return response.json()
+}
+
+export async function updatePlayerProfile(playerId: number, data: any) {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/profile`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update player profile")
+  return response.json()
+}

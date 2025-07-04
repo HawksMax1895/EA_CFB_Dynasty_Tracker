@@ -172,199 +172,105 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
           </Button>
         </div>
         <form className="space-y-7" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="font-medium">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={form.name}
-                onChange={onFormChange}
-                placeholder="Player name"
-                required
-                className="w-full"
-              />
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="font-medium">Name</Label>
+                <Input id="name" name="name" value={form.name} onChange={onFormChange} placeholder="Player name" required className="w-full" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="position" className="font-medium">Position</Label>
+                <Popover open={positionOpen} onOpenChange={setPositionOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={positionOpen} className="w-full justify-between">
+                      {form.position || "Select position..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search position..." />
+                      <CommandList>
+                        <CommandEmpty>No position found.</CommandEmpty>
+                        <CommandGroup>
+                          {positions.map((position) => (
+                            <CommandItem key={position} value={position} onSelect={() => handlePositionSelect(position)}>
+                              <Check className={cn("mr-2 h-4 w-4", form.position === position ? "opacity-100" : "opacity-0")} />
+                              {position}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="position" className="font-medium">Position</Label>
-              <Popover open={positionOpen} onOpenChange={setPositionOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={positionOpen}
-                    className="w-full justify-between"
-                  >
-                    {form.position || "Select position..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search position..." />
-                    <CommandList>
-                      <CommandEmpty>No position found.</CommandEmpty>
-                      <CommandGroup>
-                        {positions.map((position) => (
-                          <CommandItem
-                            key={position}
-                            value={position}
-                            onSelect={() => handlePositionSelect(position)}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                form.position === position ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {position}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="recruit_stars" className="font-medium">Stars</Label>
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <button
-                    type="button"
-                    key={i}
-                    onClick={() => {
-                      const event = {
-                        target: { name: 'recruit_stars', value: i + 1 }
-                      } as React.ChangeEvent<HTMLInputElement>;
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="recruit_stars" className="font-medium">Stars</Label>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <button type="button" key={i} onClick={() => {
+                      const event = { target: { name: 'recruit_stars', value: i + 1 } } as React.ChangeEvent<HTMLInputElement>;
                       onFormChange(event);
-                    }}
-                    aria-label={`Set ${i + 1} stars`}
-                  >
-                    <Star
-                      className={`h-5 w-5 ${i < (form.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                    />
-                  </button>
-                ))}
+                    }} aria-label={`Set ${i + 1} stars`}>
+                      <Star className={`h-5 w-5 ${i < (form.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div className="space-y-2 flex gap-2">
-              <div className="flex-1">
+              <div className="space-y-2">
                 <Label htmlFor="recruit_rank_nat" className="font-medium">National Rank</Label>
-                <Input
-                  id="recruit_rank_nat"
-                  name="recruit_rank_nat"
-                  type="number"
-                  value={form.recruit_rank_nat}
-                  onChange={onFormChange}
-                  placeholder="0"
-                  required
-                  className="w-full"
-                />
+                <Input id="recruit_rank_nat" name="recruit_rank_nat" type="number" value={form.recruit_rank_nat} onChange={onFormChange} placeholder="0" required className="w-full" />
               </div>
-              <div className="flex-1">
+              <div className="space-y-2">
                 <Label htmlFor="recruit_rank_pos" className="font-medium">Positional Rank</Label>
-                <Input
-                  id="recruit_rank_pos"
-                  name="recruit_rank_pos"
-                  type="number"
-                  value={form.recruit_rank_pos || ''}
-                  onChange={onFormChange}
-                  placeholder="0"
-                  required
-                  className="w-full"
-                />
+                <Input id="recruit_rank_pos" name="recruit_rank_pos" type="number" value={form.recruit_rank_pos || ''} onChange={onFormChange} placeholder="0" required className="w-full" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="speed" className="font-medium">Speed <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                <Input id="speed" name="speed" type="number" value={form.speed} onChange={onFormChange} placeholder="Optional" className="w-full" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dev_trait" className="font-medium">Dev Trait</Label>
+                <Select value={form.dev_trait || "None"} onValueChange={(value) => {
+                  const event = { target: { name: 'dev_trait', value: value === "None" ? "" : value } } as React.ChangeEvent<HTMLInputElement>;
+                  onFormChange(event);
+                }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select dev trait" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Elite">Elite</SelectItem>
+                    <SelectItem value="Star">Star</SelectItem>
+                    <SelectItem value="Impact">Impact</SelectItem>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="speed" className="font-medium">Speed <span className="text-xs text-muted-foreground">(optional)</span></Label>
-              <Input
-                id="speed"
-                name="speed"
-                type="number"
-                value={form.speed}
-                onChange={onFormChange}
-                placeholder="Optional"
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dev_trait" className="font-medium">Dev Trait</Label>
-              <Select 
-                value={form.dev_trait || "None"} 
-                onValueChange={(value) => {
-                  const event = {
-                    target: { name: 'dev_trait', value: value === "None" ? "" : value }
-                  } as React.ChangeEvent<HTMLInputElement>;
-                  onFormChange(event);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select dev trait" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="Elite">Elite</SelectItem>
-                  <SelectItem value="Star">Star</SelectItem>
-                  <SelectItem value="Impact">Impact</SelectItem>
-                  <SelectItem value="Normal">Normal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 col-span-2">
               <Label htmlFor="height_feet" className="font-medium">Height (ft/in) & Weight</Label>
-              <div className="flex gap-4 items-center">
+              <div className="flex flex-wrap gap-4 items-center">
                 <div className="flex gap-2 items-center">
-                  <Input
-                    id="height_feet"
-                    name="height_feet"
-                    type="number"
-                    min={4}
-                    max={7}
-                    value={feet}
-                    onChange={e => handleHeightChange('feet', e.target.value)}
-                    placeholder="6"
-                    required
-                    className="w-14"
-                  />
+                  <Input id="height_feet" name="height_feet" type="number" min={4} max={7} value={feet} onChange={e => handleHeightChange('feet', e.target.value)} placeholder="6" required className="w-14" />
                   <span className="self-center">'</span>
-                  <Input
-                    id="height_inches"
-                    name="height_inches"
-                    type="number"
-                    min={0}
-                    max={11}
-                    value={inches}
-                    onChange={e => handleHeightChange('inches', e.target.value)}
-                    placeholder="2"
-                    required
-                    className="w-14"
-                  />
+                  <Input id="height_inches" name="height_inches" type="number" min={0} max={11} value={inches} onChange={e => handleHeightChange('inches', e.target.value)} placeholder="2" required className="w-14" />
                   <span className="self-center">"</span>
                 </div>
-                <Input
-                  id="weight"
-                  name="weight"
-                  type="number"
-                  value={form.weight}
-                  onChange={onFormChange}
-                  placeholder="200"
-                  required
-                  className="w-24 ml-4"
-                />
+                <Input id="weight" name="weight" type="number" value={form.weight} onChange={onFormChange} placeholder="200" required className="w-24 ml-4" />
                 <span className="text-muted-foreground ml-1">lbs</span>
               </div>
             </div>
-            <div className="space-y-2 col-span-2">
+            <div className="space-y-2">
               <Label htmlFor="state" className="font-medium">State</Label>
               <Popover open={stateOpen} onOpenChange={setStateOpen}>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={stateOpen}
-                    className="w-full justify-between"
-                  >
+                  <Button variant="outline" role="combobox" aria-expanded={stateOpen} className="w-full justify-between">
                     {form.state || "Select state..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -376,17 +282,8 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
                       <CommandEmpty>No state found.</CommandEmpty>
                       <CommandGroup>
                         {states.map((state) => (
-                          <CommandItem
-                            key={state.value}
-                            value={state.value}
-                            onSelect={() => handleStateSelect(state.value)}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                form.state === state.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
+                          <CommandItem key={state.value} value={state.value} onSelect={() => handleStateSelect(state.value)}>
+                            <Check className={cn("mr-2 h-4 w-4", form.state === state.value ? "opacity-100" : "opacity-0")} />
                             {state.value} - {state.label}
                           </CommandItem>
                         ))}

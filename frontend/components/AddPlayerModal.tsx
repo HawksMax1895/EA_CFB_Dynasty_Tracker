@@ -12,35 +12,26 @@ import { Plus, Star } from "lucide-react";
 import { addPlayer } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
 
-interface PlayerFormData {
+// --- AddRecruitModal-style recruit fields ---
+interface RecruitForm {
   name: string;
   position: string;
   recruit_stars: number;
-  current_year: string;
-  ovr_rating: number;
-  speed: number;
+  recruit_rank_nat: number;
+  recruit_rank_pos: number;
+  speed: string;
   dev_trait: string;
-  height_feet: string;
-  height_inches: string;
-  weight: number;
+  height: string;
+  weight: string;
   state: string;
-  team_id: number;
-  season_id: number;
 }
 
-const POSITIONS = [
+const recruitPositions = [
   "QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT",
   "LE", "RE", "DT", "LOLB", "MLB", "ROLB", "CB", "FS", "SS", "K", "P"
 ];
 
-const DEV_TRAITS = [
-  { value: "Normal", label: "Normal" },
-  { value: "Star", label: "Star" },
-  { value: "Impact", label: "Impact" },
-  { value: "Superstar", label: "Superstar" },
-];
-
-const STATES = [
+const recruitStates = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
   "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
   "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
@@ -48,28 +39,32 @@ const STATES = [
   "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
 ];
 
+const devTraits = [
+  { value: "Normal", label: "Normal" },
+  { value: "Impact", label: "Impact" },
+  { value: "Star", label: "Star" },
+  { value: "Elite", label: "Elite" },
+];
+
 export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void }) {
   const { selectedSeason, userTeam } = useSeason();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<PlayerFormData>({
+  const [form, setForm] = useState<RecruitForm>({
     name: "",
     position: "",
     recruit_stars: 3,
-    current_year: "FR",
-    ovr_rating: 70,
-    speed: 70,
-    dev_trait: "Normal",
-    height_feet: "6",
-    height_inches: "0",
-    weight: 200,
+    recruit_rank_nat: 0,
+    recruit_rank_pos: 0,
+    speed: "",
+    dev_trait: "",
+    height: "",
+    weight: "",
     state: "",
-    team_id: userTeam?.team_id || 1,
-    season_id: selectedSeason || 1,
   });
 
-  const handleFormChange = (field: keyof PlayerFormData, value: string | number) => {
+  const handleFormChange = (field: keyof RecruitForm, value: string | number) => {
     setForm({ ...form, [field]: value });
   };
 
@@ -77,31 +72,46 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     setForm({ ...form, recruit_stars: star });
   };
 
+  const handleHeightChange = (type: 'feet' | 'inches', value: string) => {
+    // Parse and update height as 6'2" format
+    const match = form.height.match(/(\d+)'(\d+)?/);
+    let feet = match ? match[1] : '';
+    let inches = match ? match[2] : '';
+    if (type === 'feet') feet = value.replace(/\D/g, '');
+    if (type === 'inches') inches = value.replace(/\D/g, '');
+    let heightString = '';
+    if (feet) heightString += `${feet}'`;
+    if (inches) heightString += `${inches}`;
+    if (feet && inches !== '') heightString += '"';
+    setForm({ ...form, height: heightString });
+  };
+
+  const { height } = form;
+  const match = height.match(/(\d+)'(\d+)?/);
+  const feet = match ? match[1] : '';
+  const inches = match ? match[2] : '';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    // Combine feet and inches for height
-    const height = `${form.height_feet}'${form.height_inches}\"`;
     try {
       await addPlayer({
         ...form,
-        height,
+        team_id: userTeam?.team_id || 1,
+        season_id: selectedSeason || 1,
       });
       setForm({
         name: "",
         position: "",
         recruit_stars: 3,
-        current_year: "FR",
-        ovr_rating: 70,
-        speed: 70,
-        dev_trait: "Normal",
-        height_feet: "6",
-        height_inches: "0",
-        weight: 200,
+        recruit_rank_nat: 0,
+        recruit_rank_pos: 0,
+        speed: "",
+        dev_trait: "",
+        height: "",
+        weight: "",
         state: "",
-        team_id: userTeam?.team_id || 1,
-        season_id: selectedSeason || 1,
       });
       setOpen(false);
       onPlayerAdded();
@@ -125,203 +135,100 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
           <DialogTitle>Add New Player</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
           <Card>
             <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="font-semibold mb-4">Recruit Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={form.name}
-                    onChange={(e) => handleFormChange("name", e.target.value)}
-                    placeholder="Player Name"
-                    required
-                  />
+                  <Input id="name" value={form.name} onChange={e => handleFormChange("name", e.target.value)} placeholder="Player Name" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="position">Position</Label>
-                  <Select value={form.position} onValueChange={(value) => handleFormChange("position", value)}>
+                  <Select value={form.position} onValueChange={value => handleFormChange("position", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select position" />
                     </SelectTrigger>
                     <SelectContent>
-                      {POSITIONS.map((pos) => (
-                        <SelectItem key={pos} value={pos}>
-                          {pos}
-                        </SelectItem>
+                      {recruitPositions.map(pos => (
+                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="current_year">Class Year</Label>
-                  <Select value={form.current_year} onValueChange={(value) => handleFormChange("current_year", value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="FR">Freshman</SelectItem>
-                      <SelectItem value="SO">Sophomore</SelectItem>
-                      <SelectItem value="JR">Junior</SelectItem>
-                      <SelectItem value="SR">Senior</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state">State</Label>
-                  <Select value={form.state} onValueChange={(value) => handleFormChange("state", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATES.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Physical Attributes */}
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Physical Attributes</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="height_feet">Height</Label>
-                  <div className="flex gap-2 items-center">
-                    <Input
-                      id="height_feet"
-                      type="number"
-                      min="4"
-                      max="7"
-                      value={form.height_feet}
-                      onChange={(e) => handleFormChange("height_feet", e.target.value)}
-                      placeholder="Feet"
-                      className="w-16"
-                    />
-                    <span>ft</span>
-                    <Input
-                      id="height_inches"
-                      type="number"
-                      min="0"
-                      max="11"
-                      value={form.height_inches}
-                      onChange={(e) => handleFormChange("height_inches", e.target.value)}
-                      placeholder="Inches"
-                      className="w-16"
-                    />
-                    <span>in</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (lbs)</Label>
-                  <Input
-                    id="weight"
-                    type="number"
-                    value={form.weight}
-                    onChange={(e) => handleFormChange("weight", parseInt(e.target.value))}
-                    min="150"
-                    max="350"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Ratings & Development */}
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Ratings & Development</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ovr_rating">Overall Rating</Label>
-                  <Input
-                    id="ovr_rating"
-                    type="number"
-                    value={form.ovr_rating}
-                    onChange={(e) => handleFormChange("ovr_rating", parseInt(e.target.value))}
-                    min="50"
-                    max="99"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dev_trait">Development Trait</Label>
-                  <Select value={form.dev_trait} onValueChange={(value) => handleFormChange("dev_trait", value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEV_TRAITS.map((trait) => (
-                        <SelectItem key={trait.value} value={trait.value}>
-                          {trait.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Recruit Stars</Label>
-                  <div className="flex gap-1 items-center">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <button
-                        type="button"
-                        key={i}
-                        onClick={() => handleStarClick(i + 1)}
-                        className="focus:outline-none"
-                        tabIndex={0}
-                        aria-label={`Set ${i + 1} stars`}
-                      >
-                        <Star
-                          className={`h-6 w-6 cursor-pointer transition-colors ${
-                            i < form.recruit_stars
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      </button>
+                  <Label>Stars</Label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Button key={star} type="button" variant={form.recruit_stars === star ? "default" : "outline"} size="icon" onClick={() => handleStarClick(star)}>
+                        <Star className={form.recruit_stars >= star ? "text-yellow-400" : "text-gray-300"} />
+                      </Button>
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="speed">Speed Rating</Label>
-                  <Input
-                    id="speed"
-                    type="number"
-                    value={form.speed}
-                    onChange={(e) => handleFormChange("speed", parseInt(e.target.value))}
-                    min="50"
-                    max="99"
-                  />
+                <div className="flex gap-4 items-start">
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="recruit_rank_nat">National Rank</Label>
+                    <Input id="recruit_rank_nat" type="number" value={form.recruit_rank_nat} onChange={e => handleFormChange("recruit_rank_nat", e.target.value)} placeholder="National Rank" />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="recruit_rank_pos">Positional Rank</Label>
+                    <Input id="recruit_rank_pos" type="number" value={form.recruit_rank_pos} onChange={e => handleFormChange("recruit_rank_pos", e.target.value)} placeholder="Positional Rank" />
+                  </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Speed <span className="text-xs text-gray-400">(optional)</span></Label>
+                  <Input id="speed" value={form.speed} onChange={e => handleFormChange("speed", e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dev_trait">Dev Trait</Label>
+                  <Select value={form.dev_trait} onValueChange={value => handleFormChange("dev_trait", value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select dev trait" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {devTraits.map(trait => (
+                        <SelectItem key={trait.value} value={trait.value}>{trait.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="mt-6 mb-2 font-semibold text-gray-700">Physical Attributes</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="flex items-center gap-2">
+                  <Label className="mb-0">Height (ft/in)</Label>
+                  <Input id="height_feet" type="number" value={feet} onChange={e => handleHeightChange('feet', e.target.value)} placeholder="Feet" className="w-20 text-sm" />
+                  <span>'</span>
+                  <Input id="height_inches" type="number" value={inches} onChange={e => handleHeightChange('inches', e.target.value)} placeholder="Inches" className="w-20 text-sm" />
+                  <span>"</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="mb-0">Weight</Label>
+                  <Input id="weight" type="number" value={form.weight} onChange={e => handleFormChange("weight", e.target.value)} placeholder="Weight" className="w-24 text-sm" />
+                  <span>lbs</span>
+                </div>
+              </div>
+              <div className="mt-6 space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Select value={form.state} onValueChange={value => handleFormChange("state", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recruitStates.map(state => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
-          {/* Error Display */}
-          {error && (
-            <div className="text-red-500 text-sm bg-red-50 p-3 rounded">
-              {error}
-            </div>
-          )}
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Adding..." : "Add Player"}
-            </Button>
+          <div className="flex justify-end gap-2">
+            <Button type="submit" disabled={loading}>{loading ? "Adding..." : "Add Player"}</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           </div>
+          {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
         </form>
       </DialogContent>
     </Dialog>

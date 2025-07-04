@@ -11,7 +11,6 @@ import { useSeason } from "@/context/SeasonContext"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
-  { name: "Seasons", href: "/seasons", icon: Calendar },
   { name: "Players", href: "/players", icon: Users },
   { name: "Games", href: "/games", icon: Trophy },
   { name: "Awards", href: "/awards", icon: Award },

@@ -37,6 +37,17 @@ export interface Team {
   team_rating?: string | null;
   recruiting_rank?: number | null;
   rank?: number;
+  // Rank properties for statistics
+  off_ppg_rank?: number | null;
+  pass_yards_rank?: number | null;
+  rush_yards_rank?: number | null;
+  pass_tds_rank?: number | null;
+  rush_tds_rank?: number | null;
+  offense_yards_rank?: number | null;
+  def_ppg_rank?: number | null;
+  sacks_rank?: number | null;
+  interceptions_rank?: number | null;
+  defense_yards_rank?: number | null;
 }
 
 export interface Game {
