@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Star, TrendingUp, Award } from "lucide-react"
 import React, { useEffect, useState } from "react"
-import { fetchPlayers, setPlayerRedshirt, addPlayer, fetchPlayersBySeason } from "@/lib/api"
+import { setPlayerRedshirt, addPlayer, fetchPlayersBySeason } from "@/lib/api"
 import { SeasonSelector } from "@/components/SeasonSelector";
 import { useSeason } from "@/context/SeasonContext";
 
@@ -47,8 +47,8 @@ export default function PlayersPage() {
     try {
       await addPlayer(form)
       setForm({ name: '', position: '', recruit_stars: 3, current_year: 'FR' })
-      if (teamId) {
-        const data = await fetchPlayers(teamId)
+      if (teamId && selectedSeason) {
+        const data = await fetchPlayersBySeason(selectedSeason, teamId)
         setPlayers(data)
       }
     } catch (err: any) {
@@ -63,8 +63,8 @@ export default function PlayersPage() {
     try {
       await setPlayerRedshirt(playerId, !current)
       // Refetch players after redshirt change
-      if (teamId) {
-        const data = await fetchPlayers(teamId)
+      if (teamId && selectedSeason) {
+        const data = await fetchPlayersBySeason(selectedSeason, teamId)
         setPlayers(data)
       }
     } catch (err) {
