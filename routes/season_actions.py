@@ -52,15 +52,24 @@ def progress_players_logic(season_id):
             db.session.add(current_ps)
             db.session.flush()
         
+        # Determine if the player used their redshirt in a prior season
+        redshirted_before = (
+            PlayerSeason.query.filter(
+                PlayerSeason.player_id == player.player_id,
+                PlayerSeason.redshirted == True,
+                PlayerSeason.season_id < season_id,
+            ).count()
+            > 0
+        )
+
         # Store the old class and redshirt status before progression
         old_class = current_ps.current_year or current_ps.player_class or 'FR'
-        was_redshirted = current_ps.redshirted
-        
+        just_redshirted = current_ps.redshirted and not redshirted_before
+
         # Progression logic
-        if was_redshirted:
-            current_ps.redshirted = False
+        if just_redshirted:
             redshirted.append(player.player_id)
-            # Redshirted players do not progress class
+            # Redshirted players do not progress class this year
         elif old_class in PROGRESSION_MAP:
             new_class = PROGRESSION_MAP[old_class]
             progressed.append(player.player_id)
@@ -82,10 +91,17 @@ def progress_players_logic(season_id):
             print(f'[DEBUG] Skipping player {player.player_id} ({player.name}): no team (current_ps.team_id={current_ps.team_id}, player.team_id={player.team_id})')
             continue
         
-        # Determine if player has ever been redshirted before this season
-        redshirt_seasons = [ps.season_id for ps in PlayerSeason.query.filter_by(player_id=player.player_id, redshirted=True).all()]
-        has_ever_redshirted = len(redshirt_seasons) > 0
-        just_redshirted = current_ps.redshirted and (season_id in redshirt_seasons)
+        # Determine prior redshirt usage
+        redshirted_before = (
+            PlayerSeason.query.filter(
+                PlayerSeason.player_id == player.player_id,
+                PlayerSeason.redshirted == True,
+                PlayerSeason.season_id < season_id,
+            ).count()
+            > 0
+        )
+        just_redshirted = current_ps.redshirted and not redshirted_before
+        has_ever_redshirted = redshirted_before or current_ps.redshirted
 
         # Determine the new class for the next season
         if just_redshirted:
@@ -109,7 +125,7 @@ def progress_players_logic(season_id):
             continue
 
         # Carry redshirted status forward if ever redshirted
-        next_redshirted = has_ever_redshirted or just_redshirted
+        next_redshirted = has_ever_redshirted
 
         # Create PlayerSeason for next season
         new_player_season = PlayerSeason(
