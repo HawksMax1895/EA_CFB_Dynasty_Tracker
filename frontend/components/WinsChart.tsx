@@ -66,7 +66,7 @@ export function WinsChart() {
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px -1px hsl(var(--foreground) / 0.1)'
                 }}
-                formatter={(value: any, name: string) => [
+                formatter={(value: number, name: string) => [
                   value, 
                   name === 'wins' ? 'Wins' : name === 'losses' ? 'Losses' : 'Total Games'
                 ]}

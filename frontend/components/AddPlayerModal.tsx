@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Plus, Star } from "lucide-react";
 import { addPlayer } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
@@ -115,8 +114,8 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
       });
       setOpen(false);
       onPlayerAdded();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -199,9 +198,9 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                 <div className="flex items-center gap-2">
                   <Label className="mb-0">Height (ft/in)</Label>
                   <Input id="height_feet" type="number" value={feet} onChange={e => handleHeightChange('feet', e.target.value)} placeholder="Feet" className="w-20 text-sm" />
-                  <span>'</span>
+                  <span>&apos;</span>
                   <Input id="height_inches" type="number" value={inches} onChange={e => handleHeightChange('inches', e.target.value)} placeholder="Inches" className="w-20 text-sm" />
-                  <span>"</span>
+                  <span>&quot;</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="mb-0">Weight</Label>

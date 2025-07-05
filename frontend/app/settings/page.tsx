@@ -35,8 +35,9 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { Tabs as SubTabs, TabsList as SubTabsList, TabsTrigger as SubTabsTrigger, TabsContent as SubTabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import Image from "next/image";
 
-// Add a helper for ordinal suffix
+// Add a helper for ordinal
 function ordinal(n: number | null | undefined) {
   if (!n) return '';
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -50,8 +51,8 @@ export default function SettingsPage() {
     const [seasonError, setSeasonError] = useState<string | null>(null)
     const [creating, setCreating] = useState(false)
 
-    const [teams, setTeams] = useState<any[]>([]);
-    const [conferences, setConferences] = useState<any[]>([]);
+      const [teams, setTeams] = useState<Team[]>([]);
+  const [conferences, setConferences] = useState<Conference[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
     const [loadingTeams, setLoadingTeams] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -63,12 +64,12 @@ export default function SettingsPage() {
     const [selectedConference, setSelectedConference] = useState<string>("all");
     
     // Awards state
-    const [awards, setAwards] = useState<any[]>([]);
+    const [awards, setAwards] = useState<Award[]>([]);
     const [loadingAwards, setLoadingAwards] = useState(true);
     const [awardError, setAwardError] = useState<string | null>(null);
 
     // Add state for honor types
-    const [honorTypes, setHonorTypes] = useState<any[]>([]);
+    const [honorTypes, setHonorTypes] = useState<HonorType[]>([]);
     const [loadingHonorTypes, setLoadingHonorTypes] = useState(true);
     const [honorTypeError, setHonorTypeError] = useState<string | null>(null);
 
@@ -91,7 +92,7 @@ export default function SettingsPage() {
         ]).then(([teamsData, conferencesData]) => {
             setTeams(teamsData);
             setConferences(conferencesData);
-            const userTeam = teamsData.find((t: any) => t.is_user_controlled);
+            const userTeam = teamsData.find((t: Team) => t.is_user_controlled);
             setSelectedTeam(userTeam ? userTeam.team_id : null);
             setLoadingTeams(false);
         });
@@ -123,7 +124,7 @@ export default function SettingsPage() {
                 for (const season of seasonsData) {
                     const teams = await fetchTeamsBySeason(season.season_id);
                     // Assuming the user-controlled team is consistent
-                    const userTeam = teams.find((t: any) => t.is_user_controlled); 
+                    const userTeam = teams.find((t: Team) => t.is_user_controlled); 
                     if (userTeam) {
                         details[season.season_id] = userTeam;
                     }
@@ -209,7 +210,7 @@ export default function SettingsPage() {
       }
     }
 
-    const handleEdit = (item: any) => {
+    const handleEdit = (item: Award) => {
       setEditItem(item);
       setEditForm({
         type: item.type,
@@ -312,12 +313,12 @@ export default function SettingsPage() {
                                         <SelectTrigger className="w-full">
                                             <SelectValue placeholder="Select your team" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="max-h-96">
                                             {teams.map((team) => (
                                                 <SelectItem key={team.team_id} value={team.team_id.toString()}>
                                                     <div className="flex items-center gap-2">
                                                         {team.logo_url && (
-                                                            <img src={team.logo_url} alt={team.name} className="w-6 h-6 rounded" />
+                                                            <Image src={team.logo_url} alt={team.name} width={24} height={24} className="w-6 h-6 rounded" />
                                                         )}
                                                         {team.name}
                                                     </div>
@@ -378,9 +379,9 @@ export default function SettingsPage() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">All</SelectItem>
-                                                <SelectItem value="teams">Teams Only</SelectItem>
-                                                <SelectItem value="conferences">Conferences Only</SelectItem>
+                                                <SelectItem value="all" className="pl-8">All</SelectItem>
+                                                <SelectItem value="teams" className="pl-8">Teams Only</SelectItem>
+                                                <SelectItem value="conferences" className="pl-8">Conferences Only</SelectItem>
                                             </SelectContent>
                                         </Select>
                                         {filterType !== "conferences" && (
@@ -389,9 +390,9 @@ export default function SettingsPage() {
                                                     <SelectValue placeholder="Filter by conference" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="all">All Conferences</SelectItem>
+                                                    <SelectItem value="all" className="pl-8">All Conferences</SelectItem>
                                                     {conferences.map((conf) => (
-                                                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>
+                                                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()} className="pl-8">
                                                             {conf.name}
                                                         </SelectItem>
                                                     ))}
@@ -405,7 +406,7 @@ export default function SettingsPage() {
                                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                                     <span>Teams: {filteredTeams.length}</span>
                                     <span>Conferences: {filteredConferences.length}</span>
-                                    {searchTerm && <span>Search: "{searchTerm}"</span>}
+                                    {searchTerm && <span>Search: &quot;{searchTerm}&quot;</span>}
                                 </div>
                             </div>
 
@@ -550,7 +551,7 @@ export default function SettingsPage() {
                                                             <SelectContent>
                                                                 <SelectItem value="none">None</SelectItem>
                                                                 {conferences.map((conf: any) => (
-                                                                    <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>{conf.name}</SelectItem>
+                                                                    <SelectItem key={conf.conference_id} value={conf.conference_id.toString()} className="pl-8">{conf.name}</SelectItem>
                                                                 ))}
                                                             </SelectContent>
                                                         </Select>
@@ -681,7 +682,7 @@ export default function SettingsPage() {
                                         <SelectContent>
                                             <SelectItem value="none">None</SelectItem>
                                             {conferences.map((conf: any) => (
-                                                <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>{conf.name}</SelectItem>
+                                                <SelectItem key={conf.conference_id} value={conf.conference_id.toString()} className="pl-8">{conf.name}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -699,7 +700,7 @@ export default function SettingsPage() {
     );
 }
 
-function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] }) {
+function CompactTeamCard({ team, conferences }: { team: Team, conferences: Conference[] }) {
     const [editTeam, setEditTeam] = React.useState({ ...team });
     const [saving, setSaving] = React.useState(false);
     const [success, setSuccess] = React.useState<string | null>(null);
@@ -744,7 +745,7 @@ function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] 
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-3">
                     {editTeam.logo_url && (
-                        <img src={editTeam.logo_url} alt={editTeam.name} className="w-8 h-8 rounded object-cover" />
+                        <Image src={editTeam.logo_url} alt={editTeam.name} width={32} height={32} className="w-8 h-8 rounded object-cover" />
                     )}
                     <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{editTeam.name}</h3>
@@ -840,7 +841,6 @@ function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] 
                                 onClick={handleSave} 
                                 disabled={saving} 
                                 size="sm"
-                                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
                             >
                                 {saving ? (
                                     <>
@@ -875,7 +875,7 @@ function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] 
     );
 }
 
-function CompactConferenceCard({ conference }: { conference: any }) {
+function CompactConferenceCard({ conference }: { conference: Conference }) {
     const [editConf, setEditConf] = React.useState({ ...conference });
     const [saving, setSaving] = React.useState(false);
     const [success, setSuccess] = React.useState<string | null>(null);
@@ -965,7 +965,6 @@ function CompactConferenceCard({ conference }: { conference: any }) {
                                 onClick={handleSave} 
                                 disabled={saving} 
                                 size="sm"
-                                className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
                             >
                                 {saving ? (
                                     <>
@@ -1000,7 +999,7 @@ function CompactConferenceCard({ conference }: { conference: any }) {
     );
 }
 
-function SeasonCard({ season, details }: { season: any, details?: Team }) {
+function SeasonCard({ season, details }: { season: Season, details?: Team }) {
     return (
         <Card className="border-0 shadow-md bg-card hover:shadow-xl transition-all duration-300 overflow-hidden">
             <div className="bg-card p-6 border-b border-card">
@@ -1171,7 +1170,7 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
     );
 }
 
-function TeamEditCard({ team, conferences }: { team: any, conferences: any[] }) {
+function TeamEditCard({ team, conferences }: { team: Team, conferences: Conference[] }) {
     const [editTeam, setEditTeam] = React.useState({ ...team });
     const [saving, setSaving] = React.useState(false);
     const [success, setSuccess] = React.useState<string | null>(null);
@@ -1209,7 +1208,7 @@ function TeamEditCard({ team, conferences }: { team: any, conferences: any[] }) 
         <div className="border border-card rounded-lg p-4 bg-card hover:shadow-md transition-all">
             <div className="flex items-center gap-4 mb-4">
                 {editTeam.logo_url && (
-                    <img src={editTeam.logo_url} alt={editTeam.name} className="w-12 h-12 rounded-lg object-cover" />
+                    <Image src={editTeam.logo_url} alt={editTeam.name} width={48} height={48} className="w-12 h-12 rounded-lg object-cover" />
                 )}
                 <div className="flex-1">
                     <h3 className="font-semibold text-lg">{editTeam.name}</h3>
@@ -1275,7 +1274,7 @@ function TeamEditCard({ team, conferences }: { team: any, conferences: any[] }) 
             </div>
             
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+                <Button onClick={handleSave} disabled={saving}>
                     {saving ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1306,7 +1305,7 @@ function TeamEditCard({ team, conferences }: { team: any, conferences: any[] }) 
     );
 }
 
-function ConferenceEditCard({ conference }: { conference: any }) {
+function ConferenceEditCard({ conference }: { conference: Conference }) {
     const [editConf, setEditConf] = React.useState({ ...conference });
     const [saving, setSaving] = React.useState(false);
     const [success, setSuccess] = React.useState<string | null>(null);
@@ -1375,7 +1374,7 @@ function ConferenceEditCard({ conference }: { conference: any }) {
             </div>
             
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700">
+                <Button onClick={handleSave} disabled={saving}>
                     {saving ? (
                         <>
                             <Loader2 className="h-4 w-4 animate-spin mr-2" />

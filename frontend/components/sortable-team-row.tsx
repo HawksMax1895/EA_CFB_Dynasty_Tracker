@@ -5,11 +5,10 @@ import React from "react";
 
 interface SortableTeamRowProps {
   team: { team_id: number };
-  index: number;
   children: React.ReactNode;
 }
 
-export default function SortableTeamRow({ team, index, children }: SortableTeamRowProps) {
+export default function SortableTeamRow({ team, children }: SortableTeamRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: team.team_id });
   const style: React.CSSProperties = {
     transform: transform ? CSS.Transform.toString(transform) : undefined,

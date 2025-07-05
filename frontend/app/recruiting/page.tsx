@@ -4,21 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Star, TrendingUp, GraduationCap, Building2, Pencil, Trash2, ChevronsUpDown, Check } from "lucide-react";
+import { Star, Pencil, Trash2, ChevronsUpDown, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchRecruitingClass, addRecruitingClass, fetchTransferPortal, addTransferPortal, updateTeamSeason, fetchTeamsBySeason, updateRecruit, deleteRecruit, updateTransfer, deleteTransfer, fetchTeams } from "@/lib/api";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RecruitCard } from "@/components/RecruitCard";
-import { TransferCard } from "@/components/TransferCard";
 import { AddRecruitModal } from "@/components/AddRecruitModal";
 import { AddTransferModal } from "@/components/AddTransferModal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,8 +23,8 @@ export default function RecruitingPage() {
   const teamId = userTeam?.team_id;
   const seasonId = selectedSeason;
   const seasonYear = seasons.find(s => s.season_id === selectedSeason)?.year || seasonId;
-  const [recruits, setRecruits] = useState<any[]>([]);
-  const [transfers, setTransfers] = useState<any[]>([]);
+  const [recruits, setRecruits] = useState<RecruitData[]>([]);
+  const [transfers, setTransfers] = useState<TransferData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recruitForm, setRecruitForm] = useState({
@@ -68,8 +59,8 @@ export default function RecruitingPage() {
   const [recruitingRank, setRecruitingRank] = useState<number | null>(null);
   const [recruitingRankLoading, setRecruitingRankLoading] = useState(false);
   const [editingRecruitingRank, setEditingRecruitingRank] = useState(false);
-  const [editingRecruit, setEditingRecruit] = useState<any>(null);
-  const [editingTransfer, setEditingTransfer] = useState<any>(null);
+  const [editingRecruit, setEditingRecruit] = useState<RecruitData | null>(null);
+  const [editingTransfer, setEditingTransfer] = useState<TransferData | null>(null);
   const [transferSchoolOpen, setTransferSchoolOpen] = useState(false);
   const [transferSchools, setTransferSchools] = useState<Array<{ id: number; name: string; abbreviation?: string }>>([]);
   const [transferSchoolsLoading, setTransferSchoolsLoading] = useState(false);
@@ -85,7 +76,7 @@ export default function RecruitingPage() {
       .then(([recruitData, transferData, teamsData]) => {
         setRecruits(recruitData);
         setTransfers(transferData);
-        const userTeam = teamsData.find((t: any) => t.team_id === teamId);
+        const userTeam = teamsData.find((t: Team) => t.team_id === teamId);
         setRecruitingRank(userTeam?.recruiting_rank ?? null);
         setLoading(false);
       })
@@ -113,8 +104,8 @@ export default function RecruitingPage() {
       setRecruitForm({ name: '', position: '', recruit_stars: 3, recruit_rank_nat: 0, recruit_rank_pos: 0, speed: '', dev_trait: '', height: '', weight: '', state: '' });
       const data = await fetchRecruitingClass(Number(teamId || 0), seasonId);
       setRecruits(data);
-    } catch (err: any) {
-      setRecruitFormError(err.message);
+    } catch (err: unknown) {
+      setRecruitFormError((err as Error).message);
     } finally {
       setRecruitFormLoading(false);
     }
@@ -142,8 +133,8 @@ export default function RecruitingPage() {
       });
       const data = await fetchTransferPortal(Number(teamId || 0), seasonId);
       setTransfers(data);
-    } catch (err: any) {
-      setTransferFormError(err.message);
+    } catch (err: unknown) {
+      setTransferFormError((err as Error).message);
     } finally {
       setTransferFormLoading(false);
     }
@@ -176,7 +167,7 @@ export default function RecruitingPage() {
     }
   };
 
-  const handleEditRecruit = (recruit: any) => {
+  const handleEditRecruit = (recruit: RecruitData) => {
     setEditingRecruit({
       recruit_id: recruit.recruit_id,
       name: recruit.name,
@@ -192,7 +183,7 @@ export default function RecruitingPage() {
     });
   };
 
-  const handleEditTransfer = (transfer: any) => {
+  const handleEditTransfer = (transfer: TransferData) => {
     setEditingTransfer({
       transfer_id: transfer.transfer_id,
       name: transfer.name,
@@ -220,7 +211,7 @@ export default function RecruitingPage() {
         await deleteRecruit(recruitId);
         const data = await fetchRecruitingClass(Number(teamId || 0), seasonId);
         setRecruits(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to delete recruit:', err);
       }
     }
@@ -233,7 +224,7 @@ export default function RecruitingPage() {
         await deleteTransfer(transferId);
         const data = await fetchTransferPortal(Number(teamId || 0), seasonId);
         setTransfers(data);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to delete transfer:', err);
       }
     }
@@ -738,7 +729,7 @@ export default function RecruitingPage() {
                       placeholder="6"
                       className="w-16"
                     />
-                    <span className="self-center text-lg font-medium">'</span>
+                    <span className="self-center text-lg font-medium">&apos;</span>
                     <Input
                       type="number"
                       min={0}
@@ -752,7 +743,7 @@ export default function RecruitingPage() {
                       placeholder="2"
                       className="w-16"
                     />
-                    <span className="self-center text-lg font-medium">"</span>
+                    <span className="self-center text-lg font-medium">&quot;</span>
                   </div>
                 </div>
                 <div>
@@ -996,7 +987,7 @@ export default function RecruitingPage() {
                       placeholder="6"
                       className="w-16"
                     />
-                    <span className="self-center text-lg font-medium">'</span>
+                    <span className="self-center text-lg font-medium">&apos;</span>
                     <Input
                       type="number"
                       min={0}
@@ -1010,7 +1001,7 @@ export default function RecruitingPage() {
                       placeholder="2"
                       className="w-16"
                     />
-                    <span className="self-center text-lg font-medium">"</span>
+                    <span className="self-center text-lg font-medium">&quot;</span>
                   </div>
                 </div>
                 <div>

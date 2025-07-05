@@ -255,9 +255,9 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
               <div className="flex flex-wrap gap-4 items-center">
                 <div className="flex gap-2 items-center">
                   <Input id="height_feet" name="height_feet" type="number" min={4} max={7} value={feet} onChange={e => handleHeightChange('feet', e.target.value)} placeholder="6" required className="w-14" />
-                  <span className="self-center">'</span>
+                  <span className="self-center">&apos;</span>
                   <Input id="height_inches" name="height_inches" type="number" min={0} max={11} value={inches} onChange={e => handleHeightChange('inches', e.target.value)} placeholder="2" required className="w-14" />
-                  <span className="self-center">"</span>
+                  <span className="self-center">&quot;</span>
                 </div>
                 <Input id="weight" name="weight" type="number" value={form.weight} onChange={onFormChange} placeholder="200" required className="w-24 ml-4" />
                 <span className="text-muted-foreground ml-1">lbs</span>

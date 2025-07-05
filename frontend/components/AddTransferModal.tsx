@@ -408,7 +408,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
                     required
                     className="w-14"
                   />
-                  <span className="self-center">'</span>
+                  <span className="self-center">&apos;</span>
                   <Input
                     id="transfer_height_inches"
                     name="height_inches"
@@ -421,7 +421,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
                     required
                     className="w-14"
                   />
-                  <span className="self-center">"</span>
+                  <span className="self-center">&quot;</span>
                 </div>
               </div>
               <div className="space-y-2">

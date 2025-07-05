@@ -8,14 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { fetchPlayoffEligibleTeams, manualSeedBracket, fetchBracket } from '@/lib/api';
 import { API_BASE_URL } from '@/lib/api';
 import { Pencil } from 'lucide-react';
+import type { BracketData, PlayoffEligibleTeam, Game } from '@/types';
 
 interface BracketProps {
   seasonId: number;
 }
 
 const Bracket = ({ seasonId }: BracketProps) => {
-  const [bracket, setBracket] = useState<any>({});
-  const [eligibleTeams, setEligibleTeams] = useState<any[]>([]);
+  const [bracket, setBracket] = useState<BracketData>({});
+  const [eligibleTeams, setEligibleTeams] = useState<PlayoffEligibleTeam[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<(number | null)[]>(Array(12).fill(null));
   const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ const Bracket = ({ seasonId }: BracketProps) => {
   const [resultForms, setResultForms] = useState<{ [key: number]: { home_score: string, away_score: string } }>({});
   const [savingScore, setSavingScore] = useState<number | null>(null);
   const [scoreError, setScoreError] = useState<string | null>(null);
-  const bracketRef = useRef<any>(null);
+  const bracketRef = useRef<BracketData | null>(null);
 
   useEffect(() => {
     console.log('Bracket: useEffect triggered with seasonId', seasonId);
@@ -34,8 +35,8 @@ const Bracket = ({ seasonId }: BracketProps) => {
         
         // Initialize resultForms with existing scores from the backend
         const initialResultForms: { [key: number]: { home_score: string, away_score: string } } = {};
-        Object.values(data).forEach((roundGames: any) => {
-          roundGames.forEach((game: any) => {
+        Object.values(data).forEach((roundGames: Game[]) => {
+          roundGames.forEach((game: Game) => {
             if (game.home_score !== null && game.away_score !== null) {
               initialResultForms[game.game_id] = {
                 home_score: game.home_score.toString(),
@@ -82,13 +83,13 @@ const Bracket = ({ seasonId }: BracketProps) => {
       const top12 = sorted.slice(0, 12).map((t) => t.team_id);
       setSelectedTeams(top12);
     }
-  }, [eligibleTeams]);
+  }, [eligibleTeams, selectedTeams]);
 
-  const resetScoreInputsOnTeamChange = (newBracket: any, oldBracket: any, currentForms: any, changedGameId?: number) => {
+  const resetScoreInputsOnTeamChange = (newBracket: BracketData, oldBracket: BracketData | null, currentForms: { [key: number]: { home_score: string, away_score: string } }, changedGameId?: number) => {
     const updatedForms = { ...currentForms };
     
-    Object.entries(newBracket).forEach(([roundKey, roundGames]: [string, any]) => {
-      roundGames.forEach((game: any) => {
+    Object.entries(newBracket).forEach(([roundKey, roundGames]: [string, Game[]]) => {
+      roundGames.forEach((game: Game) => {
         // If this is the game that was just changed, clear its scores
         if (changedGameId && game.game_id === changedGameId) {
           delete updatedForms[game.game_id];
@@ -96,7 +97,7 @@ const Bracket = ({ seasonId }: BracketProps) => {
         }
         
         // Check if teams changed for this game
-        const oldGame = oldBracket?.[roundKey]?.find((g: any) => g.game_id === game.game_id);
+        const oldGame = oldBracket?.[roundKey]?.find((g: Game) => g.game_id === game.game_id);
         if (oldGame) {
           const homeTeamChanged = oldGame.home_team_id !== game.home_team_id;
           const awayTeamChanged = oldGame.away_team_id !== game.away_team_id;
@@ -141,53 +142,8 @@ const Bracket = ({ seasonId }: BracketProps) => {
     }
   };
 
-  const handleAssignTeam = async (gameId: number, slot: 'home' | 'away', teamId: number) => {
-    setSeeding(true);
-    setError(null);
-    try {
-      await fetch(`${API_BASE_URL}/games/${gameId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [`${slot}_team_id`]: teamId })
-      });
-      fetchBracket(Number(seasonId))
-        .then(data => {
-          setBracket(data);
-          setResultForms(prev => resetScoreInputsOnTeamChange(data, bracketRef.current, prev, gameId));
-          bracketRef.current = data;
-        });
-    } catch (e) {
-      setError('Failed to assign team.');
-    } finally {
-      setSeeding(false);
-    }
-  };
-
-  function getTeamInfo(teamId: number | null | undefined, eligibleTeams: any[]) {
-    if (!teamId) return null;
-    return eligibleTeams.find(t => t.team_id === teamId) || null;
-  }
-
-  function getNextGameAndSlot(round: string, idx: number) {
-    if (round === 'First Round') {
-      const qfIdx = 3 - idx;
-      return { nextRound: 'Quarterfinals', nextIdx: qfIdx, slot: 'away' };
-    }
-    if (round === 'Quarterfinals') {
-      if (idx === 0) return { nextRound: 'Semifinals', nextIdx: 0, slot: 'home' };
-      if (idx === 1) return { nextRound: 'Semifinals', nextIdx: 1, slot: 'home' };
-      if (idx === 2) return { nextRound: 'Semifinals', nextIdx: 1, slot: 'away' };
-      if (idx === 3) return { nextRound: 'Semifinals', nextIdx: 0, slot: 'away' };
-    }
-    if (round === 'Semifinals') {
-      if (idx === 0) return { nextRound: 'Championship', nextIdx: 0, slot: 'home' };
-      if (idx === 1) return { nextRound: 'Championship', nextIdx: 0, slot: 'away' };
-    }
-    return null;
-  }
-
   // Save score and advance winner
-  const saveScoreAndAdvance = async (game: any, round: string, idx: number) => {
+  const saveScoreAndAdvance = async (game: Game, round: string, idx: number) => {
     setSavingScore(game.game_id);
     setScoreError(null);
     const home_score = resultForms[game.game_id]?.home_score !== undefined && resultForms[game.game_id]?.home_score !== ''
@@ -389,13 +345,13 @@ const ScoreInput = ({ value, onChange, onEnter, disabled }: ScoreInputProps) => 
 };
 
 interface BracketVisualProps {
-  bracket: any;
-  eligibleTeams: any[];
+  bracket: BracketData;
+  eligibleTeams: PlayoffEligibleTeam[];
   selectedTeams: (number | null)[];
   seeding: boolean;
   resultForms: { [key: number]: { home_score: string, away_score: string } };
   handleScoreChange: (gameId: number, field: 'home_score' | 'away_score', value: string) => void;
-  saveScoreAndAdvance: (game: any, round: string, idx: number) => void;
+  saveScoreAndAdvance: (game: Game, round: string, idx: number) => void;
   savingScore: number | null;
   scoreError: string | null;
   handleSaveAllForRound: (roundKey: string) => void;
@@ -412,7 +368,7 @@ const BracketVisual = memo(function BracketVisual({
   savingScore,
   scoreError,
   handleSaveAllForRound
-}: Omit<BracketVisualProps, 'handleAssignTeam'>) {
+}: BracketVisualProps) {
   const [editingGameId, setEditingGameId] = useState<number | null>(null);
   // Create team ID to seed mapping for display
   const teamIdToSeed: { [key: number]: number } = {};
@@ -423,10 +379,7 @@ const BracketVisual = memo(function BracketVisual({
   });
 
   // Move getTeamInfo here
-  function getTeamInfo(teamId: number | null | undefined, eligibleTeams: any[]) {
-    if (!teamId) return null;
-    return eligibleTeams.find(t => t.team_id === teamId) || null;
-  }
+
 
   const rounds = [
     { key: 'First Round', title: 'First Round', week: 17 },
@@ -457,7 +410,7 @@ const BracketVisual = memo(function BracketVisual({
                 )}
               </div>
               <div className="flex flex-col gap-4">
-                {roundGames.map((game: any, idx: number) => {
+                {roundGames.map((game: Game, idx: number) => {
                   const home = getTeamInfo(game.home_team_id, eligibleTeams);
                   const away = getTeamInfo(game.away_team_id, eligibleTeams);
                   const hasScore = game.home_score !== null && game.away_score !== null;

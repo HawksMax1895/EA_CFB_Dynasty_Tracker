@@ -93,7 +93,7 @@ export function PlayerRatingChart({ playerId }: PlayerRatingChartProps) {
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px -1px hsl(var(--foreground) / 0.1)'
                 }}
-                formatter={(value: any, name: string) => [
+                formatter={(value: number, name: string) => [
                   value, 
                   name === 'ovr_rating' ? 'Overall Rating' : name
                 ]}
@@ -118,7 +118,7 @@ export function PlayerRatingChart({ playerId }: PlayerRatingChartProps) {
             </div>
           </div>
           <div className="mt-2 text-xs text-muted-foreground">
-            {data.chart_data.map((season, index) => (
+            {data.chart_data.map((season) => (
               <div key={season.season_year} className="flex items-center gap-2 mb-1">
                 <span className="font-medium">Season {season.season_year}:</span>
                 <span className={`font-bold ${season.ovr_rating >= 90 ? 'text-purple-600' : season.ovr_rating >= 80 ? 'text-blue-600' : season.ovr_rating >= 70 ? 'text-green-600' : season.ovr_rating >= 60 ? 'text-yellow-600' : 'text-gray-600'}`}>

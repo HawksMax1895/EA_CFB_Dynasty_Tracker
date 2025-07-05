@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Zap, Activity, BarChart3, Save, X } from "lucide-react";
+import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Activity, BarChart3, Save, X } from "lucide-react";
 import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors } from "@/lib/api";
 import { PlayerRatingChart } from "@/components/PlayerRatingChart";
 
@@ -101,18 +101,17 @@ export default function PlayerProfilePage() {
   const params = useParams();
   const router = useRouter();
   const playerId = params?.player_id;
-  const [player, setPlayer] = useState<any>(null);
-  const [career, setCareer] = useState<any>(null);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [career, setCareer] = useState<PlayerSeason[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [editingSeason, setEditingSeason] = useState<number | null>(null);
-  const [editingStats, setEditingStats] = useState<any>({});
+  const [editingStats, setEditingStats] = useState<Partial<PlayerSeason>>({});
   const [saving, setSaving] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [profileEdits, setProfileEdits] = useState<any>({});
+  const [profileEdits, setProfileEdits] = useState<Partial<Player>>({});
   const [savingProfile, setSavingProfile] = useState(false);
-  const [playerAwards, setPlayerAwards] = useState<any[]>([]);
-  const [playerHonors, setPlayerHonors] = useState<any[]>([]);
+  const [playerAwards, setPlayerAwards] = useState<AwardWinner[]>([]);
+  const [playerHonors, setPlayerHonors] = useState<HonorWinner[]>([]);
   const [awardsLoading, setAwardsLoading] = useState(false);
   const [honorsLoading, setHonorsLoading] = useState(false);
 
@@ -133,8 +132,7 @@ export default function PlayerProfilePage() {
         setCareer(careerData);
         setLoading(false);
       })
-      .catch((err) => {
-        setError("Failed to load player profile");
+      .catch(() => {
         setLoading(false);
       })
       .finally(() => {
@@ -143,7 +141,7 @@ export default function PlayerProfilePage() {
       });
   }, [playerId]);
 
-  const handleEditSeason = (season: any) => {
+  const handleEditSeason = (season: PlayerSeason) => {
     setEditingSeason(season.season_id);
     setEditingStats({ ...season });
   };
@@ -166,10 +164,7 @@ export default function PlayerProfilePage() {
       
       setEditingSeason(null);
       setEditingStats({});
-    } catch (err) {
-      console.error('Failed to update stats:', err);
-      setError("Failed to update player stats");
-    } finally {
+    } catch () {
       setSaving(false);
     }
   };
@@ -197,7 +192,7 @@ export default function PlayerProfilePage() {
   };
 
   const handleProfileChange = (field: string, value: string) => {
-    setProfileEdits((prev: any) => ({ ...prev, [field]: value }));
+    setProfileEdits((prev: Partial<Player>) => ({ ...prev, [field]: value }));
   };
 
   const handleHeightChange = (type: 'feet' | 'inches', value: string) => {
@@ -212,14 +207,8 @@ export default function PlayerProfilePage() {
     if (feet) heightString += `${feet}'`;
     if (inches) heightString += `${inches}`;
     if (feet && inches !== '') heightString += '"';
-    setProfileEdits((prev: any) => ({ ...prev, height: heightString }));
+    setProfileEdits((prev: Partial<Player>) => ({ ...prev, height: heightString }));
   };
-
-  // Parse height for display
-  const currentHeight = profileEdits.height || '';
-  const match = currentHeight.match(/(\d+)'(\d+)?/);
-  const feet = match ? match[1] : '';
-  const inches = match ? match[2] : '';
 
   const handleSaveProfile = async () => {
     setSavingProfile(true);
@@ -230,9 +219,7 @@ export default function PlayerProfilePage() {
       setPlayer(playerData);
       setEditingProfile(false);
       setProfileEdits({});
-    } catch (err) {
-      setError("Failed to update player profile");
-    } finally {
+    } catch () {
       setSavingProfile(false);
     }
   };
@@ -242,14 +229,6 @@ export default function PlayerProfilePage() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading player profile...</p>
-      </div>
-    </div>
-  );
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-red-500 text-6xl mb-4">⚠️</div>
-        <p className="text-red-500 text-lg">Error: {error}</p>
       </div>
     </div>
   );

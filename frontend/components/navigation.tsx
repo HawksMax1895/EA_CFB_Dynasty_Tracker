@@ -1,14 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Home, Calendar, Users, Trophy, Award, TrendingUp, Target, Menu, X, Cog } from "lucide-react"
+import { Home, Users, Trophy, Award, TrendingUp, Target, Menu, X, Cog } from "lucide-react"
 import { useState } from "react"
 import { SeasonSelector } from "./SeasonSelector"
 import { useSeason } from "@/context/SeasonContext"
 import { ThemeToggle } from "./theme-toggle"
+import Image from "next/image"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -22,7 +23,6 @@ const navigation = [
 
 export function Navigation() {
   const pathname = usePathname()
-  const searchParams = useSearchParams();
   const { userTeam, selectedSeason } = useSeason();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -43,11 +43,12 @@ export function Navigation() {
           <div className="flex items-center">
             <Link href={getSeasonHref("/")} className="flex items-center gap-3">
               {userTeam?.logo_url && (
-                <img
+                <Image
                   src={userTeam.logo_url}
                   alt={userTeam.team_name}
+                  width={32}
+                  height={32}
                   className="h-8 w-8 rounded object-cover border border-muted"
-                  style={{ minWidth: 32, minHeight: 32 }}
                 />
               )}
               <span className="text-2xl font-bold text-foreground leading-tight">CFB Dynasty</span>

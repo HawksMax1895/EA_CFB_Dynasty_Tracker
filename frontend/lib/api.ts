@@ -1,13 +1,39 @@
+import type { 
+  Season, 
+  Team, 
+  TeamSeason, 
+  Player, 
+  PlayerSeason, 
+  Game, 
+  Award, 
+  AwardWinner, 
+  Honor, 
+  CreateTeamData,
+  AddPlayerData,
+  UpdatePlayerData,
+  RecruitData,
+  TransferData,
+  HonorData,
+  AwardData,
+  HonorTypeData,
+  RecruitingRankingData,
+  UpdateTeamSeasonData,
+  UpdatePlayerSeasonStatsData,
+  UpdateGameResultData,
+  AwardWinnerData,
+  ApiResponse
+} from '../types'
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api"
 
 // SEASONS
-export async function fetchSeasons() {
+export async function fetchSeasons(): Promise<Season[]> {
   const response = await fetch(`${API_BASE_URL}/seasons`)
   if (!response.ok) throw new Error("Failed to fetch seasons")
   return response.json()
 }
 
-export async function createSeason(year?: number) {
+export async function createSeason(year?: number): Promise<Season> {
   const response = await fetch(`${API_BASE_URL}/seasons`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -17,13 +43,13 @@ export async function createSeason(year?: number) {
   return response.json()
 }
 
-export async function progressPlayers(seasonId: number) {
+export async function progressPlayers(seasonId: number): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/players/progression`, { method: "POST" })
   if (!response.ok) throw new Error("Failed to progress players")
   return response.json()
 }
 
-export async function progressPlayerClass() {
+export async function progressPlayerClass(): Promise<ApiResponse> {
   // Get the current season (you might want to make this configurable)
   const seasons = await fetchSeasons()
   const currentSeason = seasons[seasons.length - 1] // Get the most recent season
@@ -34,19 +60,19 @@ export async function progressPlayerClass() {
 }
 
 // TEAMS
-export async function fetchTeams() {
+export async function fetchTeams(): Promise<Team[]> {
   const response = await fetch(`${API_BASE_URL}/teams`)
   if (!response.ok) throw new Error("Failed to fetch teams")
   return response.json()
 }
 
-export async function fetchTeamsBySeason(seasonId: number) {
+export async function fetchTeamsBySeason(seasonId: number): Promise<TeamSeason[]> {
   const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/teams?all=true`)
   if (!response.ok) throw new Error("Failed to fetch teams for season")
   return response.json()
 }
 
-export async function createTeam(data: { name: string; abbreviation?: string; logo_url?: string }) {
+export async function createTeam(data: CreateTeamData): Promise<Team> {
   const response = await fetch(`${API_BASE_URL}/teams`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -68,7 +94,7 @@ export async function uploadTeamLogo(teamId: number, file: File) {
 }
 
 // PLAYERS
-export async function fetchPlayers(teamId: number = 1) {
+export async function fetchPlayers(teamId: number = 1): Promise<Player[]> {
   const response = await fetch(`${API_BASE_URL}/players?team_id=${teamId}`)
   if (!response.ok) throw new Error("Failed to fetch players")
   return response.json()
@@ -84,7 +110,7 @@ export async function setPlayerRedshirt(playerId: number, redshirted: boolean, s
   return response.json()
 }
 
-export async function addPlayer(data: any) {
+export async function addPlayer(data: AddPlayerData): Promise<Player> {
   const teamId = data.team_id;
   const response = await fetch(`${API_BASE_URL}/teams/${teamId}/players`, {
     method: "POST",
@@ -102,7 +128,7 @@ export async function fetchRecruitingClass(teamId: number, seasonId: number) {
   return response.json()
 }
 
-export async function addRecruitingClass(data: { team_id: number; season_id: number; recruits: any[] }) {
+export async function addRecruitingClass(data: { team_id: number; season_id: number; recruits: RecruitData[] }): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/recruiting-class`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -112,7 +138,7 @@ export async function addRecruitingClass(data: { team_id: number; season_id: num
   return response.json()
 }
 
-export async function updateRecruit(recruitId: number, data: any) {
+export async function updateRecruit(recruitId: number, data: RecruitData): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/recruiting-class/${recruitId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -137,7 +163,7 @@ export async function fetchTransferPortal(teamId: number, seasonId: number) {
   return response.json()
 }
 
-export async function addTransferPortal(data: { team_id: number; season_id: number; transfers: any[] }) {
+export async function addTransferPortal(data: { team_id: number; season_id: number; transfers: TransferData[] }): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/transfer-portal`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -147,7 +173,7 @@ export async function addTransferPortal(data: { team_id: number; season_id: numb
   return response.json()
 }
 
-export async function updateTransfer(transferId: number, data: any) {
+export async function updateTransfer(transferId: number, data: TransferData): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/transfer-portal/${transferId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -172,7 +198,7 @@ export async function fetchHonors(seasonId: number, teamId: number) {
   return response.json()
 }
 
-export async function addHonors(seasonId: number, teamId: number, honors: any[]) {
+export async function addHonors(seasonId: number, teamId: number, honors: HonorData[]): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/teams/${teamId}/honors`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -195,7 +221,7 @@ export async function fetchHonorTypes() {
   return response.json()
 }
 
-export async function createHonorType(data: { name: string; side?: string; conference_id?: number }) {
+export async function createHonorType(data: HonorTypeData): Promise<Honor> {
   const response = await fetch(`${API_BASE_URL}/honors/types`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -205,7 +231,7 @@ export async function createHonorType(data: { name: string; side?: string; confe
   return response.json()
 }
 
-export async function updateHonorType(honorId: number, data: { name?: string; side?: string; conference_id?: number }) {
+export async function updateHonorType(honorId: number, data: Partial<HonorTypeData>): Promise<Honor> {
   const response = await fetch(`${API_BASE_URL}/honors/types/${honorId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -236,7 +262,7 @@ export async function fetchRecruitingRankings(seasonId: number) {
   return response.json()
 }
 
-export async function updateRecruitingRankings(data: { season_id: number; rankings: any[] }) {
+export async function updateRecruitingRankings(data: { season_id: number; rankings: RecruitingRankingData[] }): Promise<ApiResponse> {
   const response = await fetch(`${API_BASE_URL}/recruiting-rankings`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -253,7 +279,7 @@ export async function fetchAwards() {
   return response.json()
 }
 
-export async function createAward(data: { name: string; description?: string }) {
+export async function createAward(data: AwardData): Promise<Award> {
   const response = await fetch(`${API_BASE_URL}/awards`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -263,7 +289,7 @@ export async function createAward(data: { name: string; description?: string }) 
   return response.json()
 }
 
-export async function updateAward(awardId: number, data: { name: string; description?: string }) {
+export async function updateAward(awardId: number, data: AwardData): Promise<Award> {
   const response = await fetch(`${API_BASE_URL}/awards/${awardId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -293,7 +319,7 @@ export async function fetchAllAwardsForSeason(seasonId: number) {
   return response.json()
 }
 
-export async function updateAwardWinner(awardWinnerId: number, data: { player_id: number; team_id: number }) {
+export async function updateAwardWinner(awardWinnerId: number, data: AwardWinnerData): Promise<AwardWinner> {
   const response = await fetch(`${API_BASE_URL}/award-winners/${awardWinnerId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -326,7 +352,7 @@ export async function fetchGamesBySeason(seasonId: number) {
   return response.json()
 }
 
-export async function updateGameResult(gameId: number, data: { home_score: number, away_score: number }) {
+export async function updateGameResult(gameId: number, data: UpdateGameResultData): Promise<Game> {
   const response = await fetch(`${API_BASE_URL}/games/${gameId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -355,7 +381,7 @@ export async function fetchWinsChart() {
 
 // Update Team Season
 // Supports: wins, losses, conference_wins, conference_losses, points_for, points_against, offense_yards, defense_yards, pass_yards, rush_yards, pass_tds, rush_tds, off_ppg, def_ppg, sacks, interceptions, prestige, team_rating, final_rank, recruiting_rank, conference_id
-export async function updateTeamSeason(seasonId: number, teamId: number, data: any) {
+export async function updateTeamSeason(seasonId: number, teamId: number, data: UpdateTeamSeasonData): Promise<TeamSeason> {
   const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/teams/${teamId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -412,7 +438,7 @@ export async function fetchPlayersBySeason(seasonId: number, teamId: number = 1)
   return response.json()
 }
 
-export async function updatePlayerSeasonStats(playerId: number, seasonId: number, stats: any) {
+export async function updatePlayerSeasonStats(playerId: number, seasonId: number, stats: UpdatePlayerSeasonStatsData): Promise<PlayerSeason> {
   const response = await fetch(`${API_BASE_URL}/players/${playerId}/seasons/${seasonId}/stats`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -422,7 +448,7 @@ export async function updatePlayerSeasonStats(playerId: number, seasonId: number
   return response.json()
 }
 
-export async function updatePlayerProfile(playerId: number, data: any) {
+export async function updatePlayerProfile(playerId: number, data: UpdatePlayerData): Promise<Player> {
   const response = await fetch(`${API_BASE_URL}/players/${playerId}/profile`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

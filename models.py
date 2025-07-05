@@ -1,5 +1,6 @@
 from extensions import db
 
+
 class Season(db.Model):
     __tablename__ = 'seasons'
     season_id = db.Column(db.Integer, primary_key=True)
@@ -15,12 +16,14 @@ class Season(db.Model):
     def get_next(self):
         return Season.query.filter(Season.year > self.year).order_by(Season.year.asc()).first()
 
+
 class Conference(db.Model):
     __tablename__ = 'conferences'
     conference_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), nullable=False, unique=True)
     tier = db.Column(db.Integer)
     team_seasons = db.relationship('TeamSeason', backref='conference', lazy=True)
+
 
 class Team(db.Model):
     __tablename__ = 'teams'
@@ -34,6 +37,7 @@ class Team(db.Model):
     player_seasons = db.relationship('PlayerSeason', backref='team', lazy=True)
     players = db.relationship('Player', backref='current_team', lazy=True, foreign_keys='Player.team_id')
     award_winners = db.relationship('AwardWinner', backref='team', lazy=True)
+
 
 class TeamSeason(db.Model):
     __tablename__ = 'team_seasons'
@@ -75,6 +79,7 @@ class TeamSeason(db.Model):
     points_against_rank = db.Column(db.Integer)
     manual_conference_position = db.Column(db.Integer, nullable=True)  # User-set conference position for the season
 
+
 class Player(db.Model):
     __tablename__ = 'players'
     player_id = db.Column(db.Integer, primary_key=True)
@@ -87,6 +92,7 @@ class Player(db.Model):
     player_seasons = db.relationship('PlayerSeason', backref='player', lazy=True)
     award_winners = db.relationship('AwardWinner', backref='player', lazy=True)
 
+
 class PlayerSeason(db.Model):
     __tablename__ = 'player_seasons'
     player_season_id = db.Column(db.Integer, primary_key=True)
@@ -95,7 +101,7 @@ class PlayerSeason(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
     player_class = db.Column(db.String(16))
     current_year = db.Column(db.String(8))  # Moved from Player table
-    redshirted = db.Column(db.Boolean, default=False)  # Moved from Player table - Prevents class progression for one season
+    redshirted = db.Column(db.Boolean, default=False)  # Moved from Player table
     ovr_rating = db.Column(db.Integer)
     games_played = db.Column(db.Integer)
     # Passing stats
@@ -129,6 +135,7 @@ class PlayerSeason(db.Model):
     weight = db.Column(db.Integer)
     height = db.Column(db.String(8))  # Height (e.g., 6'2") - Can change as player grows
 
+
 class Game(db.Model):
     __tablename__ = 'games'
     game_id = db.Column(db.Integer, primary_key=True)
@@ -143,12 +150,14 @@ class Game(db.Model):
     playoff_round = db.Column(db.String(16))
     neutral_site = db.Column(db.Boolean, default=False)
 
+
 class Award(db.Model):
     __tablename__ = 'awards'
     award_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), nullable=False, unique=True)
     description = db.Column(db.Text)
     award_winners = db.relationship('AwardWinner', backref='award', lazy=True)
+
 
 class AwardWinner(db.Model):
     __tablename__ = 'award_winners'
@@ -158,14 +167,23 @@ class AwardWinner(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey('players.player_id'), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
 
+
 # Honor: Defines the type of honor and side (offense/defense/null)
 class Honor(db.Model):
     __tablename__ = 'honors'
     honor_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(32), nullable=False, unique=True)  # e.g., 'all_conference', 'all_american', 'national_player_of_the_week', 'conference_player_of_the_week'
+    name = db.Column(
+        db.String(32), nullable=False, unique=True
+    )  # e.g., 'all_conference', 'all_american',
+    # 'national_player_of_the_week',
+    # 'conference_player_of_the_week'
     side = db.Column(db.String(16))  # 'offense', 'defense', or NULL
-    conference_id = db.Column(db.Integer, db.ForeignKey('conferences.conference_id'), nullable=True)  # Only set for conference-level honors, null for national honors
+    # Only set for conference-level honors, null for national honors
+    conference_id = db.Column(
+        db.Integer, db.ForeignKey('conferences.conference_id'), nullable=True
+    )  # Only set for conference-level honors, null for national honors
     honor_winners = db.relationship('HonorWinner', backref='honor', lazy=True)
+
 
 # HonorWinner references Honor
 class HonorWinner(db.Model):
@@ -175,4 +193,4 @@ class HonorWinner(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
     season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'), nullable=False)
     honor_id = db.Column(db.Integer, db.ForeignKey('honors.honor_id'), nullable=False)
-    week = db.Column(db.Integer)  # Only set for weekly honors 
+    week = db.Column(db.Integer)  # Only set for weekly honors

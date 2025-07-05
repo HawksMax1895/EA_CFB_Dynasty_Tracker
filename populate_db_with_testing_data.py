@@ -3,13 +3,11 @@ from extensions import db
 from models import Season, Conference, Team, TeamSeason, Player, PlayerSeason, Game, Award, AwardWinner, Honor
 import random
 import os
-
 def backfill_all_season_games(tbd_team_id):
     """Ensure every season has a full 17-week schedule."""
     seasons = Season.query.all()
     user_team = Team.query.filter_by(is_user_controlled=True).first()
     if not user_team: return
-
     for season in seasons:
         for week in range(17): # Weeks 0-16
             game_exists = Game.query.filter_by(season_id=season.season_id, week=week).first()
@@ -23,19 +21,16 @@ def backfill_all_season_games(tbd_team_id):
                 )
                 db.session.add(game)
     db.session.commit()
-
 def backfill_user_team_seasons():
     """Ensure the user-controlled team has a TeamSeason record for every season."""
     user_team = Team.query.filter_by(is_user_controlled=True).first()
     if not user_team: return
-    
     seasons = Season.query.all()
     for season in seasons:
         team_season = TeamSeason.query.filter_by(
-            team_id=user_team.team_id, 
+            team_id=user_team.team_id,
             season_id=season.season_id
         ).first()
-
         if not team_season:
             team_season = TeamSeason(
                 team_id=user_team.team_id,
@@ -49,7 +44,6 @@ def backfill_user_team_seasons():
             )
             db.session.add(team_season)
     db.session.commit()
-
 def create_placeholder_game(season_id, week):
     # Find a "TBD" team or create one
     tbd_team = Team.query.filter_by(name="TBD").first()
@@ -57,7 +51,6 @@ def create_placeholder_game(season_id, week):
         tbd_team = Team(name="TBD", abbreviation="TBD", is_user_controlled=False)
         db.session.add(tbd_team)
         db.session.commit()
-
     game = Game(
         season_id=season_id,
         week=week,
@@ -67,13 +60,12 @@ def create_placeholder_game(season_id, week):
     db.session.add(game)
     db.session.commit()
     return game
-
 def get_logo_filename(team_name):
     """Convert team name to logo filename format."""
     # Handle special cases first
     special_cases = {
         "Texas A&M Aggies": "Texas_AM_Aggies",
-        "Louisiana Ragin' Cajuns": "Louisiana_Ragin_Cajuns", 
+        "Louisiana Ragin' Cajuns": "Louisiana_Ragin_Cajuns",
         "Louisiana-Monroe Warhawks": "UL_Monroe_Warhawks",
         "Miami RedHawks": "Miami_OH_RedHawks",
         "San José State Spartans": "San_José_State_Spartans",
@@ -192,25 +184,20 @@ def get_logo_filename(team_name):
         "Wisconsin Badgers": "Wisconsin_Badgers",
         "Wyoming Cowboys": "Wyoming_Cowboys"
     }
-    
     if team_name in special_cases:
         logo_path = f"college_football_logos/{special_cases[team_name]}.png"
     else:
         # Default conversion: replace spaces with underscores and add .png
         logo_name = team_name.replace(" ", "_").replace("'", "")
         logo_path = f"college_football_logos/{logo_name}.png"
-    
     # Check if the logo file exists, if not return a placeholder
     if not os.path.exists(logo_path):
         print(f"Warning: Logo file not found for {team_name}: {logo_path}")
         return "college_football_logos/placeholder.png"  # You might want to add a placeholder logo
-    
     return logo_path
-
 with app.app_context():
     db.drop_all()
     db.create_all()
-
     # FBS Conferences
     fbs_confs = [
         "ACC", "American", "Big 12", "Big Ten", "Conference USA", "MAC", "Mountain West", "Pac-12", "SEC", "Sun Belt", "Independents"
@@ -218,7 +205,6 @@ with app.app_context():
     conf_objs = {name: Conference(name=name, tier=1) for name in fbs_confs}
     db.session.add_all(conf_objs.values())
     db.session.commit()
-
     # FBS Teams data
     fbs_teams = [
         ("Air Force Falcons", "AF", "Mountain West"), ("Akron Zips", "AKR", "MAC"), ("Alabama Crimson Tide", "BAMA", "SEC"),
@@ -266,33 +252,27 @@ with app.app_context():
         ("Washington State Cougars", "WSU", "Pac-12"), ("West Virginia Mountaineers", "WVU", "Big 12"), ("Western Kentucky Hilltoppers", "WKU", "Conference USA"),
         ("Western Michigan Broncos", "WMU", "MAC"), ("Wisconsin Badgers", "WISC", "Big Ten"), ("Wyoming Cowboys", "WYO", "Mountain West")
     ]
-
     # Create a single season
     season = Season(year=2024)
     db.session.add(season)
     db.session.commit()
-
     # Create Teams and initial TeamSeason records
     all_teams = []
     user_team = None
     teams_map = {}
     for team_data in fbs_teams:
         if team_data[0] in teams_map: continue
-
         is_user_controlled = team_data[0] == "Texas Longhorns"
         logo_url = get_logo_filename(team_data[0])
-        
         team_obj = Team(
             name=team_data[0], abbreviation=team_data[1],
             primary_conference_id=conf_objs[team_data[2]].conference_id,
             is_user_controlled=is_user_controlled, logo_url=logo_url
         )
         if is_user_controlled: user_team = team_obj
-        
         all_teams.append(team_obj)
         teams_map[team_data[0]] = team_obj
         db.session.add(team_obj)
-
         # Create TeamSeason with null/0 stats for now
         db.session.add(TeamSeason(
             team=team_obj, season=season, conference=conf_objs[team_data[2]],
@@ -303,7 +283,6 @@ with app.app_context():
             offense_yards_rank=None, defense_yards_rank=None, pass_yards_rank=None, rush_yards_rank=None, pass_tds_rank=None, rush_tds_rank=None, off_ppg_rank=None, def_ppg_rank=None, sacks_rank=None, interceptions_rank=None, points_for_rank=None, points_against_rank=None
         ))
     db.session.commit()
-
     # --- Add a random freshman recruit, a transfer, and a couple of players to the user team roster ---
     if user_team:
         # Add a random freshman recruit (committed)
@@ -325,7 +304,6 @@ with app.app_context():
         )
         db.session.add(recruit)
         db.session.flush()
-
         # Add a random transfer (committed)
         from routes.transfer import Transfer
         transfer = Transfer(
@@ -346,7 +324,6 @@ with app.app_context():
         )
         db.session.add(transfer)
         db.session.flush()
-
         # Add a couple of players directly to the roster
         player1 = Player(
             name="Chris Junior",
@@ -391,7 +368,6 @@ with app.app_context():
             forced_fumbles=0,
             def_tds=0
         ))
-
         player2 = Player(
             name="Alex Senior",
             position="LB",
@@ -436,33 +412,26 @@ with app.app_context():
             def_tds=1
         ))
         db.session.commit()
-
     # --- Generate schedule and record for user team ---
     if user_team:
         other_teams = [t for t in all_teams if t.team_id != user_team.team_id]
         random.shuffle(other_teams)
-        
         games_to_create, user_stats = [], {
             'wins': 0, 'losses': 0, 'conf_wins': 0, 'conf_losses': 0, 'pf': 0, 'pa': 0
         }
-
         for i in range(12): # 12 regular season games
             opponent = other_teams[i]
             user_score, opp_score = random.randint(7, 52), random.randint(7, 52)
             if user_score == opp_score: user_score += 1
-            
             user_stats['pf'] += user_score
             user_stats['pa'] += opp_score
-            
             is_conf_game = user_team.primary_conference_id == opponent.primary_conference_id
-            
             if user_score > opp_score:
                 user_stats['wins'] += 1
                 if is_conf_game: user_stats['conf_wins'] += 1
             else:
                 user_stats['losses'] += 1
                 if is_conf_game: user_stats['conf_losses'] += 1
-
             games_to_create.append(Game(
                 season_id=season.season_id, week=i + 1,
                 home_team_id=user_team.team_id if i % 2 == 0 else opponent.team_id,
@@ -471,7 +440,6 @@ with app.app_context():
                 away_score=opp_score if i % 2 == 0 else user_score
             ))
         db.session.add_all(games_to_create)
-
         # Update user team's TeamSeason record
         user_ts = TeamSeason.query.filter_by(team_id=user_team.team_id, season_id=season.season_id).first()
         if user_ts:
@@ -485,23 +453,19 @@ with app.app_context():
             user_ts.sacks, user_ts.interceptions = random.randint(10, 40), random.randint(5, 20)
             user_ts.offense_yards = user_ts.pass_yards + user_ts.rush_yards
             user_ts.defense_yards = random.randint(3000, 6000)
-
     # --- Populate random stats for all other teams ---
     non_user_team_seasons = TeamSeason.query.filter(
         TeamSeason.season_id == season.season_id,
         TeamSeason.team_id != (user_team.team_id if user_team else -1)
     ).all()
-    
     ranks = list(range(1, len(non_user_team_seasons) + 1))
     random.shuffle(ranks)
-    
     for i, ts in enumerate(non_user_team_seasons):
         ts.wins, ts.losses = random.randint(0, 12), 0
         ts.losses = 12 - ts.wins
         ts.conference_wins, ts.conference_losses = random.randint(0, 8), 0
         ts.conference_losses = 8 - ts.conference_wins
         ts.final_rank = ranks[i]
-        
         ts.points_for, ts.points_against = random.randint(200, 600), random.randint(150, 500)
         ts.off_ppg, ts.def_ppg = round(ts.points_for / 12, 1), round(ts.points_against / 12, 1)
         ts.pass_yards, ts.rush_yards = random.randint(2000, 4500), random.randint(1500, 3000)
@@ -509,9 +473,7 @@ with app.app_context():
         ts.sacks, ts.interceptions = random.randint(10, 40), random.randint(5, 20)
         ts.offense_yards = ts.pass_yards + ts.rush_yards
         ts.defense_yards = random.randint(3000, 6000)
-
     db.session.commit()
-
     # --- Create empty 12-team playoff bracket for the season ---
     playoff_games = [
         # First Round (week 17)
@@ -530,15 +492,12 @@ with app.app_context():
         # Championship (week 20)
         {"week": 20, "playoff_round": "Championship"},
     ]
-    
     # Get top 12 teams by final_rank
     top_12_teams = TeamSeason.query.filter(TeamSeason.final_rank != None).order_by(TeamSeason.final_rank.asc()).limit(12).all()
     seeds = {ts.final_rank: ts.team_id for ts in top_12_teams}
-
     for g_info in playoff_games:
         home_id = seeds.get(g_info.get("home_seed")) if g_info.get("home_seed") else None
         away_id = seeds.get(g_info.get("away_seed")) if g_info.get("away_seed") else None
-        
         game = Game(
             season_id=season.season_id,
             week=g_info["week"],
@@ -549,9 +508,7 @@ with app.app_context():
         )
         db.session.add(game)
     db.session.commit()
-
     print("Database has been populated with a single season and randomized data.")
-    
     # Test logo mapping for a few teams
     test_teams = ["Texas Longhorns", "Alabama Crimson Tide", "Michigan Wolverines", "Georgia Bulldogs"]
     print("\nTesting logo mapping:")
@@ -560,11 +517,10 @@ with app.app_context():
         exists = os.path.exists(logo_path)
         status = "✓" if exists else "✗"
         print(f"{status} {team}: {logo_path}")
-
 # --- BACKFILL: Ensure all PlayerSeason.player_class and current_year fields are set ---
 with app.app_context():
     player_seasons = PlayerSeason.query.filter(
-        (PlayerSeason.player_class == None) | 
+        (PlayerSeason.player_class == None) |
         (PlayerSeason.player_class == "") |
         (PlayerSeason.current_year == None)
     ).all()
@@ -576,7 +532,6 @@ with app.app_context():
         if ps.redshirted is None:
             ps.redshirted = False  # Default redshirt status
     db.session.commit()
-
 # --- Add National Awards and Winners for 2024 Season ---
     # Re-query season and teams to avoid DetachedInstanceError
     season = Season.query.filter_by(year=2024).first()
@@ -596,7 +551,6 @@ with app.app_context():
         {"name": "Butkus Award (LB)", "recipient": "Jason Henderson", "team_abbr": "ODU", "position": "LB"},
         {"name": "Jim Thorpe Award (DB)", "recipient": "Jeremiah Johnson", "team_abbr": "GAST", "position": "DB"},
     ]
-    
     for award_info in national_awards:
         # Create or get Award
         award = Award.query.filter_by(name=award_info["name"]).first()
@@ -604,34 +558,29 @@ with app.app_context():
             award = Award(name=award_info["name"], description=f"{award_info['name']} winner")
             db.session.add(award)
             db.session.flush()
-        
         # Get team
         team = abbr_to_team.get(award_info["team_abbr"])
         if not team:
             continue  # skip if team not found
-        
         # Find or create player
         player = Player.query.filter_by(name=award_info["recipient"], team_id=team.team_id).first()
         if not player:
             player = Player(name=award_info["recipient"], position=award_info["position"], team_id=team.team_id)
             db.session.add(player)
             db.session.flush()
-        
         # Ensure PlayerSeason exists for this player/team/season
         ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season.season_id, team_id=team.team_id).first()
         if not ps:
             ps = PlayerSeason(player_id=player.player_id, season_id=season.season_id, team_id=team.team_id, player_class="SR", current_year="SR", redshirted=False)
             db.session.add(ps)
             db.session.flush()
-        
         # Create AwardWinner
         aw = AwardWinner.query.filter_by(award_id=award.award_id, season_id=season.season_id, player_id=player.player_id, team_id=team.team_id).first()
         if not aw:
             aw = AwardWinner(award_id=award.award_id, season_id=season.season_id, player_id=player.player_id, team_id=team.team_id)
             db.session.add(aw)
     db.session.commit()
-# --- End National Awards --- 
-
+# --- End National Awards ---
     # Add national-level honors
     national_honors = [
         Honor(name="National Offensive Player of the Week", side="offense", conference_id=None),
@@ -640,7 +589,6 @@ with app.app_context():
     ]
     db.session.add_all(national_honors)
     db.session.commit()
-
     # Refetch conferences to avoid DetachedInstanceError
     for conf in Conference.query.all():
         conf_off_player_of_week = Honor(
@@ -661,4 +609,4 @@ with app.app_context():
         db.session.add(conf_off_player_of_week)
         db.session.add(conf_def_player_of_week)
         db.session.add(conf_all_team)
-    db.session.commit() 
+    db.session.commit()

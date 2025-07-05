@@ -1,16 +1,6 @@
-from flask import Flask # type: ignore
+from flask import Flask  # type: ignore
 from extensions import db, cors
 import os
-
-# Initialize Flask app
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dynasty.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db.init_app(app)
-cors.init_app(app)
-
-# Blueprint imports
 from routes.seasons import seasons_bp
 from routes.teams import teams_bp
 from routes.players import players_bp
@@ -27,7 +17,12 @@ from routes.rankings import rankings_bp
 from routes.honors import honors_bp
 from routes.conferences import conferences_bp
 from routes.season_actions import season_actions_bp
-
+# Initialize Flask app
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dynasty.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+cors.init_app(app)
 # Register blueprints
 app.register_blueprint(seasons_bp, url_prefix='/api')
 app.register_blueprint(teams_bp, url_prefix='/api')
@@ -45,10 +40,10 @@ app.register_blueprint(rankings_bp, url_prefix='/api')
 app.register_blueprint(honors_bp, url_prefix='/api')
 app.register_blueprint(conferences_bp, url_prefix='/api')
 app.register_blueprint(season_actions_bp, url_prefix='/api')
-
 '''print("Registered routes:")
 for rule in app.url_map.iter_rules():
     print(rule)'''
+
 
 # Serve React frontend (placeholder)
 @app.route('/', defaults={'path': ''})
@@ -59,6 +54,7 @@ def serve_frontend(path):
         return app.send_static_file(path)
     else:
         return app.send_static_file('index.html')
+
 
 if __name__ == "__main__":
     with app.app_context():

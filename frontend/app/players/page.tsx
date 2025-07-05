@@ -5,10 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Star, TrendingUp, Award, User, Target, Zap, Shield, Trophy, ArrowRight } from "lucide-react"
+import { Search, Star, TrendingUp, User, Target, Shield, ArrowRight, Zap } from "lucide-react"
 import React, { useEffect, useState, useRef } from "react"
 import { setPlayerRedshirt, fetchPlayersBySeason, API_BASE_URL, updatePlayerProfile } from "@/lib/api"
-import { SeasonSelector } from "@/components/SeasonSelector";
 import { useSeason } from "@/context/SeasonContext";
 import { AddPlayerModal } from "@/components/AddPlayerModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -68,9 +67,8 @@ const getRatingColor = (rating: number) => {
 export default function PlayersPage() {
   const { selectedSeason, userTeam } = useSeason();
   const teamId = userTeam?.team_id;
-  const [players, setPlayers] = useState<any[]>([])
+  const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [redshirting, setRedshirting] = useState<number | null>(null)
   const [search, setSearch] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
@@ -79,7 +77,7 @@ export default function PlayersPage() {
   const [ovrInputs, setOvrInputs] = useState<{ [playerId: number]: number | undefined }>({});
   const inputRefs = useRef<{ [playerId: number]: HTMLInputElement | null }>({});
   const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<any>({});
+  const [editFields, setEditFields] = useState<Partial<Player>>({});
   const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
@@ -88,10 +86,6 @@ export default function PlayersPage() {
     fetchPlayersBySeason(selectedSeason, teamId)
       .then((data) => {
         setPlayers(data)
-        setLoading(false)
-      })
-      .catch((err) => {
-        setError(err.message)
         setLoading(false)
       })
   }, [teamId, selectedSeason])
@@ -162,7 +156,7 @@ export default function PlayersPage() {
     setEditingOvr((prev) => ({ ...prev, [playerId]: false }));
   };
 
-  const handleEditPlayer = (player: any) => {
+  const handleEditPlayer = (player: Player) => {
     setEditingPlayer(player.player_id);
     setEditFields({
       height: player.height || '',
@@ -172,7 +166,7 @@ export default function PlayersPage() {
   };
 
   const handleEditFieldChange = (field: string, value: string) => {
-    setEditFields((prev: any) => ({ ...prev, [field]: value }));
+    setEditFields((prev: Partial<Player>) => ({ ...prev, [field]: value }));
   };
 
   const handleEditHeightChange = (type: 'feet' | 'inches', value: string) => {
@@ -186,7 +180,7 @@ export default function PlayersPage() {
     if (feet) heightString += `${feet}'`;
     if (inches) heightString += `${inches}`;
     if (feet && inches !== '') heightString += '"';
-    setEditFields((prev: any) => ({ ...prev, height: heightString }));
+    setEditFields((prev: Partial<Player>) => ({ ...prev, height: heightString }));
   };
 
   const handleCancelEdit = () => {
@@ -216,14 +210,6 @@ export default function PlayersPage() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
         <p className="text-muted-foreground">Loading players...</p>
-      </div>
-    </div>
-  )
-  if (error) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-destructive text-6xl mb-4">⚠️</div>
-        <p className="text-destructive text-lg">Error: {error}</p>
       </div>
     </div>
   )

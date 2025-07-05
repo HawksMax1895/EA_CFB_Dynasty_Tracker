@@ -20,7 +20,7 @@ const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) =
           // Load user team
           console.log('AppInitializer: Loading teams...');
           const allTeams = await fetchTeams();
-          const userControlledTeam = allTeams.find((t: Team) => (t as any).is_user_controlled);
+          const userControlledTeam = allTeams.find((t: Team) => t.is_user_controlled);
           if (userControlledTeam) {
             console.log('AppInitializer: User team found', userControlledTeam);
             setUserTeam(userControlledTeam);

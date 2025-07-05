@@ -19,10 +19,9 @@ interface RecruitCardProps {
     commitmentDate?: string;
     earlyEnrollee?: boolean;
   };
-  index: number;
 }
 
-export function RecruitCard({ recruit, index }: RecruitCardProps) {
+export function RecruitCard({ recruit }: RecruitCardProps) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader>

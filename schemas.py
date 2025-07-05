@@ -1,7 +1,9 @@
 from marshmallow import Schema, fields
 
+
 class CreateSeasonSchema(Schema):
     year = fields.Integer()
+
 
 class CreateTeamSchema(Schema):
     name = fields.String(required=True)

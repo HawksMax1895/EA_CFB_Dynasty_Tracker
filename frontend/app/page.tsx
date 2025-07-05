@@ -4,13 +4,14 @@ import { Badge } from "@/components/ui/badge"
 import { Trophy, Users, Calendar, TrendingUp } from "lucide-react"
 import React, { useEffect, useState } from "react"
 import { fetchDashboard } from "@/lib/api"
-import { SeasonSelector } from "@/components/SeasonSelector"
+
 import { useSeason } from "@/context/SeasonContext"
 import { WinsChart } from "@/components/WinsChart"
+import type { DashboardData } from "@/types"
 
 export default function Dashboard() {
   const { selectedSeason } = useSeason();
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,9 +47,7 @@ export default function Dashboard() {
   )
 
   // Fallbacks for missing data
-  const season = data?.season || {}
   const team = data?.team || {}
-  const stats = data?.stats || {}
   const recent = data?.recent_activity || []
 
   return (
@@ -116,7 +115,7 @@ export default function Dashboard() {
         <CardContent>
           <div className="space-y-4">
             {recent.length === 0 && <div className="text-muted-foreground">No recent activity.</div>}
-            {recent.map((item: any, idx: number) => (
+            {recent.map((item, idx: number) => (
               <div className="flex items-center justify-between" key={idx}>
                 <div>
                   <p className="font-medium text-foreground">{item.title}</p>

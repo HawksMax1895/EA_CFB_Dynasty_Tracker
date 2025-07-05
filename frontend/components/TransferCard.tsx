@@ -18,10 +18,9 @@ interface TransferCardProps {
     current_status?: string;
     transferDate?: string;
   };
-  index: number;
 }
 
-export function TransferCard({ transfer, index }: TransferCardProps) {
+export function TransferCard({ transfer }: TransferCardProps) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader>

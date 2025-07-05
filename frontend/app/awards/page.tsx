@@ -2,9 +2,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Award, Star, Medal, Pencil } from "lucide-react"
+import { Trophy, Pencil } from "lucide-react"
 import React, { useEffect, useState, useRef } from "react"
-import { fetchAwards, fetchHonors, addHonors, fetchAwardWinnersBySeason, fetchAllAwardsForSeason, fetchAllPlayersBySeason, fetchTeamsBySeason, updateAwardWinner, declareAwardWinner, addPlayer, fetchHonorsBySeason, fetchHonorTypes, checkHonorRequiresWeek } from "@/lib/api"
+import { fetchAllAwardsForSeason, fetchAllPlayersBySeason, fetchTeamsBySeason, updateAwardWinner, declareAwardWinner, addPlayer, fetchHonorsBySeason, fetchHonorTypes, checkHonorRequiresWeek } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { useSeason } from "@/context/SeasonContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -17,16 +17,13 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function AwardsPage() {
-  const [awardWinners, setAwardWinners] = useState<any[]>([])
-  const [allAwards, setAllAwards] = useState<any[]>([])
+  const [allAwards, setAllAwards] = useState<AwardWinnerWithDetails[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const { selectedSeason } = useSeason();
-  const [editModal, setEditModal] = useState<{ open: boolean, awardWinner: any | null }>({ open: false, awardWinner: null })
-  const [allPlayers, setAllPlayers] = useState<any[]>([])
-  const [allTeams, setAllTeams] = useState<any[]>([])
+  const [editModal, setEditModal] = useState<{ open: boolean, awardWinner: AwardWinnerWithDetails | null }>({ open: false, awardWinner: null })
+  const [allPlayers, setAllPlayers] = useState<Player[]>([])
+  const [allTeams, setAllTeams] = useState<Team[]>([])
   const [editPlayerId, setEditPlayerId] = useState<number | null>(null)
-  const [editTeamId, setEditTeamId] = useState<number | null>(null)
   const [savingEdit, setSavingEdit] = useState(false)
   const [showAddPlayer, setShowAddPlayer] = useState(false)
   const [newPlayer, setNewPlayer] = useState({ name: "", position: "", team_id: null as number | null, ovr_rating: 70 })
@@ -34,18 +31,16 @@ export default function AwardsPage() {
   const [playerSelectOpen, setPlayerSelectOpen] = useState(false)
   const [playerSearch, setPlayerSearch] = useState("");
   const [playerTeamFilter, setPlayerTeamFilter] = useState<number | null>(null);
-  const [teamSearch, setTeamSearch] = useState("");
   const teamSearchInputRef = useRef<HTMLInputElement>(null);
   const [teamPopoverOpen, setTeamPopoverOpen] = useState(false);
   const [userSelectedPlayer, setUserSelectedPlayer] = useState(false);
-  const [seasonHonors, setSeasonHonors] = useState<any[]>([]);
+  const [seasonHonors, setSeasonHonors] = useState<HonorData[]>([]);
   const [honorsLoading, setHonorsLoading] = useState(false);
-  const [honorsError, setHonorsError] = useState<string | null>(null);
   const [addHonorOpen, setAddHonorOpen] = useState(false);
   const [newHonor, setNewHonor] = useState({ player_id: '', honor_id: '', side: '', conference_id: '', week: '' });
   const [addingHonor, setAddingHonor] = useState(false);
   const [addHonorError, setAddHonorError] = useState<string | null>(null);
-  const [honorTypes, setHonorTypes] = useState<any[]>([]);
+  const [honorTypes, setHonorTypes] = useState<HonorType[]>([]);
   const [selectedHonorRequiresWeek, setSelectedHonorRequiresWeek] = useState(false);
 
   const filteredPlayers = allPlayers.filter(p => {
@@ -64,13 +59,8 @@ export default function AwardsPage() {
     ])
       .then(([awardsData, playersData, teamsData]) => {
         setAllAwards(awardsData)
-        setAwardWinners(awardsData.filter((award: any) => award.has_winner))
         setAllPlayers(playersData)
         setAllTeams(teamsData)
-        setLoading(false)
-      })
-      .catch((err) => {
-        setError(err.message)
         setLoading(false)
       })
   }, [selectedSeason])
@@ -123,7 +113,7 @@ export default function AwardsPage() {
     }
   };
 
-  const openEdit = (award: any) => {
+  const openEdit = (award: AwardWinnerWithDetails) => {
     setEditPlayerId(award.player_id || null)
     setEditTeamId(award.team_id || null)
     setEditModal({ open: true, awardWinner: award })
@@ -146,7 +136,6 @@ export default function AwardsPage() {
       // Refresh list
       const data = await fetchAllAwardsForSeason(selectedSeason!)
       setAllAwards(data)
-      setAwardWinners(data.filter((award: any) => award.has_winner))
       closeEdit()
     } catch (err) {
       alert("Failed to update award winner")
@@ -218,7 +207,7 @@ export default function AwardsPage() {
         .then(setSeasonHonors)
         .catch(e => setHonorsError(e.message))
         .finally(() => setHonorsLoading(false));
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAddHonorError(err.message || 'Failed to add honor');
     } finally {
       setAddingHonor(false);
