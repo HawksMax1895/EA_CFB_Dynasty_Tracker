@@ -54,7 +54,7 @@ export function RecruitCard({ recruit, index }: RecruitCardProps) {
               <span className="text-2xl font-bold">{recruit.rating ?? '-'}</span>
               <span className="text-sm text-muted-foreground">Rating</span>
             </div>
-            <Badge className="bg-green-100 text-green-800">Committed</Badge>
+            <Badge className="bg-primary/20 text-primary">Committed</Badge>
           </div>
         </div>
       </CardHeader>

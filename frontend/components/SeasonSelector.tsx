@@ -21,7 +21,7 @@ export const SeasonSelector: React.FC = () => {
 
   return (
     <select
-      className="border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 bg-white text-gray-800 text-base"
+      className="border border-border rounded-lg px-3 py-2 shadow-sm focus:ring-2 focus:ring-ring focus:border-primary bg-card text-foreground text-base"
       value={selectedSeason ?? ''}
       onChange={handleChange}
     >
