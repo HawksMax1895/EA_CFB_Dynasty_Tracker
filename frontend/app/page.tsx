@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react"
 import { fetchDashboard } from "@/lib/api"
 import { SeasonSelector } from "@/components/SeasonSelector"
 import { useSeason } from "@/context/SeasonContext"
+import { WinsChart } from "@/components/WinsChart"
 
 export default function Dashboard() {
   const { selectedSeason } = useSeason();
@@ -115,6 +116,11 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Wins Chart */}
+        <div className="mt-8">
+          <WinsChart />
+        </div>
       </div>
     </div>
   )

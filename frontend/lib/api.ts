@@ -347,6 +347,12 @@ export async function fetchDashboard(seasonId?: number) {
   return response.json();
 }
 
+export async function fetchWinsChart() {
+  const response = await fetch(`${API_BASE_URL}/dashboard/wins-chart`);
+  if (!response.ok) throw new Error("Failed to fetch wins chart data");
+  return response.json();
+}
+
 // Update Team Season
 // Supports: wins, losses, conference_wins, conference_losses, points_for, points_against, offense_yards, defense_yards, pass_yards, rush_yards, pass_tds, rush_tds, off_ppg, def_ppg, sacks, interceptions, prestige, team_rating, final_rank, recruiting_rank, conference_id
 export async function updateTeamSeason(seasonId: number, teamId: number, data: any) {
@@ -441,5 +447,11 @@ export async function fetchPlayerAwards(playerId: number) {
 export async function fetchPlayerHonors(playerId: number) {
   const response = await fetch(`${API_BASE_URL}/players/${playerId}/honors`);
   if (!response.ok) throw new Error("Failed to fetch player honors");
+  return response.json();
+}
+
+export async function fetchPlayerRatingDevelopment(playerId: number) {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/rating-development`);
+  if (!response.ok) throw new Error("Failed to fetch player rating development");
   return response.json();
 }

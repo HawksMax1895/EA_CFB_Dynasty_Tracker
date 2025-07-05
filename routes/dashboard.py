@@ -279,4 +279,36 @@ def dashboard():
             "recruiting_rank": recruiting_rank
         },
         "recent_activity": recent_activity
+    })
+
+@dashboard_bp.route('/dashboard/wins-chart', methods=['GET'])
+def dashboard_wins_chart():
+    # Get the user's team
+    team = Team.query.filter_by(is_user_controlled=True).first()
+    if not team:
+        return jsonify({"error": "No user-controlled team found"}), 404
+
+    # Get all team seasons for this team, ordered by year
+    team_seasons = (
+        TeamSeason.query
+        .filter_by(team_id=team.team_id)
+        .join(Season, TeamSeason.season_id == Season.season_id)
+        .order_by(Season.year.asc())
+        .all()
+    )
+
+    # Prepare data for the chart
+    chart_data = []
+    for ts in team_seasons:
+        season = Season.query.get(ts.season_id)
+        chart_data.append({
+            "year": season.year,
+            "wins": ts.wins,
+            "losses": ts.losses,
+            "total_games": ts.wins + ts.losses
+        })
+
+    return jsonify({
+        "team_name": team.name,
+        "chart_data": chart_data
     }) 

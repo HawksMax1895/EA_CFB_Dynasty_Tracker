@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Zap, Activity, BarChart3, Save, X } from "lucide-react";
 import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors } from "@/lib/api";
+import { PlayerRatingChart } from "@/components/PlayerRatingChart";
 
 // Stat column definitions
 const QB_STATS = [
@@ -537,6 +538,11 @@ export default function PlayerProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Rating Development Chart */}
+        <div className="mt-8">
+          <PlayerRatingChart playerId={parseInt(playerId as string)} />
+        </div>
       </div>
     </div>
   );

@@ -484,4 +484,42 @@ def get_player_honors(player_id):
             'week': hw.week
         })
     
-    return jsonify(result) 
+    return jsonify(result)
+
+@players_bp.route('/players/<int:player_id>/rating-development', methods=['GET'])
+def get_player_rating_development(player_id):
+    player = Player.query.get_or_404(player_id)
+    
+    # Get all player seasons for this player, ordered by year
+    player_seasons = db.session.query(
+        PlayerSeason.player_season_id,
+        PlayerSeason.ovr_rating,
+        PlayerSeason.current_year,
+        PlayerSeason.redshirted,
+        Season.year.label('season_year'),
+        Team.name.label('team_name')
+    ).join(
+        Season, PlayerSeason.season_id == Season.season_id
+    ).join(
+        Team, PlayerSeason.team_id == Team.team_id
+    ).filter(
+        PlayerSeason.player_id == player_id
+    ).order_by(
+        Season.year.asc()
+    ).all()
+    
+    # Prepare data for the chart
+    chart_data = []
+    for ps in player_seasons:
+        chart_data.append({
+            "season_year": ps.season_year,
+            "ovr_rating": ps.ovr_rating,
+            "current_year": ps.current_year,
+            "redshirted": ps.redshirted,
+            "team_name": ps.team_name
+        })
+    
+    return jsonify({
+        "player_name": player.name,
+        "chart_data": chart_data
+    }) 
