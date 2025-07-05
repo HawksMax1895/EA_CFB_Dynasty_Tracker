@@ -147,10 +147,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
 
   if (!isOpen) {
     return (
-      <Button 
-        className="bg-blue-600 hover:bg-blue-700" 
-        onClick={() => setIsOpen(true)}
-      >
+      <Button onClick={() => setIsOpen(true)}>
         Add High School Recruit
       </Button>
     );
@@ -158,7 +155,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg p-8 w-full max-w-2xl mx-4 shadow-xl">
+      <div className="bg-card rounded-lg p-8 w-full max-w-2xl mx-4 shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Add New High School Recruit</h2>
           <Button 

@@ -31,7 +31,7 @@ export function TransferCard({ transfer, index }: TransferCardProps) {
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline">{transfer.position}</Badge>
               {transfer.dev_trait && <Badge variant="secondary">{transfer.dev_trait}</Badge>}
-              <Badge className="bg-blue-100 text-blue-800">
+              <Badge className="bg-primary/20 text-primary">
                 <GraduationCap className="h-3 w-3 mr-1" />
                 Transfer
               </Badge>
@@ -59,7 +59,7 @@ export function TransferCard({ transfer, index }: TransferCardProps) {
                 ))}
               </div>
             )}
-            <Badge className="bg-blue-100 text-blue-800">
+            <Badge className="bg-primary/20 text-primary">
               <Building2 className="h-3 w-3 mr-1" />
               Committed
             </Badge>
