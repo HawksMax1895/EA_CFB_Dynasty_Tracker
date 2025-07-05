@@ -23,7 +23,9 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Plus
+  Plus,
+  Search,
+  Filter
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason, fetchTeams, setUserControlledTeam, API_BASE_URL, fetchAwards, createAward, updateAward, deleteAward, fetchHonorTypes, createHonorType, updateHonorType, deleteHonorType } from "@/lib/api";
@@ -54,6 +56,11 @@ export default function SettingsPage() {
     const [loadingTeams, setLoadingTeams] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    
+    // Search and filter state
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterType, setFilterType] = useState<"all" | "teams" | "conferences">("all");
+    const [selectedConference, setSelectedConference] = useState<string>("all");
     
     // Awards state
     const [awards, setAwards] = useState<any[]>([]);
@@ -140,6 +147,22 @@ export default function SettingsPage() {
             .finally(() => setLoadingHonorTypes(false));
     }, []);
 
+    // Filtered data based on search and filters
+    const filteredTeams = useMemo(() => {
+        return teams.filter(team => {
+            const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesConference = selectedConference === "all" || 
+                team.primary_conference_id?.toString() === selectedConference;
+            return matchesSearch && matchesConference;
+        });
+    }, [teams, searchTerm, selectedConference]);
+
+    const filteredConferences = useMemo(() => {
+        return conferences.filter(conf => 
+            conf.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [conferences, searchTerm]);
+
     const handleChange = async (value: string) => {
         const teamId = Number(value);
         setSelectedTeam(teamId);
@@ -203,22 +226,18 @@ export default function SettingsPage() {
       setSavingEdit(true);
       setEditError(null);
       try {
-        if (editItem.type === 'Award') {
-          await updateAward(editItem.award_id, {
-            name: editForm.name,
-            description: editForm.description,
-          });
-          const updatedAwards = await fetchAwards();
-          setAwards(updatedAwards);
-        } else if (editItem.type === 'Honor') {
-          await updateHonorType(editItem.honor_id, { 
-            name: editForm.name, 
-            side: editForm.side === 'none' ? undefined : editForm.side, 
-            conference_id: editForm.conference_id === 'none' ? undefined : Number(editForm.conference_id) 
-          });
-          const updatedHonorTypes = await fetchHonorTypes();
-          setHonorTypes(updatedHonorTypes);
+        if (editForm.type === 'Award') {
+          await updateAward(editItem.award_id, editForm);
+        } else {
+          await updateHonorType(editItem.honor_id, editForm);
         }
+        // Refresh data
+        const [awardsData, honorTypesData] = await Promise.all([
+          fetchAwards(),
+          fetchHonorTypes()
+        ]);
+        setAwards(awardsData);
+        setHonorTypes(honorTypesData);
         setEditModalOpen(false);
       } catch (err: any) {
         setEditError(err.message || 'Failed to update.');
@@ -233,18 +252,17 @@ export default function SettingsPage() {
       setAddError(null);
       try {
         if (addForm.type === 'Award') {
-          await createAward({ name: addForm.name, description: addForm.description });
-          const updatedAwards = await fetchAwards();
-          setAwards(updatedAwards);
-        } else if (addForm.type === 'Honor') {
-          await createHonorType({ 
-            name: addForm.name, 
-            side: addForm.side === 'none' ? undefined : addForm.side, 
-            conference_id: addForm.conference_id === 'none' ? undefined : Number(addForm.conference_id) 
-          });
-          const updatedHonorTypes = await fetchHonorTypes();
-          setHonorTypes(updatedHonorTypes);
+          await createAward(addForm);
+        } else {
+          await createHonorType(addForm);
         }
+        // Refresh data
+        const [awardsData, honorTypesData] = await Promise.all([
+          fetchAwards(),
+          fetchHonorTypes()
+        ]);
+        setAwards(awardsData);
+        setHonorTypes(honorTypesData);
         setAddModalOpen(false);
         setAddForm({ type: '', name: '', description: '', side: 'none', conference_id: 'none' });
       } catch (err: any) {
@@ -272,15 +290,11 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <Tabs defaultValue="teams" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-4 bg-white/80 backdrop-blur-sm border border-gray-200/50">
-                        <TabsTrigger value="teams" className="flex items-center gap-2">
+                <Tabs defaultValue="teams-conferences" className="space-y-6">
+                    <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-gray-200/50">
+                        <TabsTrigger value="teams-conferences" className="flex items-center gap-2">
                             <Building2 className="h-4 w-4" />
-                            Teams
-                        </TabsTrigger>
-                        <TabsTrigger value="conferences" className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            Conferences
+                            Teams & Conferences
                         </TabsTrigger>
                         <TabsTrigger value="awards" className="flex items-center gap-2">
                             <Trophy className="h-4 w-4" />
@@ -292,7 +306,7 @@ export default function SettingsPage() {
                         </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="teams" className="space-y-6">
+                    <TabsContent value="teams-conferences" className="space-y-6">
                         {/* User Team Selection */}
                         <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
                             <CardHeader className="pb-4">
@@ -353,49 +367,115 @@ export default function SettingsPage() {
                             </CardContent>
                         </Card>
 
-                        {/* Team Management */}
+                        {/* Teams and Conferences Management */}
                         <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-xl">
                                     <Building2 className="h-5 w-5 text-purple-600" />
-                                    Manage All Teams
+                                    Manage Teams & Conferences
                                 </CardTitle>
                                 <p className="text-gray-600 text-sm">Edit team information, conferences, and prestige ratings</p>
                             </CardHeader>
                             <CardContent>
+                                {/* Search and Filter Controls */}
+                                <div className="mb-6 space-y-4">
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1 relative">
+                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                            <Input
+                                                placeholder="Search teams and conferences..."
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="pl-10"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                                                <SelectTrigger className="w-40">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All</SelectItem>
+                                                    <SelectItem value="teams">Teams Only</SelectItem>
+                                                    <SelectItem value="conferences">Conferences Only</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            {filterType !== "conferences" && (
+                                                <Select value={selectedConference} onValueChange={setSelectedConference}>
+                                                    <SelectTrigger className="w-48">
+                                                        <SelectValue placeholder="Filter by conference" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">All Conferences</SelectItem>
+                                                        {conferences.map((conf) => (
+                                                            <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>
+                                                                {conf.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Stats */}
+                                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                                        <span>Teams: {filteredTeams.length}</span>
+                                        <span>Conferences: {filteredConferences.length}</span>
+                                        {searchTerm && <span>Search: "{searchTerm}"</span>}
+                                    </div>
+                                </div>
+
                                 {loadingTeams ? (
                                     <div className="flex items-center justify-center py-12">
                                         <div className="flex items-center gap-2 text-gray-500">
                                             <Loader2 className="h-6 w-6 animate-spin" />
-                                            Loading teams...
+                                            Loading teams and conferences...
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
-                                        {teams.map((team) => (
-                                            <TeamEditCard key={team.team_id} team={team} conferences={conferences} />
-                                        ))}
+                                    <div className="space-y-6">
+                                        {/* Teams Grid */}
+                                        {(filterType === "all" || filterType === "teams") && filteredTeams.length > 0 && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                                    <Building2 className="h-5 w-5 text-purple-600" />
+                                                    Teams ({filteredTeams.length})
+                                                </h3>
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                    {filteredTeams.map((team) => (
+                                                        <CompactTeamCard key={team.team_id} team={team} conferences={conferences} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Conferences Grid */}
+                                        {(filterType === "all" || filterType === "conferences") && filteredConferences.length > 0 && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                                    <Users className="h-5 w-5 text-green-600" />
+                                                    Conferences ({filteredConferences.length})
+                                                </h3>
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                    {filteredConferences.map((conf) => (
+                                                        <CompactConferenceCard key={conf.conference_id} conference={conf} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* No Results */}
+                                        {((filterType === "all" && filteredTeams.length === 0 && filteredConferences.length === 0) ||
+                                          (filterType === "teams" && filteredTeams.length === 0) ||
+                                          (filterType === "conferences" && filteredConferences.length === 0)) && (
+                                            <div className="text-center py-12 text-gray-500">
+                                                <Filter className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                                <p>No {filterType === "all" ? "teams or conferences" : filterType} found matching your search.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="conferences" className="space-y-6">
-                        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-xl">
-                                    <Users className="h-5 w-5 text-green-600" />
-                                    Manage Conferences
-                                </CardTitle>
-                                <p className="text-gray-600 text-sm">Edit conference names and tier levels</p>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    {conferences.map((conf) => (
-                                        <ConferenceEditCard key={conf.conference_id} conference={conf} />
-                                    ))}
-                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -637,6 +717,478 @@ export default function SettingsPage() {
     );
 }
 
+function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] }) {
+    const [editTeam, setEditTeam] = React.useState({ ...team });
+    const [saving, setSaving] = React.useState(false);
+    const [success, setSuccess] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+    const [isExpanded, setIsExpanded] = React.useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setEditTeam({ ...editTeam, [name]: name === 'primary_conference_id' ? Number(value) : value });
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setSuccess(null);
+        setError(null);
+        try {
+            await fetch(`${API_BASE_URL}/teams/` + editTeam.team_id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: editTeam.name,
+                    logo_url: editTeam.logo_url,
+                    prestige: editTeam.prestige,
+                    primary_conference_id: editTeam.primary_conference_id
+                }),
+            });
+            setSuccess('Team updated successfully!');
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError('Failed to update team.');
+            setTimeout(() => setError(null), 3000);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const conference = conferences.find(c => c.conference_id === editTeam.primary_conference_id);
+
+    return (
+        <Card className="border border-gray-200 hover:shadow-md transition-all duration-200">
+            <CardContent className="p-4">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-3">
+                    {editTeam.logo_url && (
+                        <img src={editTeam.logo_url} alt={editTeam.name} className="w-8 h-8 rounded object-cover" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm truncate">{editTeam.name}</h3>
+                        <p className="text-xs text-gray-500">ID: {editTeam.team_id}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {editTeam.is_user_controlled && (
+                            <Badge variant="default" className="text-xs bg-blue-100 text-blue-700">
+                                <Target className="h-3 w-3" />
+                            </Badge>
+                        )}
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="h-6 w-6 p-0"
+                        >
+                            {isExpanded ? "−" : "+"}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Quick Info */}
+                <div className="flex items-center gap-2 mb-3 text-xs">
+                    <Badge variant="outline" className="text-xs">
+                        {conference?.name || "No Conference"}
+                    </Badge>
+                    {editTeam.prestige && (
+                        <Badge variant="secondary" className="text-xs">
+                            {editTeam.prestige}
+                        </Badge>
+                    )}
+                </div>
+
+                {/* Expanded Form */}
+                {isExpanded && (
+                    <div className="space-y-3 pt-3 border-t">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label htmlFor={`name-${editTeam.team_id}`} className="text-xs">Name</Label>
+                                <Input
+                                    id={`name-${editTeam.team_id}`}
+                                    name="name"
+                                    value={editTeam.name || ''}
+                                    onChange={handleChange}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor={`conference-${editTeam.team_id}`} className="text-xs">Conference</Label>
+                                <select
+                                    id={`conference-${editTeam.team_id}`}
+                                    className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    name="primary_conference_id"
+                                    value={editTeam.primary_conference_id || ''}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Select conference</option>
+                                    {conferences.map((conf) => (
+                                        <option key={conf.conference_id} value={conf.conference_id}>{conf.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label htmlFor={`logo-${editTeam.team_id}`} className="text-xs">Logo URL</Label>
+                                <Input
+                                    id={`logo-${editTeam.team_id}`}
+                                    name="logo_url"
+                                    value={editTeam.logo_url || ''}
+                                    onChange={handleChange}
+                                    className="h-8 text-sm"
+                                    placeholder="Logo URL"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor={`prestige-${editTeam.team_id}`} className="text-xs">Prestige</Label>
+                                <Input
+                                    id={`prestige-${editTeam.team_id}`}
+                                    name="prestige"
+                                    value={editTeam.prestige || ''}
+                                    onChange={handleChange}
+                                    className="h-8 text-sm"
+                                    placeholder="Prestige"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2">
+                            <Button 
+                                onClick={handleSave} 
+                                disabled={saving} 
+                                size="sm"
+                                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                            >
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Save
+                                    </>
+                                )}
+                            </Button>
+                            
+                            {(success || error) && (
+                                <div className={`flex items-center gap-1 text-xs ${
+                                    success ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                    {success ? (
+                                        <CheckCircle className="h-3 w-3" />
+                                    ) : (
+                                        <AlertCircle className="h-3 w-3" />
+                                    )}
+                                    {success || error}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function CompactConferenceCard({ conference }: { conference: any }) {
+    const [editConf, setEditConf] = React.useState({ ...conference });
+    const [saving, setSaving] = React.useState(false);
+    const [success, setSuccess] = React.useState<string | null>(null);
+    const [error, setError] = React.useState<string | null>(null);
+    const [isExpanded, setIsExpanded] = React.useState(false);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setEditConf({ ...editConf, [e.target.name]: e.target.value });
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setSuccess(null);
+        setError(null);
+        try {
+            const res = await fetch(`${API_BASE_URL}/conferences/` + editConf.conference_id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editConf),
+            });
+            if (!res.ok) throw new Error('Failed to update conference');
+            setSuccess('Conference updated successfully!');
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError('Failed to update conference.');
+            setTimeout(() => setError(null), 3000);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Card className="border border-gray-200 hover:shadow-md transition-all duration-200">
+            <CardContent className="p-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm truncate">{editConf.name}</h3>
+                        <p className="text-xs text-gray-500">ID: {editConf.conference_id}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-xs">
+                            Tier {editConf.tier}
+                        </Badge>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="h-6 w-6 p-0"
+                        >
+                            {isExpanded ? "−" : "+"}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Expanded Form */}
+                {isExpanded && (
+                    <div className="space-y-3 pt-3 border-t">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                                <Label htmlFor={`conf-name-${editConf.conference_id}`} className="text-xs">Name</Label>
+                                <Input
+                                    id={`conf-name-${editConf.conference_id}`}
+                                    name="name"
+                                    value={editConf.name || ''}
+                                    onChange={handleChange}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label htmlFor={`conf-tier-${editConf.conference_id}`} className="text-xs">Tier</Label>
+                                <Input
+                                    id={`conf-tier-${editConf.conference_id}`}
+                                    name="tier"
+                                    type="number"
+                                    min={1}
+                                    max={5}
+                                    value={editConf.tier || ''}
+                                    onChange={handleChange}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2">
+                            <Button 
+                                onClick={handleSave} 
+                                disabled={saving} 
+                                size="sm"
+                                className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700"
+                            >
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Save
+                                    </>
+                                )}
+                            </Button>
+                            
+                            {(success || error) && (
+                                <div className={`flex items-center gap-1 text-xs ${
+                                    success ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                    {success ? (
+                                        <CheckCircle className="h-3 w-3" />
+                                    ) : (
+                                        <AlertCircle className="h-3 w-3" />
+                                    )}
+                                    {success || error}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function SeasonCard({ season, details }: { season: any, details?: Team }) {
+    return (
+        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle className="text-3xl font-bold mb-2">{season.year} Season</CardTitle>
+                        <div className="flex items-center gap-4">
+                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-lg px-4 py-2">
+                                {details ? `${details.wins}-${details.losses}` : "-"}
+                            </Badge>
+                            <Badge variant="outline" className="border-white/50 text-white">
+                                {details?.conference_name || "-"}
+                            </Badge>
+                            <Badge variant="default" className="bg-yellow-500/20 text-yellow-100 border-yellow-500/30">
+                                {details?.final_rank ? `#${details.final_rank} Ranked` : "Unranked"}
+                            </Badge>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Star className="h-5 w-5 text-yellow-300" />
+                            <span className="font-bold text-xl">{details?.prestige || "-"}</span>
+                        </div>
+                        <p className="text-blue-100 text-sm">Prestige Rating</p>
+                    </div>
+                </div>
+            </div>
+            
+            <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2 text-red-600">
+                            <Sword className="h-5 w-5" />
+                            Offense
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span>Offensive PPG:</span>
+                                <span className="font-medium">{details?.off_ppg?.toFixed(1) ?? "-"}</span>
+                                {details?.off_ppg_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.off_ppg_rank}</Badge>
+                                )}
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Passing Yards:</span>
+                                <span className="font-medium">{details?.pass_yards ?? "-"}</span>
+                                {details?.pass_yards_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.pass_yards_rank}</Badge>
+                                )}
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Rushing Yards:</span>
+                                <span className="font-medium">{details?.rush_yards ?? "-"}</span>
+                                {details?.rush_yards_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.rush_yards_rank}</Badge>
+                                )}
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Offensive Yards:</span>
+                                <span className="font-medium">{details?.offense_yards ?? "-"}</span>
+                                {details?.offense_yards_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.offense_yards_rank}</Badge>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2 text-blue-600">
+                            <Shield className="h-5 w-5" />
+                            Defense
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span>Defensive PPG:</span>
+                                <span className="font-medium">{details?.def_ppg?.toFixed(1) ?? "-"}</span>
+                                {details?.def_ppg_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.def_ppg_rank}</Badge>
+                                )}
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Total Sacks:</span>
+                                <span className="font-medium">{details?.sacks ?? "-"}</span>
+                                {details?.sacks_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.sacks_rank}</Badge>
+                                )}
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Interceptions:</span>
+                                <span className="font-medium">{details?.interceptions ?? "-"}</span>
+                                {details?.interceptions_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.interceptions_rank}</Badge>
+                                )}
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Defensive Yards:</span>
+                                <span className="font-medium">{details?.defense_yards ?? "-"}</span>
+                                {details?.defense_yards_rank && (
+                                    <Badge variant="outline" className="text-xs">#{details.defense_yards_rank}</Badge>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2 text-yellow-600">
+                            <Trophy className="h-5 w-5" />
+                            Achievements
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span>Conference Record:</span>
+                                <span className="font-medium">
+                                    {details?.conference_wins ?? 0}-{details?.conference_losses ?? 0}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Points For:</span>
+                                <span className="font-medium">{details?.points_for ?? "-"}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Points Against:</span>
+                                <span className="font-medium">{details?.points_against ?? "-"}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <h4 className="font-semibold flex items-center gap-2 text-green-600">
+                            <Target className="h-5 w-5" />
+                            Recruiting
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span>Class Rank:</span>
+                                <span className="font-medium">
+                                    {details?.recruiting_rank ? `#${details.recruiting_rank}` : "-"}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span>Team Rating:</span>
+                                <span className="font-medium">{details?.team_rating ?? "-"}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-gray-200 flex gap-3">
+                    <Link href={`/games?season=${season.season_id}`} passHref legacyBehavior>
+                        <Button asChild variant="outline" className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700">
+                            <span className="flex items-center gap-2">
+                                <ArrowUpRight className="h-4 w-4" />
+                                View Games
+                            </span>
+                        </Button>
+                    </Link>
+                    <Link href={`/players?season=${season.season_id}`} passHref legacyBehavior>
+                        <Button asChild variant="outline" className="flex-1">
+                            <span className="flex items-center gap-2">
+                                <Users className="h-4 w-4" />
+                                View Roster
+                            </span>
+                        </Button>
+                    </Link>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function TeamEditCard({ team, conferences }: { team: any, conferences: any[] }) {
     const [editTeam, setEditTeam] = React.useState({ ...team });
     const [saving, setSaving] = React.useState(false);
@@ -869,176 +1421,5 @@ function ConferenceEditCard({ conference }: { conference: any }) {
                 )}
             </div>
         </div>
-    );
-}
-
-function SeasonCard({ season, details }: { season: any, details?: Team }) {
-    return (
-        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle className="text-3xl font-bold mb-2">{season.year} Season</CardTitle>
-                        <div className="flex items-center gap-4">
-                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-lg px-4 py-2">
-                                {details ? `${details.wins}-${details.losses}` : "-"}
-                            </Badge>
-                            <Badge variant="outline" className="border-white/50 text-white">
-                                {details?.conference_name || "-"}
-                            </Badge>
-                            <Badge variant="default" className="bg-yellow-500/20 text-yellow-100 border-yellow-500/30">
-                                {details?.final_rank ? `#${details.final_rank} Ranked` : "Unranked"}
-                            </Badge>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Star className="h-5 w-5 text-yellow-300" />
-                            <span className="font-bold text-xl">{details?.prestige || "-"}</span>
-                        </div>
-                        <p className="text-blue-100 text-sm">Prestige Rating</p>
-                    </div>
-                </div>
-            </div>
-            
-            <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-red-600">
-                            <Sword className="h-5 w-5" />
-                            Offense
-                        </h4>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Offensive PPG:</span>
-                                <span className="font-medium">{details?.off_ppg?.toFixed(1) ?? "-"}</span>
-                                {details?.off_ppg_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.off_ppg_rank}</Badge>
-                                )}
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Passing Yards:</span>
-                                <span className="font-medium">{details?.pass_yards ?? "-"}</span>
-                                {details?.pass_yards_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.pass_yards_rank}</Badge>
-                                )}
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Rushing Yards:</span>
-                                <span className="font-medium">{details?.rush_yards ?? "-"}</span>
-                                {details?.rush_yards_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.rush_yards_rank}</Badge>
-                                )}
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Offensive Yards:</span>
-                                <span className="font-medium">{details?.offense_yards ?? "-"}</span>
-                                {details?.offense_yards_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.offense_yards_rank}</Badge>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-blue-600">
-                            <Shield className="h-5 w-5" />
-                            Defense
-                        </h4>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Defensive PPG:</span>
-                                <span className="font-medium">{details?.def_ppg?.toFixed(1) ?? "-"}</span>
-                                {details?.def_ppg_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.def_ppg_rank}</Badge>
-                                )}
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Total Sacks:</span>
-                                <span className="font-medium">{details?.sacks ?? "-"}</span>
-                                {details?.sacks_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.sacks_rank}</Badge>
-                                )}
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Interceptions:</span>
-                                <span className="font-medium">{details?.interceptions ?? "-"}</span>
-                                {details?.interceptions_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.interceptions_rank}</Badge>
-                                )}
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Defensive Yards:</span>
-                                <span className="font-medium">{details?.defense_yards ?? "-"}</span>
-                                {details?.defense_yards_rank && (
-                                    <Badge variant="outline" className="text-xs">#{details.defense_yards_rank}</Badge>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-yellow-600">
-                            <Trophy className="h-5 w-5" />
-                            Achievements
-                        </h4>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Conference Record:</span>
-                                <span className="font-medium">
-                                    {details?.conference_wins ?? 0}-{details?.conference_losses ?? 0}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Points For:</span>
-                                <span className="font-medium">{details?.points_for ?? "-"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Points Against:</span>
-                                <span className="font-medium">{details?.points_against ?? "-"}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-green-600">
-                            <Target className="h-5 w-5" />
-                            Recruiting
-                        </h4>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span>Class Rank:</span>
-                                <span className="font-medium">
-                                    {details?.recruiting_rank ? `#${details.recruiting_rank}` : "-"}
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Team Rating:</span>
-                                <span className="font-medium">{details?.team_rating ?? "-"}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-6 pt-6 border-t border-gray-200 flex gap-3">
-                    <Link href={`/games?season=${season.season_id}`} passHref legacyBehavior>
-                        <Button asChild variant="outline" className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700">
-                            <span className="flex items-center gap-2">
-                                <ArrowUpRight className="h-4 w-4" />
-                                View Games
-                            </span>
-                        </Button>
-                    </Link>
-                    <Link href={`/players?season=${season.season_id}`} passHref legacyBehavior>
-                        <Button asChild variant="outline" className="flex-1">
-                            <span className="flex items-center gap-2">
-                                <Users className="h-4 w-4" />
-                                View Roster
-                            </span>
-                        </Button>
-                    </Link>
-                </div>
-            </CardContent>
-        </Card>
     );
 } 

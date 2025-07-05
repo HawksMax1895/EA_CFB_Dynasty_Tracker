@@ -2,6 +2,7 @@ from app import app
 from extensions import db
 from models import Season, Conference, Team, TeamSeason, Player, PlayerSeason, Game, Award, AwardWinner, Honor
 import random
+import os
 
 def backfill_all_season_games(tbd_team_id):
     """Ensure every season has a full 17-week schedule."""
@@ -67,6 +68,145 @@ def create_placeholder_game(season_id, week):
     db.session.commit()
     return game
 
+def get_logo_filename(team_name):
+    """Convert team name to logo filename format."""
+    # Handle special cases first
+    special_cases = {
+        "Texas A&M Aggies": "Texas_AM_Aggies",
+        "Louisiana Ragin' Cajuns": "Louisiana_Ragin_Cajuns", 
+        "Louisiana-Monroe Warhawks": "UL_Monroe_Warhawks",
+        "Miami RedHawks": "Miami_OH_RedHawks",
+        "San José State Spartans": "San_José_State_Spartans",
+        "Ole Miss Rebels": "Ole_Miss_Rebels",
+        "Connecticut Huskies": "UConn_Huskies",
+        "FIU Panthers": "Florida_International_Panthers",
+        "Florida Atlantic Owls": "Florida_Atlantic_Owls",
+        "Appalachian State Mountaineers": "App_State_Mountaineers",
+        "Arizona State Sun Devils": "Arizona_State_Sun_Devils",
+        "Arkansas State Red Wolves": "Arkansas_State_Red_Wolves",
+        "Boise State Broncos": "Boise_State_Broncos",
+        "Boston College Eagles": "Boston_College_Eagles",
+        "Bowling Green Falcons": "Bowling_Green_Falcons",
+        "Central Michigan Chippewas": "Central_Michigan_Chippewas",
+        "Charlotte 49ers": "Charlotte_49ers",
+        "Cincinnati Bearcats": "Cincinnati_Bearcats",
+        "Clemson Tigers": "Clemson_Tigers",
+        "Coastal Carolina Chanticleers": "Coastal_Carolina_Chanticleers",
+        "Colorado Buffaloes": "Colorado_Buffaloes",
+        "Colorado State Rams": "Colorado_State_Rams",
+        "Duke Blue Devils": "Duke_Blue_Devils",
+        "East Carolina Pirates": "East_Carolina_Pirates",
+        "Eastern Michigan Eagles": "Eastern_Michigan_Eagles",
+        "Florida Gators": "Florida_Gators",
+        "Florida State Seminoles": "Florida_State_Seminoles",
+        "Fresno State Bulldogs": "Fresno_State_Bulldogs",
+        "Georgia Bulldogs": "Georgia_Bulldogs",
+        "Georgia Southern Eagles": "Georgia_Southern_Eagles",
+        "Georgia State Panthers": "Georgia_State_Panthers",
+        "Georgia Tech Yellow Jackets": "Georgia_Tech_Yellow_Jackets",
+        "Hawaii Rainbow Warriors": "Hawaii_Rainbow_Warriors",
+        "Houston Cougars": "Houston_Cougars",
+        "Illinois Fighting Illini": "Illinois_Fighting_Illini",
+        "Indiana Hoosiers": "Indiana_Hoosiers",
+        "Iowa Hawkeyes": "Iowa_Hawkeyes",
+        "Iowa State Cyclones": "Iowa_State_Cyclones",
+        "Jacksonville State Gamecocks": "Jacksonville_State_Gamecocks",
+        "James Madison Dukes": "James_Madison_Dukes",
+        "Kansas Jayhawks": "Kansas_Jayhawks",
+        "Kansas State Wildcats": "Kansas_State_Wildcats",
+        "Kent State Golden Flashes": "Kent_State_Golden_Flashes",
+        "Kentucky Wildcats": "Kentucky_Wildcats",
+        "Liberty Flames": "Liberty_Flames",
+        "Louisville Cardinals": "Louisville_Cardinals",
+        "Marshall Thundering Herd": "Marshall_Thundering_Herd",
+        "Maryland Terrapins": "Maryland_Terrapins",
+        "Massachusetts Minutemen": "Massachusetts_Minutemen",
+        "Memphis Tigers": "Memphis_Tigers",
+        "Miami Hurricanes": "Miami_Hurricanes",
+        "Michigan Wolverines": "Michigan_Wolverines",
+        "Michigan State Spartans": "Michigan_State_Spartans",
+        "Middle Tennessee Blue Raiders": "Middle_Tennessee_Blue_Raiders",
+        "Minnesota Golden Gophers": "Minnesota_Golden_Gophers",
+        "Mississippi State Bulldogs": "Mississippi_State_Bulldogs",
+        "Missouri Tigers": "Missouri_Tigers",
+        "Navy Midshipmen": "Navy_Midshipmen",
+        "NC State Wolfpack": "NC_State_Wolfpack",
+        "Nebraska Cornhuskers": "Nebraska_Cornhuskers",
+        "Nevada Wolf Pack": "Nevada_Wolf_Pack",
+        "New Mexico Lobos": "New_Mexico_Lobos",
+        "New Mexico State Aggies": "New_Mexico_State_Aggies",
+        "North Carolina Tar Heels": "North_Carolina_Tar_Heels",
+        "North Texas Mean Green": "North_Texas_Mean_Green",
+        "Northern Illinois Huskies": "Northern_Illinois_Huskies",
+        "Northwestern Wildcats": "Northwestern_Wildcats",
+        "Notre Dame Fighting Irish": "Notre_Dame_Fighting_Irish",
+        "Ohio Bobcats": "Ohio_Bobcats",
+        "Ohio State Buckeyes": "Ohio_State_Buckeyes",
+        "Oklahoma Sooners": "Oklahoma_Sooners",
+        "Oklahoma State Cowboys": "Oklahoma_State_Cowboys",
+        "Old Dominion Monarchs": "Old_Dominion_Monarchs",
+        "Oregon Ducks": "Oregon_Ducks",
+        "Oregon State Beavers": "Oregon_State_Beavers",
+        "Penn State Nittany Lions": "Penn_State_Nittany_Lions",
+        "Pittsburgh Panthers": "Pittsburgh_Panthers",
+        "Purdue Boilermakers": "Purdue_Boilermakers",
+        "Rice Owls": "Rice_Owls",
+        "Rutgers Scarlet Knights": "Rutgers_Scarlet_Knights",
+        "San Diego State Aztecs": "San_Diego_State_Aztecs",
+        "San Jose State Spartans": "San_José_State_Spartans",
+        "SMU Mustangs": "SMU_Mustangs",
+        "South Alabama Jaguars": "South_Alabama_Jaguars",
+        "South Carolina Gamecocks": "South_Carolina_Gamecocks",
+        "South Florida Bulls": "South_Florida_Bulls",
+        "Southern Miss Golden Eagles": "Southern_Miss_Golden_Eagles",
+        "Stanford Cardinal": "Stanford_Cardinal",
+        "Syracuse Orange": "Syracuse_Orange",
+        "TCU Horned Frogs": "TCU_Horned_Frogs",
+        "Temple Owls": "Temple_Owls",
+        "Tennessee Volunteers": "Tennessee_Volunteers",
+        "Texas Longhorns": "Texas_Longhorns",
+        "Texas State Bobcats": "Texas_State_Bobcats",
+        "Texas Tech Red Raiders": "Texas_Tech_Red_Raiders",
+        "Toledo Rockets": "Toledo_Rockets",
+        "Troy Trojans": "Troy_Trojans",
+        "Tulane Green Wave": "Tulane_Green_Wave",
+        "Tulsa Golden Hurricane": "Tulsa_Golden_Hurricane",
+        "UAB Blazers": "UAB_Blazers",
+        "UCF Knights": "UCF_Knights",
+        "UCLA Bruins": "UCLA_Bruins",
+        "UNLV Rebels": "UNLV_Rebels",
+        "USC Trojans": "USC_Trojans",
+        "Utah Utes": "Utah_Utes",
+        "Utah State Aggies": "Utah_State_Aggies",
+        "UTEP Miners": "UTEP_Miners",
+        "UTSA Roadrunners": "UTSA_Roadrunners",
+        "Vanderbilt Commodores": "Vanderbilt_Commodores",
+        "Virginia Cavaliers": "Virginia_Cavaliers",
+        "Virginia Tech Hokies": "Virginia_Tech_Hokies",
+        "Wake Forest Demon Deacons": "Wake_Forest_Demon_Deacons",
+        "Washington Huskies": "Washington_Huskies",
+        "Washington State Cougars": "Washington_State_Cougars",
+        "West Virginia Mountaineers": "West_Virginia_Mountaineers",
+        "Western Kentucky Hilltoppers": "Western_Kentucky_Hilltoppers",
+        "Western Michigan Broncos": "Western_Michigan_Broncos",
+        "Wisconsin Badgers": "Wisconsin_Badgers",
+        "Wyoming Cowboys": "Wyoming_Cowboys"
+    }
+    
+    if team_name in special_cases:
+        logo_path = f"college_football_logos/{special_cases[team_name]}.png"
+    else:
+        # Default conversion: replace spaces with underscores and add .png
+        logo_name = team_name.replace(" ", "_").replace("'", "")
+        logo_path = f"college_football_logos/{logo_name}.png"
+    
+    # Check if the logo file exists, if not return a placeholder
+    if not os.path.exists(logo_path):
+        print(f"Warning: Logo file not found for {team_name}: {logo_path}")
+        return "college_football_logos/placeholder.png"  # You might want to add a placeholder logo
+    
+    return logo_path
+
 with app.app_context():
     db.drop_all()
     db.create_all()
@@ -126,7 +266,6 @@ with app.app_context():
         ("Washington State Cougars", "WSU", "Pac-12"), ("West Virginia Mountaineers", "WVU", "Big 12"), ("Western Kentucky Hilltoppers", "WKU", "Conference USA"),
         ("Western Michigan Broncos", "WMU", "MAC"), ("Wisconsin Badgers", "WISC", "Big Ten"), ("Wyoming Cowboys", "WYO", "Mountain West")
     ]
-    logo_map = {t[1]: t[0].lower().replace(" ", "-").replace("'", "") for t in fbs_teams}
 
     # Create a single season
     season = Season(year=2024)
@@ -141,7 +280,7 @@ with app.app_context():
         if team_data[0] in teams_map: continue
 
         is_user_controlled = team_data[0] == "Texas Longhorns"
-        logo_url = f"https://a.espncdn.com/i/teamlogos/ncaa/500/{logo_map.get(team_data[1], '')}.png"
+        logo_url = get_logo_filename(team_data[0])
         
         team_obj = Team(
             name=team_data[0], abbreviation=team_data[1],
@@ -412,6 +551,15 @@ with app.app_context():
     db.session.commit()
 
     print("Database has been populated with a single season and randomized data.")
+    
+    # Test logo mapping for a few teams
+    test_teams = ["Texas Longhorns", "Alabama Crimson Tide", "Michigan Wolverines", "Georgia Bulldogs"]
+    print("\nTesting logo mapping:")
+    for team in test_teams:
+        logo_path = get_logo_filename(team)
+        exists = os.path.exists(logo_path)
+        status = "✓" if exists else "✗"
+        print(f"{status} {team}: {logo_path}")
 
 # --- BACKFILL: Ensure all PlayerSeason.player_class and current_year fields are set ---
 with app.app_context():
