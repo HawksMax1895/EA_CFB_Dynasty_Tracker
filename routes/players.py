@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from extensions import db
 from models import Player, PlayerSeason, Team, Season, AwardWinner, HonorWinner, Award, Honor
+import logging
+
+logger = logging.getLogger(__name__)
 
 players_bp = Blueprint('players', __name__)
 
@@ -309,14 +312,14 @@ def set_redshirt(player_id):
 def get_all_players():
     # Get the current season (you might want to make this configurable)
     current_season = Season.query.order_by(Season.year.desc()).first()
-    print(f"[DEBUG] Current season: {current_season}")
+    logger.info(f"[DEBUG] Current season: {current_season}")
     if not current_season:
-        print("[DEBUG] No current season found.")
+        logger.info("[DEBUG] No current season found.")
         return jsonify([])
     
     # Get team_id from query params (default to team 1 for now)
     team_id = request.args.get('team_id', type=int, default=1)
-    print(f"[DEBUG] team_id: {team_id}")
+    logger.info(f"[DEBUG] team_id: {team_id}")
     
     # Only return players who are on the current roster (have PlayerSeason records)
     query = (
@@ -327,9 +330,9 @@ def get_all_players():
             PlayerSeason.team_id == team_id
         )
     )
-    print(f"[DEBUG] Query SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
+    logger.info(f"[DEBUG] Query SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
     results = query.all()
-    print(f"[DEBUG] Number of players found: {len(results)}")
+    logger.info(f"[DEBUG] Number of players found: {len(results)}")
 
     # Determine if each player previously redshirted before the current season
     prior_rs_lookup = {
