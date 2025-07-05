@@ -182,6 +182,53 @@ export async function addHonors(seasonId: number, teamId: number, honors: any[])
   return response.json()
 }
 
+export async function fetchHonorsBySeason(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/honors`);
+  if (!response.ok) throw new Error("Failed to fetch honors for season");
+  return response.json();
+}
+
+// HONOR TYPES
+export async function fetchHonorTypes() {
+  const response = await fetch(`${API_BASE_URL}/honors/types`)
+  if (!response.ok) throw new Error("Failed to fetch honor types")
+  return response.json()
+}
+
+export async function createHonorType(data: { name: string; side?: string; conference_id?: number }) {
+  const response = await fetch(`${API_BASE_URL}/honors/types`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to create honor type")
+  return response.json()
+}
+
+export async function updateHonorType(honorId: number, data: { name?: string; side?: string; conference_id?: number }) {
+  const response = await fetch(`${API_BASE_URL}/honors/types/${honorId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update honor type")
+  return response.json()
+}
+
+export async function deleteHonorType(honorId: number) {
+  const response = await fetch(`${API_BASE_URL}/honors/types/${honorId}`, {
+    method: "DELETE"
+  })
+  if (!response.ok) throw new Error("Failed to delete honor type")
+  return response.json()
+}
+
+export async function checkHonorRequiresWeek(honorId: number) {
+  const response = await fetch(`${API_BASE_URL}/honors/types/${honorId}/requires-week`)
+  if (!response.ok) throw new Error("Failed to check honor week requirement")
+  return response.json()
+}
+
 // RANKINGS
 export async function fetchRecruitingRankings(seasonId: number) {
   const response = await fetch(`${API_BASE_URL}/recruiting-rankings?season_id=${seasonId}`)
@@ -240,6 +287,12 @@ export async function fetchAwardWinnersBySeason(seasonId: number) {
   return response.json()
 }
 
+export async function fetchAllAwardsForSeason(seasonId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/awards/all`)
+  if (!response.ok) throw new Error("Failed to fetch all awards for season")
+  return response.json()
+}
+
 export async function updateAwardWinner(awardWinnerId: number, data: { player_id: number; team_id: number }) {
   const response = await fetch(`${API_BASE_URL}/award-winners/${awardWinnerId}`, {
     method: "PUT",
@@ -247,6 +300,16 @@ export async function updateAwardWinner(awardWinnerId: number, data: { player_id
     body: JSON.stringify(data)
   })
   if (!response.ok) throw new Error("Failed to update award winner")
+  return response.json()
+}
+
+export async function declareAwardWinner(seasonId: number, awardId: number, playerId: number, teamId: number) {
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/awards/${awardId}/winner`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ player_id: playerId, team_id: teamId })
+  })
+  if (!response.ok) throw new Error("Failed to declare award winner")
   return response.json()
 }
 
@@ -360,11 +423,19 @@ export async function updatePlayerProfile(playerId: number, data: any) {
 }
 
 export async function fetchAllPlayersBySeason(seasonId: number) {
-  const teams = await fetchTeamsBySeason(seasonId);
-  const allPlayers: any[] = [];
-  for (const team of teams) {
-    const players = await fetchPlayersBySeason(seasonId, team.team_id);
-    allPlayers.push(...players.map((p: any) => ({ ...p, team_id: team.team_id, team_name: team.name || team.team_name })));
-  }
-  return allPlayers;
+  const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/players`);
+  if (!response.ok) throw new Error("Failed to fetch all players for season");
+  return response.json();
+}
+
+export async function fetchPlayerAwards(playerId: number) {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/awards`);
+  if (!response.ok) throw new Error("Failed to fetch player awards");
+  return response.json();
+}
+
+export async function fetchPlayerHonors(playerId: number) {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/honors`);
+  if (!response.ok) throw new Error("Failed to fetch player honors");
+  return response.json();
 }

@@ -157,10 +157,21 @@ class AwardWinner(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey('players.player_id'), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
 
+# Honor: Defines the type of honor and side (offense/defense/null)
 class Honor(db.Model):
     __tablename__ = 'honors'
     honor_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(32), nullable=False, unique=True)  # e.g., 'all_conference', 'all_american', 'national_player_of_the_week', 'conference_player_of_the_week'
+    side = db.Column(db.String(16))  # 'offense', 'defense', or NULL
+    conference_id = db.Column(db.Integer, db.ForeignKey('conferences.conference_id'), nullable=True)  # Only set for conference-level honors, null for national honors
+    honor_winners = db.relationship('HonorWinner', backref='honor', lazy=True)
+
+# HonorWinner references Honor
+class HonorWinner(db.Model):
+    __tablename__ = 'honor_winners'
+    honor_winner_id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey('players.player_id'), nullable=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'), nullable=False)
     season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'), nullable=False)
-    honor_type = db.Column(db.String(32), nullable=False)  # e.g., 'All-Conference', 'All-American' 
+    honor_id = db.Column(db.Integer, db.ForeignKey('honors.honor_id'), nullable=False)
+    week = db.Column(db.Integer)  # Only set for weekly honors 

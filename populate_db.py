@@ -483,3 +483,34 @@ with app.app_context():
             db.session.add(aw)
     db.session.commit()
 # --- End National Awards --- 
+
+    # Add national-level honors
+    national_honors = [
+        Honor(name="National Offensive Player of the Week", side="offense", conference_id=None),
+        Honor(name="National Defensive Player of the Week", side="defense", conference_id=None),
+        Honor(name="All-American", side=None, conference_id=None),
+    ]
+    db.session.add_all(national_honors)
+    db.session.commit()
+
+    # Refetch conferences to avoid DetachedInstanceError
+    for conf in Conference.query.all():
+        conf_off_player_of_week = Honor(
+            name=f"{conf.name} Offensive Player of the Week",
+            side="offense",
+            conference_id=conf.conference_id
+        )
+        conf_def_player_of_week = Honor(
+            name=f"{conf.name} Defensive Player of the Week",
+            side="defense",
+            conference_id=conf.conference_id
+        )
+        conf_all_team = Honor(
+            name=f"All {conf.name}",
+            side=None,
+            conference_id=conf.conference_id
+        )
+        db.session.add(conf_off_player_of_week)
+        db.session.add(conf_def_player_of_week)
+        db.session.add(conf_all_team)
+    db.session.commit() 

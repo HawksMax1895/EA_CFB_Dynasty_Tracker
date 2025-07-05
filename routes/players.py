@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from extensions import db
-from models import Player, PlayerSeason, Team, Season
+from models import Player, PlayerSeason, Team, Season, AwardWinner, HonorWinner, Award, Honor
 
 players_bp = Blueprint('players', __name__)
 
@@ -418,4 +418,70 @@ def update_player_profile(player_id):
         db.session.commit()
         return jsonify({'message': 'Player profile updated'})
     else:
-        return jsonify({'error': 'No valid fields to update'}), 400 
+        return jsonify({'error': 'No valid fields to update'}), 400
+
+@players_bp.route('/seasons/<int:season_id>/players', methods=['GET'])
+def get_all_players_for_season(season_id):
+    # Join PlayerSeason, Player, and Team to get all players for the season with team info
+    query = (
+        db.session.query(Player.player_id, Player.name, Player.position, Team.team_id, Team.name.label('team_name'))
+        .join(PlayerSeason, Player.player_id == PlayerSeason.player_id)
+        .join(Team, PlayerSeason.team_id == Team.team_id)
+        .filter(PlayerSeason.season_id == season_id)
+    )
+    players = [
+        {
+            'player_id': player_id,
+            'name': name,
+            'position': position,
+            'team_id': team_id,
+            'team_name': team_name
+        }
+        for player_id, name, position, team_id, team_name in query.all()
+    ]
+    return jsonify(players)
+
+@players_bp.route('/players/<int:player_id>/awards', methods=['GET'])
+def get_player_awards(player_id):
+    """Get all awards won by a player"""
+    award_winners = AwardWinner.query.filter_by(player_id=player_id).all()
+    
+    result = []
+    for aw in award_winners:
+        award = Award.query.get(aw.award_id)
+        team = Team.query.get(aw.team_id)
+        season = Season.query.get(aw.season_id)
+        
+        result.append({
+            'award_winner_id': aw.award_winner_id,
+            'award_name': award.name if award else None,
+            'award_description': award.description if award else None,
+            'team_name': team.name if team else None,
+            'season_year': season.year if season else None,
+            'season_id': aw.season_id
+        })
+    
+    return jsonify(result)
+
+@players_bp.route('/players/<int:player_id>/honors', methods=['GET'])
+def get_player_honors(player_id):
+    """Get all honors won by a player"""
+    honor_winners = HonorWinner.query.filter_by(player_id=player_id).all()
+    
+    result = []
+    for hw in honor_winners:
+        honor = Honor.query.get(hw.honor_id)
+        team = Team.query.get(hw.team_id)
+        season = Season.query.get(hw.season_id)
+        
+        result.append({
+            'honor_winner_id': hw.honor_winner_id,
+            'honor_name': honor.name if honor else None,
+            'honor_side': honor.side if honor else None,
+            'team_name': team.name if team else None,
+            'season_year': season.year if season else None,
+            'season_id': hw.season_id,
+            'week': hw.week
+        })
+    
+    return jsonify(result) 

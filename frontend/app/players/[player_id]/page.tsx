@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Zap, Activity, BarChart3, Save, X } from "lucide-react";
-import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile } from "@/lib/api";
+import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors } from "@/lib/api";
 
 // Stat column definitions
 const QB_STATS = [
@@ -110,13 +110,22 @@ export default function PlayerProfilePage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileEdits, setProfileEdits] = useState<any>({});
   const [savingProfile, setSavingProfile] = useState(false);
+  const [playerAwards, setPlayerAwards] = useState<any[]>([]);
+  const [playerHonors, setPlayerHonors] = useState<any[]>([]);
+  const [awardsLoading, setAwardsLoading] = useState(false);
+  const [honorsLoading, setHonorsLoading] = useState(false);
 
   useEffect(() => {
     if (!playerId) return;
     setLoading(true);
+    setAwardsLoading(true);
+    setHonorsLoading(true);
+    
     Promise.all([
       fetch(`${API_BASE_URL}/players/${playerId}`).then(r => r.json()),
-      fetch(`${API_BASE_URL}/players/${playerId}/career`).then(r => r.json())
+      fetch(`${API_BASE_URL}/players/${playerId}/career`).then(r => r.json()),
+      fetchPlayerAwards(parseInt(playerId as string)).then(setPlayerAwards).catch(() => setPlayerAwards([])),
+      fetchPlayerHonors(parseInt(playerId as string)).then(setPlayerHonors).catch(() => setPlayerHonors([]))
     ])
       .then(([playerData, careerData]) => {
         setPlayer(playerData);
@@ -126,6 +135,10 @@ export default function PlayerProfilePage() {
       .catch((err) => {
         setError("Failed to load player profile");
         setLoading(false);
+      })
+      .finally(() => {
+        setAwardsLoading(false);
+        setHonorsLoading(false);
       });
   }, [playerId]);
 
@@ -355,16 +368,58 @@ export default function PlayerProfilePage() {
           </CardHeader>
           <hr className="border-t border-gray-200 mx-6" />
           <CardContent className="pt-4 pb-2">
-            <div>
-              <h3 className="font-semibold mb-2 text-base flex items-center gap-2 text-gray-800">
-                <Award className="h-4 w-4 text-yellow-500" />
-                Awards & Honors
-              </h3>
+            <div className="space-y-4">
+              {/* Awards Section */}
               <div>
-                {player.awards ? (
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-sm px-2 py-1">{player.awards}</Badge>
+                <h3 className="font-semibold mb-3 text-base flex items-center gap-2 text-gray-800">
+                  <Trophy className="h-4 w-4 text-yellow-500" />
+                  Awards
+                </h3>
+                {awardsLoading ? (
+                  <p className="text-gray-500 italic text-sm">Loading awards...</p>
+                ) : playerAwards.length > 0 ? (
+                  <div className="space-y-2">
+                    {playerAwards.map((award, index) => (
+                      <div key={award.award_winner_id} className="flex items-center justify-between p-2 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <div className="flex-1">
+                          <div className="font-medium text-yellow-800">{award.award_name}</div>
+                          <div className="text-xs text-yellow-600">
+                            {award.team_name} • {award.season_year}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-gray-500 italic text-sm">No awards yet</p>
+                )}
+              </div>
+
+              {/* Honors Section */}
+              <div>
+                <h3 className="font-semibold mb-3 text-base flex items-center gap-2 text-gray-800">
+                  <Award className="h-4 w-4 text-purple-500" />
+                  Honors
+                </h3>
+                {honorsLoading ? (
+                  <p className="text-gray-500 italic text-sm">Loading honors...</p>
+                ) : playerHonors.length > 0 ? (
+                  <div className="space-y-2">
+                    {playerHonors.map((honor, index) => (
+                      <div key={honor.honor_winner_id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
+                        <div className="flex-1">
+                          <div className="font-medium text-purple-800">{honor.honor_name}</div>
+                          <div className="text-xs text-purple-600">
+                            {honor.team_name} • {honor.season_year}
+                            {honor.week && ` • Week ${honor.week}`}
+                            {honor.honor_side && ` • ${honor.honor_side}`}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic text-sm">No honors yet</p>
                 )}
               </div>
             </div>

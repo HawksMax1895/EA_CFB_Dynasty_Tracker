@@ -26,11 +26,13 @@ import {
   Plus
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason, fetchTeams, setUserControlledTeam, API_BASE_URL, fetchAwards, createAward, updateAward, deleteAward } from "@/lib/api";
+import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason, fetchTeams, setUserControlledTeam, API_BASE_URL, fetchAwards, createAward, updateAward, deleteAward, fetchHonorTypes, createHonorType, updateHonorType, deleteHonorType } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
 import { Team } from "@/types";
 import Link from "next/link";
 import { useMemo } from "react";
+import { Tabs as SubTabs, TabsList as SubTabsList, TabsTrigger as SubTabsTrigger, TabsContent as SubTabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 // Add a helper for ordinal suffix
 function ordinal(n: number | null | undefined) {
@@ -57,6 +59,22 @@ export default function SettingsPage() {
     const [awards, setAwards] = useState<any[]>([]);
     const [loadingAwards, setLoadingAwards] = useState(true);
     const [awardError, setAwardError] = useState<string | null>(null);
+
+    // Add state for honor types
+    const [honorTypes, setHonorTypes] = useState<any[]>([]);
+    const [loadingHonorTypes, setLoadingHonorTypes] = useState(true);
+    const [honorTypeError, setHonorTypeError] = useState<string | null>(null);
+
+    const [editItem, setEditItem] = useState<any | null>(null);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editForm, setEditForm] = useState<any>({});
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
+
+    const [addModalOpen, setAddModalOpen] = useState(false);
+    const [addForm, setAddForm] = useState<any>({ type: '', name: '', description: '', side: 'none', conference_id: 'none' });
+    const [adding, setAdding] = useState(false);
+    const [addError, setAddError] = useState<string | null>(null);
 
     useEffect(() => {
         setLoadingTeams(true);
@@ -113,6 +131,15 @@ export default function SettingsPage() {
         fetchAllSeasonData();
     }, [setSeasons])
 
+    useEffect(() => {
+        // Fetch honor types
+        setLoadingHonorTypes(true);
+        fetchHonorTypes()
+            .then(setHonorTypes)
+            .catch(e => setHonorTypeError(e.message))
+            .finally(() => setLoadingHonorTypes(false));
+    }, []);
+
     const handleChange = async (value: string) => {
         const teamId = Number(value);
         setSelectedTeam(teamId);
@@ -158,6 +185,74 @@ export default function SettingsPage() {
         setCreating(false);
       }
     }
+
+    const handleEdit = (item: any) => {
+      setEditItem(item);
+      setEditForm({
+        type: item.type,
+        name: item.name,
+        description: item.description || '',
+        side: item.side || 'none',
+        conference_id: item.conference_id ? item.conference_id.toString() : 'none',
+      });
+      setEditModalOpen(true);
+    };
+
+    const handleEditSave = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setSavingEdit(true);
+      setEditError(null);
+      try {
+        if (editItem.type === 'Award') {
+          await updateAward(editItem.award_id, {
+            name: editForm.name,
+            description: editForm.description,
+          });
+          const updatedAwards = await fetchAwards();
+          setAwards(updatedAwards);
+        } else if (editItem.type === 'Honor') {
+          await updateHonorType(editItem.honor_id, { 
+            name: editForm.name, 
+            side: editForm.side === 'none' ? undefined : editForm.side, 
+            conference_id: editForm.conference_id === 'none' ? undefined : Number(editForm.conference_id) 
+          });
+          const updatedHonorTypes = await fetchHonorTypes();
+          setHonorTypes(updatedHonorTypes);
+        }
+        setEditModalOpen(false);
+      } catch (err: any) {
+        setEditError(err.message || 'Failed to update.');
+      } finally {
+        setSavingEdit(false);
+      }
+    };
+
+    const handleAdd = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setAdding(true);
+      setAddError(null);
+      try {
+        if (addForm.type === 'Award') {
+          await createAward({ name: addForm.name, description: addForm.description });
+          const updatedAwards = await fetchAwards();
+          setAwards(updatedAwards);
+        } else if (addForm.type === 'Honor') {
+          await createHonorType({ 
+            name: addForm.name, 
+            side: addForm.side === 'none' ? undefined : addForm.side, 
+            conference_id: addForm.conference_id === 'none' ? undefined : Number(addForm.conference_id) 
+          });
+          const updatedHonorTypes = await fetchHonorTypes();
+          setHonorTypes(updatedHonorTypes);
+        }
+        setAddModalOpen(false);
+        setAddForm({ type: '', name: '', description: '', side: 'none', conference_id: 'none' });
+      } catch (err: any) {
+        setAddError(err.message || 'Failed to add.');
+      } finally {
+        setAdding(false);
+      }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -306,44 +401,109 @@ export default function SettingsPage() {
                     </TabsContent>
 
                     <TabsContent value="awards" className="space-y-6">
-                        {loadingAwards ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="flex items-center gap-2 text-gray-500">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                    Loading awards...
-                                </div>
-                            </div>
-                        ) : awardError ? (
-                            <Card className="border-red-200 bg-red-50">
-                                <CardContent className="pt-6">
-                                    <div className="flex items-center gap-2 text-red-700">
-                                        <AlertCircle className="h-5 w-5" />
-                                        Error: {awardError}
+                        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-xl">
+                                    <Trophy className="h-5 w-5 text-yellow-600" />
+                                    Manage Awards & Honors
+                                </CardTitle>
+                                <p className="text-gray-600 text-sm">Create, edit, and delete awards and honor types (e.g., All-American, Player of the Week)</p>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="flex justify-end mb-2">
+                                        <Button onClick={() => setAddModalOpen(true)} variant="default">+ Add Award/Honor</Button>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="space-y-6">
-                                {/* Awards Management */}
-                                <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-xl">
-                                            <Trophy className="h-5 w-5 text-yellow-600" />
-                                            Manage Awards
-                                        </CardTitle>
-                                        <p className="text-gray-600 text-sm">Create, edit, and delete awards that can be given to players</p>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-4">
-                                            {awards.map((award) => (
-                                                <AwardEditCard key={award.award_id} award={award} onUpdate={setAwards} />
-                                            ))}
-                                            <AddAwardCard onAdd={setAwards} />
+                                    {/* Combined list of awards and honors */}
+                                    {[...awards.map(a => ({ ...a, type: 'Award' })), ...honorTypes.map(h => ({ ...h, type: 'Honor' }))]
+                                      .sort((a, b) => a.name.localeCompare(b.name))
+                                      .map((item: any) => (
+                                        <div key={item.award_id || item.honor_id} className="flex items-center gap-4 p-2 border rounded">
+                                          <div className="flex-1">
+                                            <div className="font-medium flex items-center gap-2">
+                                              <span>{item.name}</span>
+                                              <Badge className={item.type === 'Award' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}>{item.type}</Badge>
+                                            </div>
+                                            {item.type === 'Honor' && (
+                                              <div className="text-sm text-gray-500">Side: {item.side || 'N/A'} | Conference: {item.conference_id || 'N/A'}</div>
+                                            )}
+                                            {item.type === 'Award' && (
+                                              <div className="text-sm text-gray-500">{item.description}</div>
+                                            )}
+                                          </div>
+                                          <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>Edit</Button>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
+                                      ))}
+                                    {/* Add Award/Honor Modal */}
+                                    <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+                                        <DialogContent className="max-w-lg w-full">
+                                            <DialogHeader>
+                                                <DialogTitle>Add Award or Honor</DialogTitle>
+                                            </DialogHeader>
+                                            <form onSubmit={handleAdd} className="space-y-4">
+                                                <div>
+                                                    <label className="block mb-1 font-medium">Type</label>
+                                                    <Select value={addForm.type} onValueChange={v => setAddForm((f: any) => ({ ...f, type: v }))} required>
+                                                        <SelectTrigger className="w-full">
+                                                            <SelectValue placeholder="Type" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Award">Award</SelectItem>
+                                                            <SelectItem value="Honor">Honor</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div>
+                                                    <label className="block mb-1 font-medium">Name</label>
+                                                    <Input value={addForm.name} onChange={e => setAddForm((f: any) => ({ ...f, name: e.target.value }))} required />
+                                                </div>
+                                                {addForm.type === 'Award' && (
+                                                    <div>
+                                                        <label className="block mb-1 font-medium">Description</label>
+                                                        <Input value={addForm.description} onChange={e => setAddForm((f: any) => ({ ...f, description: e.target.value }))} />
+                                                    </div>
+                                                )}
+                                                {addForm.type === 'Honor' && (
+                                                    <>
+                                                        <div>
+                                                            <label className="block mb-1 font-medium">Side</label>
+                                                            <Select value={addForm.side} onValueChange={v => setAddForm((f: any) => ({ ...f, side: v }))}>
+                                                                <SelectTrigger className="w-full">
+                                                                    <SelectValue placeholder="Side" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">None</SelectItem>
+                                                                    <SelectItem value="offense">Offense</SelectItem>
+                                                                    <SelectItem value="defense">Defense</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block mb-1 font-medium">Conference</label>
+                                                            <Select value={addForm.conference_id} onValueChange={v => setAddForm((f: any) => ({ ...f, conference_id: v }))}>
+                                                                <SelectTrigger className="w-full">
+                                                                    <SelectValue placeholder="Conference" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="none">None</SelectItem>
+                                                                    {conferences.map((conf: any) => (
+                                                                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>{conf.name}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                    </>
+                                                )}
+                                                {addError && <div className="text-red-500 text-sm">{addError}</div>}
+                                                <DialogFooter>
+                                                    <Button type="submit" disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
+                                                </DialogFooter>
+                                            </form>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="seasons" className="space-y-6">
@@ -419,6 +579,60 @@ export default function SettingsPage() {
                     </TabsContent>
                 </Tabs>
             </div>
+            <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+                <DialogContent className="max-w-lg w-full">
+                    <DialogHeader>
+                        <DialogTitle>Edit {editItem?.type}</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSave} className="space-y-4">
+                        <div>
+                            <label className="block mb-1 font-medium">Name</label>
+                            <Input value={editForm.name} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))} required />
+                        </div>
+                        {editItem?.type === 'Award' && (
+                            <div>
+                                <label className="block mb-1 font-medium">Description</label>
+                                <Input value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))} />
+                            </div>
+                        )}
+                        {editItem?.type === 'Honor' && (
+                            <>
+                                <div>
+                                    <label className="block mb-1 font-medium">Side</label>
+                                    <Select value={editForm.side} onValueChange={v => setEditForm((f: any) => ({ ...f, side: v }))}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Side" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            <SelectItem value="offense">Offense</SelectItem>
+                                            <SelectItem value="defense">Defense</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <label className="block mb-1 font-medium">Conference</label>
+                                    <Select value={editForm.conference_id} onValueChange={v => setEditForm((f: any) => ({ ...f, conference_id: v }))}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Conference" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">None</SelectItem>
+                                            {conferences.map((conf: any) => (
+                                                <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>{conf.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </>
+                        )}
+                        {editError && <div className="text-red-500 text-sm">{editError}</div>}
+                        <DialogFooter>
+                            <Button type="submit" disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save Changes'}</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -826,261 +1040,5 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
                 </div>
             </CardContent>
         </Card>
-    );
-}
-
-function AwardEditCard({ award, onUpdate }: { award: any, onUpdate: (awards: any[]) => void }) {
-    const [editAward, setEditAward] = React.useState({ ...award });
-    const [saving, setSaving] = React.useState(false);
-    const [deleting, setDeleting] = React.useState(false);
-    const [success, setSuccess] = React.useState<string | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setEditAward({ ...editAward, [name]: value });
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        setSuccess(null);
-        setError(null);
-        try {
-            await updateAward(editAward.award_id, {
-                name: editAward.name,
-                description: editAward.description
-            });
-            setSuccess('Award updated successfully!');
-            // Refresh the awards list
-            const updatedAwards = await fetchAwards();
-            onUpdate(updatedAwards);
-        } catch (err: any) {
-            setError('Failed to update award.');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!window.confirm(`Are you sure you want to delete the award "${editAward.name}"? This cannot be undone.`)) {
-            return;
-        }
-        setDeleting(true);
-        setSuccess(null);
-        setError(null);
-        try {
-            await deleteAward(editAward.award_id);
-            setSuccess('Award deleted successfully!');
-            // Refresh the awards list
-            const updatedAwards = await fetchAwards();
-            onUpdate(updatedAwards);
-        } catch (err: any) {
-            setError('Failed to delete award.');
-        } finally {
-            setDeleting(false);
-        }
-    };
-
-    return (
-        <div className="border border-gray-200 rounded-lg p-4 bg-white/50 backdrop-blur-sm hover:shadow-md transition-all">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Trophy className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{editAward.name}</h3>
-                    <p className="text-sm text-gray-600">Award ID: {editAward.award_id}</p>
-                </div>
-            </div>
-            
-            <div className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor={`award-name-${editAward.award_id}`}>Award Name</Label>
-                    <Input
-                        id={`award-name-${editAward.award_id}`}
-                        name="name"
-                        value={editAward.name || ''}
-                        onChange={handleChange}
-                        placeholder="Enter award name"
-                    />
-                </div>
-                
-                <div className="space-y-2">
-                    <Label htmlFor={`award-description-${editAward.award_id}`}>Description</Label>
-                    <textarea
-                        id={`award-description-${editAward.award_id}`}
-                        name="description"
-                        value={editAward.description || ''}
-                        onChange={handleChange}
-                        placeholder="Enter award description"
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                </div>
-            </div>
-            
-            <div className="flex items-center gap-3 mt-4">
-                <Button 
-                    onClick={handleSave} 
-                    disabled={saving || deleting}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                >
-                    {saving ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
-                        </>
-                    ) : (
-                        <>
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Save Changes
-                        </>
-                    )}
-                </Button>
-                
-                <Button 
-                    onClick={handleDelete} 
-                    disabled={saving || deleting}
-                    variant="destructive"
-                    size="sm"
-                >
-                    {deleting ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Deleting...
-                        </>
-                    ) : (
-                        <>
-                            <AlertCircle className="h-4 w-4 mr-2" />
-                            Delete Award
-                        </>
-                    )}
-                </Button>
-                
-                {success && (
-                    <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle className="h-4 w-4" />
-                        {success}
-                    </div>
-                )}
-                {error && (
-                    <div className="flex items-center gap-2 text-red-600">
-                        <AlertCircle className="h-4 w-4" />
-                        {error}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function AddAwardCard({ onAdd }: { onAdd: (awards: any[]) => void }) {
-    const [newAward, setNewAward] = React.useState({ name: '', description: '' });
-    const [creating, setCreating] = React.useState(false);
-    const [success, setSuccess] = React.useState<string | null>(null);
-    const [error, setError] = React.useState<string | null>(null);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setNewAward({ ...newAward, [name]: value });
-    };
-
-    const handleCreate = async () => {
-        if (!newAward.name.trim()) {
-            setError('Award name is required.');
-            return;
-        }
-        
-        setCreating(true);
-        setSuccess(null);
-        setError(null);
-        try {
-            await createAward({
-                name: newAward.name.trim(),
-                description: newAward.description.trim() || undefined
-            });
-            setSuccess('Award created successfully!');
-            setNewAward({ name: '', description: '' });
-            // Refresh the awards list
-            const updatedAwards = await fetchAwards();
-            onAdd(updatedAwards);
-        } catch (err: any) {
-            setError('Failed to create award.');
-        } finally {
-            setCreating(false);
-        }
-    };
-
-    return (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50/50 backdrop-blur-sm hover:border-gray-400 transition-all">
-            <div className="flex items-center gap-4 mb-4">
-                <div className="p-2 bg-green-100 rounded-lg">
-                    <Plus className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                    <h3 className="font-semibold text-lg">Add New Award</h3>
-                    <p className="text-sm text-gray-600">Create a new award for players</p>
-                </div>
-            </div>
-            
-            <div className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="new-award-name">Award Name</Label>
-                    <Input
-                        id="new-award-name"
-                        name="name"
-                        value={newAward.name}
-                        onChange={handleChange}
-                        placeholder="Enter award name"
-                    />
-                </div>
-                
-                <div className="space-y-2">
-                    <Label htmlFor="new-award-description">Description (Optional)</Label>
-                    <textarea
-                        id="new-award-description"
-                        name="description"
-                        value={newAward.description}
-                        onChange={handleChange}
-                        placeholder="Enter award description"
-                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                </div>
-            </div>
-            
-            <div className="flex items-center gap-3 mt-4">
-                <Button 
-                    onClick={handleCreate} 
-                    disabled={creating || !newAward.name.trim()}
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700"
-                >
-                    {creating ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Creating...
-                        </>
-                    ) : (
-                        <>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Award
-                        </>
-                    )}
-                </Button>
-                
-                {success && (
-                    <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle className="h-4 w-4" />
-                        {success}
-                    </div>
-                )}
-                {error && (
-                    <div className="flex items-center gap-2 text-red-600">
-                        <AlertCircle className="h-4 w-4" />
-                        {error}
-                    </div>
-                )}
-            </div>
-        </div>
     );
 } 
