@@ -155,7 +155,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card rounded-lg p-8 w-full max-w-2xl mx-4 shadow-xl">
+      <div className="bg-card rounded-lg p-lg w-full max-w-2xl mx-4 shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Add New High School Recruit</h2>
           <Button 
@@ -212,7 +212,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
                       const event = { target: { name: 'recruit_stars', value: i + 1 } } as React.ChangeEvent<HTMLInputElement>;
                       onFormChange(event);
                     }} aria-label={`Set ${i + 1} stars`}>
-                      <Star className={`h-5 w-5 ${i < (form.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                      <Star className={`h-5 w-5 ${i < (form.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
                     </button>
                   ))}
                 </div>
@@ -291,7 +291,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
               </Popover>
             </div>
           </div>
-          {error && <p className="text-red-500 text-sm mt-4 mb-0 text-center">{error}</p>}
+          {error && <p className="text-destructive text-sm mt-4 mb-0 text-center">{error}</p>}
           <div className="flex gap-4 pt-4">
             <Button type="submit" disabled={loading} className="flex-1 text-base h-12">
               {loading ? "Adding..." : "Add Recruit"}

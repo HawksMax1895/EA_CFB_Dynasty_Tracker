@@ -238,7 +238,7 @@ export default function PlayerProfilePage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Loading player profile...</p>
@@ -246,304 +246,372 @@ export default function PlayerProfilePage() {
     </div>
   );
   if (error) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="text-red-500 text-6xl mb-4">⚠️</div>
         <p className="text-red-500 text-lg">Error: {error}</p>
       </div>
     </div>
   );
-  if (!player || !career) return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+  if (!player) return (
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="text-gray-500 text-6xl mb-4">👤</div>
-        <p className="text-gray-500 text-lg">Player not found.</p>
+        <p className="text-gray-500 text-lg">Player not found</p>
       </div>
     </div>
   );
 
-  const statColumns = getStatColumns(player.position);
   const positionStyle = getPositionStyle(player.position);
   const ratingColor = getRatingColor(player.ovr_rating || 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-      <div className="container mx-auto px-4 py-8">
-        <Button
-          variant="outline"
-          className="mb-6 group hover:bg-blue-50 hover:border-blue-300 transition-colors"
-          onClick={() => router.push('/players')}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-          Back to Roster
-        </Button>
+    <>
+      {/* Standardized Header */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.back()}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Roster
+          </Button>
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">{player.name}</h1>
+            <p className="text-muted-foreground text-lg">Player Profile & Career Stats</p>
+          </div>
+        </div>
+      </div>
 
-        {/* Player Header Card */}
-        <Card className="mb-8 shadow-xl border-0 bg-white/90 backdrop-blur-sm overflow-hidden">
-          <div className={`h-2 bg-gradient-to-r ${positionStyle.bg}`}></div>
-          <CardHeader className="pb-4 pt-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
-              {/* Avatar & Icon */}
-              <div className="flex-shrink-0 flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br text-white text-2xl shadow-md border-2 border-white/70 ${positionStyle.bg}">
-                {positionStyle.icon}
-              </div>
-              {/* Main Info & OVR */}
-              <div className="flex-1 flex flex-col md:flex-row md:items-center md:gap-6">
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Player Info Card */}
+        <div className="lg:col-span-1">
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <div className={`h-2 bg-gradient-to-r ${positionStyle.bg}`}></div>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-4">
+                <div className="text-4xl">{positionStyle.icon}</div>
                 <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                    <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 mr-2 mb-0">{player.name}</CardTitle>
-                    <Badge variant="outline" className={`${positionStyle.color} border-current text-base px-2 py-0.5`}>{player.position}</Badge>
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-base px-2 py-0.5">{player.class}</Badge>
-                    {player.dev_trait && !editingProfile && (
-                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-base px-2 py-0.5">{player.dev_trait}</Badge>
-                    )}
-                    {editingProfile && (
-                      <Select value={profileEdits.dev_trait} onValueChange={v => handleProfileChange('dev_trait', v)}>
-                        <SelectTrigger className="w-32 h-8">
-                          <SelectValue placeholder="Dev Trait" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {devTraits.map(trait => (
-                            <SelectItem key={trait.value} value={trait.value}>{trait.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                  {/* Bio Row */}
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-2 text-sm text-gray-600">
-                    {!editingProfile && player.height && (
-                      <span className="flex items-center gap-1"><User className="h-4 w-4 text-blue-500" /><span>Height: {player.height}</span></span>
-                    )}
-                    {editingProfile && (
-                      <span className="flex items-center gap-1">
-                        <User className="h-4 w-4 text-blue-500" />
-                        <span>Height:</span>
-                        <Input className="w-16 h-6 text-sm" value={feet} onChange={e => handleHeightChange('feet', e.target.value)} placeholder="Feet" type="number" min="4" max="7" />
-                        <span className="ml-1 mr-2">ft</span>
-                        <Input className="w-16 h-6 text-sm" value={inches} onChange={e => handleHeightChange('inches', e.target.value)} placeholder="Inches" type="number" min="0" max="11" />
-                        <span className="ml-1">in</span>
-                      </span>
-                    )}
-                    {!editingProfile && player.weight && (
-                      <span className="flex items-center gap-1"><Target className="h-4 w-4 text-green-500" /><span>Weight: {player.weight} lbs</span></span>
-                    )}
-                    {editingProfile && (
-                      <span className="flex items-center gap-1">
-                        <Target className="h-4 w-4 text-green-500" />
-                        <span>Weight: </span>
-                        <Input className="w-16 h-6 text-sm" value={profileEdits.weight} onChange={e => handleProfileChange('weight', e.target.value)} placeholder="Weight" type="number" />
-                        <span>lbs</span>
-                      </span>
-                    )}
-                    {player.state && (
-                      <span className="flex items-center gap-1"><Shield className="h-4 w-4 text-purple-500" /><span>State: {player.state}</span></span>
-                    )}
-                    {player.recruit_stars && (
-                      <span className="flex items-center gap-1"><Star className="h-4 w-4 text-yellow-500" /><span>Recruit: {player.recruit_stars}★</span></span>
+                  <CardTitle className="text-2xl font-bold text-gray-900">{player.name}</CardTitle>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline" className={`${positionStyle.color} border-current`}>
+                      {player.position}
+                    </Badge>
+                    <Badge variant="secondary" className="bg-gray-100 text-gray-700">
+                      {player.current_year}{player.redshirted ? ' (RS)' : ''}
+                    </Badge>
+                    {player.dev_trait && (
+                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                        {player.dev_trait}
+                      </Badge>
                     )}
                   </div>
                 </div>
-                {/* OVR Rating */}
-                <div className="flex flex-col items-start md:items-center justify-center min-w-[90px] md:pl-4 mt-2 md:mt-0">
-                  <div className="flex items-center gap-1 mb-0.5">
-                    <TrendingUp className="h-5 w-5 text-blue-500" />
-                    <span className={`text-3xl md:text-4xl font-bold ${ratingColor}`}>{player.ovr_rating ?? '-'}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
+              </div>
+              
+              {/* Overall Rating */}
+              <div className="mt-4 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <TrendingUp className="h-6 w-6 text-blue-500" />
+                  <span className={`text-4xl font-bold ${ratingColor}`}>
+                    {player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}
+                  </span>
                 </div>
+                <span className="text-sm text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
               </div>
-              {/* Edit/Save/Cancel Buttons */}
-              <div className="flex flex-col gap-2 ml-4">
-                {!editingProfile && (
-                  <Button size="sm" variant="outline" onClick={handleEditProfile}>Edit</Button>
+
+              {/* Player Details */}
+              <div className="grid grid-cols-2 gap-4 mt-4 text-sm text-gray-600">
+                {player.height && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span>{player.height}</span>
+                  </div>
                 )}
-                {editingProfile && (
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save'}</Button>
-                    <Button size="sm" variant="outline" onClick={handleCancelProfile}>Cancel</Button>
+                {player.weight && (
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    <span>{player.weight} lbs</span>
+                  </div>
+                )}
+                {player.recruit_stars && (
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    <span>{player.recruit_stars}★</span>
+                  </div>
+                )}
+                {player.state && (
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    <span>{player.state}</span>
                   </div>
                 )}
               </div>
-            </div>
-          </CardHeader>
-          <hr className="border-t border-gray-200 mx-6" />
-          <CardContent className="pt-4 pb-2">
-            <div className="space-y-4">
-              {/* Awards Section */}
-              <div>
-                <h3 className="font-semibold mb-3 text-base flex items-center gap-2 text-gray-800">
-                  <Trophy className="h-4 w-4 text-yellow-500" />
+
+              {/* Edit Profile Button */}
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleEditProfile}
+                  className="w-full"
+                  disabled={editingProfile}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Awards & Honors */}
+          <div className="mt-6 space-y-6">
+            {/* Awards */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-yellow-500" />
                   Awards
-                </h3>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 {awardsLoading ? (
-                  <p className="text-gray-500 italic text-sm">Loading awards...</p>
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  </div>
                 ) : playerAwards.length > 0 ? (
                   <div className="space-y-2">
-                    {playerAwards.map((award, index) => (
-                      <div key={award.award_winner_id} className="flex items-center justify-between p-2 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <div className="flex-1">
-                          <div className="font-medium text-yellow-800">{award.award_name}</div>
-                          <div className="text-xs text-yellow-600">
-                            {award.team_name} • {award.season_year}
-                          </div>
-                        </div>
+                    {playerAwards.map((award, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg">
+                        <Trophy className="h-4 w-4 text-yellow-500" />
+                        <span className="text-sm font-medium">{award.award_name}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {award.season_year}
+                        </Badge>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 italic text-sm">No awards yet</p>
+                  <p className="text-muted-foreground text-sm">No awards yet</p>
                 )}
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Honors Section */}
-              <div>
-                <h3 className="font-semibold mb-3 text-base flex items-center gap-2 text-gray-800">
-                  <Award className="h-4 w-4 text-purple-500" />
+            {/* Honors */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-purple-500" />
                   Honors
-                </h3>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 {honorsLoading ? (
-                  <p className="text-gray-500 italic text-sm">Loading honors...</p>
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  </div>
                 ) : playerHonors.length > 0 ? (
                   <div className="space-y-2">
-                    {playerHonors.map((honor, index) => (
-                      <div key={honor.honor_winner_id} className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200">
-                        <div className="flex-1">
-                          <div className="font-medium text-purple-800">{honor.honor_name}</div>
-                          <div className="text-xs text-purple-600">
-                            {honor.team_name} • {honor.season_year}
-                            {honor.week && ` • Week ${honor.week}`}
-                            {honor.honor_side && ` • ${honor.honor_side}`}
-                          </div>
-                        </div>
+                    {playerHonors.map((honor, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
+                        <Star className="h-4 w-4 text-purple-500" />
+                        <span className="text-sm font-medium">{honor.honor_name}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs">
+                          {honor.season_year}
+                        </Badge>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 italic text-sm">No honors yet</p>
+                  <p className="text-muted-foreground text-sm">No honors yet</p>
                 )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
-        {/* Career Stats Card */}
-        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-3 text-gray-900">
-              <BarChart3 className="h-6 w-6 text-blue-500" />
-              Season-by-Season Stats
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <div className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-gray-50 to-gray-100">
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Season</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Team</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Class</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">OVR</th>
-                      {statColumns.map(col => (
-                        <th key={col.key} className="px-4 py-3 text-left font-semibold text-gray-700">{col.label}</th>
-                      ))}
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {career.seasons.map((s: any, i: number) => (
-                      <tr key={i} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-gray-900">{s.season_year || s.season_id}</td>
-                        <td className="px-4 py-3 text-gray-700">{s.team_name || s.team_id}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className="text-xs">
-                            {s.class}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {editingSeason === s.season_id ? (
-                            <Input
-                              type="number"
-                              value={editingStats.ovr_rating || ''}
-                              onChange={(e) => handleStatChange('ovr_rating', e.target.value)}
-                              className="w-16 h-8 text-sm"
-                            />
+        {/* Career Stats */}
+        <div className="lg:col-span-2">
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-500" />
+                Career Statistics
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {career && career.seasons && career.seasons.length > 0 ? (
+                <div className="space-y-4">
+                  {career.seasons.map((season: any, idx: number) => {
+                    const isEditing = editingSeason === season.season_id;
+                    const statColumns = getStatColumns(player.position);
+                    
+                    return (
+                      <div key={season.season_id || idx} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold">{season.season_year} Season</h3>
+                          {!isEditing ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditSeason(season)}
+                            >
+                              Edit Stats
+                            </Button>
                           ) : (
-                            <span className={`font-bold ${getRatingColor(s.ovr_rating || 0)}`}>
-                              {s.ovr_rating}
-                            </span>
-                          )}
-                        </td>
-                        {statColumns.map(col => (
-                          <td key={col.key} className="px-4 py-3 text-gray-700">
-                            {editingSeason === s.season_id ? (
-                              <Input
-                                type="number"
-                                value={editingStats[col.key] || ''}
-                                onChange={(e) => handleStatChange(col.key, e.target.value)}
-                                className="w-16 h-8 text-sm"
-                              />
-                            ) : (
-                              s[col.key] ?? '-'
-                            )}
-                          </td>
-                        ))}
-                        <td className="px-4 py-3">
-                          {editingSeason === s.season_id ? (
-                            <div className="flex gap-1">
+                            <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 onClick={handleSaveStats}
                                 disabled={saving}
-                                className="h-6 px-2"
                               >
-                                {saving ? 'Saving...' : <Save className="h-3 w-3" />}
+                                {saving ? 'Saving...' : 'Save'}
                               </Button>
                               <Button
-                                size="sm"
                                 variant="outline"
+                                size="sm"
                                 onClick={handleCancelEdit}
-                                className="h-6 px-2"
                               >
-                                <X className="h-3 w-3" />
+                                Cancel
                               </Button>
                             </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditSeason(s)}
-                              className="h-6 px-2"
-                            >
-                              Edit
-                            </Button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                    {/* Career Totals Row */}
-                    <tr className="bg-gradient-to-r from-blue-50 to-blue-100 font-bold border-t-2 border-blue-200">
-                      <td className="px-4 py-3 text-blue-900" colSpan={4}>Career Totals</td>
-                      {statColumns.map(col => (
-                        <td key={col.key} className="px-4 py-3 text-blue-900">
-                          {career.career_totals[col.key] ?? '-'}
-                        </td>
-                      ))}
-                      <td className="px-4 py-3 text-blue-900"></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                          {statColumns.map((stat) => (
+                            <div key={stat.key} className="text-center">
+                              <div className="text-xs text-muted-foreground mb-1">{stat.label}</div>
+                              {isEditing ? (
+                                <Input
+                                  type="number"
+                                  value={editingStats[stat.key] || ''}
+                                  onChange={(e) => handleStatChange(stat.key, e.target.value)}
+                                  className="text-center h-8 text-sm"
+                                />
+                              ) : (
+                                <div className="font-semibold">
+                                  {season[stat.key] !== null && season[stat.key] !== undefined 
+                                    ? season[stat.key] 
+                                    : '-'}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-muted-foreground">No career statistics available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Rating Development Chart */}
-        <div className="mt-8">
-          <PlayerRatingChart playerId={parseInt(playerId as string)} />
+          {/* Rating Chart */}
+          <div className="mt-6">
+            <PlayerRatingChart playerId={parseInt(playerId as string)} />
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Edit Profile Modal */}
+      {editingProfile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Edit Player Profile</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancelProfile}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Height</label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    type="number"
+                    min="4"
+                    max="7"
+                    value={(profileEdits.height?.match(/(\d+)'/)?.[1] || '')}
+                    onChange={(e) => handleHeightChange('feet', e.target.value)}
+                    placeholder="Feet"
+                    className="w-20"
+                  />
+                  <span>ft</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="11"
+                    value={(profileEdits.height?.match(/(\d+)'(\d+)?/)?.[2] || '')}
+                    onChange={(e) => handleHeightChange('inches', e.target.value)}
+                    placeholder="Inches"
+                    className="w-20"
+                  />
+                  <span>in</span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Weight (lbs)</label>
+                <Input
+                  type="number"
+                  value={profileEdits.weight || ''}
+                  onChange={(e) => handleProfileChange('weight', e.target.value)}
+                  placeholder="Weight"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Development Trait</label>
+                <Select
+                  value={profileEdits.dev_trait || ''}
+                  onValueChange={(value) => handleProfileChange('dev_trait', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select trait" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {devTraits.map(trait => (
+                      <SelectItem key={trait.value} value={trait.value}>
+                        {trait.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <Button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="flex-1"
+              >
+                {savingProfile ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCancelProfile}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

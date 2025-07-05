@@ -28,8 +28,22 @@ export default function Dashboard() {
       })
   }, [selectedSeason])
 
-  if (loading) return <div className="p-8">Loading dashboard...</div>
-  if (error) return <div className="p-8 text-red-500">Error: {error}</div>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
+    </div>
+  )
+  if (error) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-destructive text-6xl mb-4">⚠️</div>
+        <p className="text-destructive text-lg">Error: {error}</p>
+      </div>
+    </div>
+  )
 
   // Fallbacks for missing data
   const season = data?.season || {}
@@ -38,90 +52,87 @@ export default function Dashboard() {
   const recent = data?.recent_activity || []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">College Football Dynasty</h1>
-            <p className="text-gray-600">Track your dynasty progress, players, and achievements</p>
-          </div>
-          <SeasonSelector />
+    <>
+      {/* Standardized Header */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold text-foreground">College Football Dynasty</h1>
+          <p className="text-muted-foreground text-lg">Track your dynasty progress, players, and achievements</p>
         </div>
+      </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Current Season</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{team.current_season_record ?? "-"}</div>
-              <p className="text-xs text-muted-foreground">Conf: {team.current_season_conference_record ?? "-"}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">All-Time Record</CardTitle>
-              <Trophy className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{team.record ?? "-"}</div>
-              <p className="text-xs text-muted-foreground">Conf: {team.conference_record ?? "-"}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Team Prestige</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{team.national_ranking ? `#${team.national_ranking}` : '-'}</div>
-              <p className="text-xs text-muted-foreground">{team.conference_position ? `${team.conference_position}${team.conference_position === 1 ? 'st' : team.conference_position === 2 ? 'nd' : team.conference_position === 3 ? 'rd' : 'th'} in Conference` : '-'}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Commits</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{team.recruiting_commits ?? "-"}</div>
-              <p className="text-xs text-muted-foreground">Recruiting Rank {team.recruiting_rank ?? "-"}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="border-0 shadow-md bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-foreground">Current Season</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recent.length === 0 && <div className="text-muted-foreground">No recent activity.</div>}
-              {recent.map((item: any, idx: number) => (
-                <div className="flex items-center justify-between" key={idx}>
-                  <div>
-                    <p className="font-medium">{item.title}</p>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  </div>
-                  <Badge variant="secondary">{item.time_ago}</Badge>
-                </div>
-              ))}
-            </div>
+            <div className="text-2xl font-bold text-foreground">{team.current_season_record ?? "-"}</div>
+            <p className="text-xs text-muted-foreground">Conf: {team.current_season_conference_record ?? "-"}</p>
           </CardContent>
         </Card>
 
-        {/* Wins Chart */}
-        <div className="mt-8">
-          <WinsChart />
-        </div>
+        <Card className="border-0 shadow-md bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-foreground">All-Time Record</CardTitle>
+            <Trophy className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">{team.record ?? "-"}</div>
+            <p className="text-xs text-muted-foreground">Conf: {team.conference_record ?? "-"}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-md bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-foreground">Team Prestige</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">{team.national_ranking ? `#${team.national_ranking}` : '#NR'}</div>
+            <p className="text-xs text-muted-foreground">{team.conference_position ? `${team.conference_position}${team.conference_position === 1 ? 'st' : team.conference_position === 2 ? 'nd' : team.conference_position === 3 ? 'rd' : 'th'} in Conference` : '-'}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-md bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-foreground">Commits</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">{team.recruiting_commits ?? "-"}</div>
+            <p className="text-xs text-muted-foreground">Recruiting Rank {team.recruiting_rank ?? "-"}</p>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+
+      {/* Schedule (was Recent Activity) */}
+      <Card className="border-0 shadow-md bg-card">
+        <CardHeader>
+          <CardTitle className="text-foreground">Schedule</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {recent.length === 0 && <div className="text-muted-foreground">No recent activity.</div>}
+            {recent.map((item: any, idx: number) => (
+              <div className="flex items-center justify-between" key={idx}>
+                <div>
+                  <p className="font-medium text-foreground">{item.title}</p>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                </div>
+                <Badge variant="secondary">{item.time_ago}</Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Wins Chart */}
+      <div className="mt-8">
+        <WinsChart />
+      </div>
+    </>
   )
 }

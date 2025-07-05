@@ -8,6 +8,7 @@ import { Home, Calendar, Users, Trophy, Award, TrendingUp, Target, Menu, X, Cog 
 import { useState } from "react"
 import { SeasonSelector } from "./SeasonSelector"
 import { useSeason } from "@/context/SeasonContext"
+import { ThemeToggle } from "./theme-toggle"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -40,8 +41,19 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href={getSeasonHref("/")} className="text-xl font-bold text-foreground">
-              {userTeam ? userTeam.team_name : "CFB Dynasty"}
+            <Link href={getSeasonHref("/")} className="flex items-center gap-3">
+              {userTeam?.logo_url && (
+                <img
+                  src={userTeam.logo_url}
+                  alt={userTeam.team_name}
+                  className="h-8 w-8 rounded object-cover border border-muted"
+                  style={{ minWidth: 32, minHeight: 32 }}
+                />
+              )}
+              <span className="text-2xl font-bold text-foreground leading-tight">CFB Dynasty</span>
+              {userTeam?.team_name && (
+                <span className="ml-2 text-base text-muted-foreground font-normal hidden sm:inline">({userTeam.team_name})</span>
+              )}
             </Link>
           </div>
 
@@ -67,11 +79,13 @@ export function Navigation() {
             })}
           </div>
           <div className="hidden md:flex items-center space-x-4">
+            <ThemeToggle />
             <SeasonSelector />
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
+            <ThemeToggle />
             <SeasonSelector />
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}

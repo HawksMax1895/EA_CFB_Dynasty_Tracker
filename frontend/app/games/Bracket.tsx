@@ -270,7 +270,7 @@ const Bracket = ({ seasonId }: BracketProps) => {
   if (error) {
     return (
       <div className="text-center py-8">
-        <div className="text-red-600 mb-4">{error}</div>
+        <div className="text-destructive mb-4">{error}</div>
         <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
@@ -279,19 +279,19 @@ const Bracket = ({ seasonId }: BracketProps) => {
   return (
     <div className="space-y-6">
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+        <div className="bg-success/20 border border-success/40 text-success px-4 py-3 rounded">
           {success}
         </div>
       )}
       
       {scoreError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div className="bg-destructive/20 border border-destructive/40 text-destructive px-4 py-3 rounded">
           {scoreError}
         </div>
       )}
 
       {/* Seeding Section */}
-      <Card>
+      <Card className="shadow-md">
         <CardHeader>
           <CardTitle>Seed Bracket</CardTitle>
         </CardHeader>
@@ -372,7 +372,7 @@ const ScoreInput = ({ value, onChange, onEnter, disabled }: ScoreInputProps) => 
       value={local}
       placeholder="Score"
       disabled={disabled}
-      className="w-20 text-center text-lg font-bold border-2 border-gray-300 rounded-lg px-3 py-2 focus:border-blue-500 focus:outline-none transition-colors"
+      className="w-20 text-center text-lg font-bold border-2 border-card rounded-lg px-3 py-2 focus:border-primary focus:outline-none transition-colors text-foreground bg-muted"
       onChange={(e) => {
         const v = e.target.value;
         // Accept only digits (optional empty) client-side
@@ -444,7 +444,7 @@ const BracketVisual = memo(function BracketVisual({
             <div key={round.key} className="flex flex-col gap-4">
               <div className="text-center">
                 <h3 className="font-bold text-lg mb-2">{round.title}</h3>
-                <p className="text-sm text-gray-600">Week {round.week}</p>
+                <p className="text-sm text-muted-foreground">Week {round.week}</p>
                 {roundGames.length > 0 && (
                   <Button
                     variant="outline"
@@ -463,59 +463,59 @@ const BracketVisual = memo(function BracketVisual({
                   const hasScore = game.home_score !== null && game.away_score !== null;
                   const isEditing = editingGameId === game.game_id;
                   return (
-                    <div key={game.game_id} style={{ border: '1.5px solid #e0e7ef', borderRadius: 12, padding: 18, background: '#fff', minHeight: 70, boxShadow: '0 2px 8px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: 8, transition: 'box-shadow 0.2s', position: 'relative' }}>
-                      <div style={{ fontWeight: 500, marginBottom: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div key={game.game_id} className="border border-card rounded-xl p-4 bg-card min-h-[var(--size-17_5)] flex flex-col gap-2 transition-shadow relative shadow-sm">
+                      <div className="font-medium mb-1 flex flex-col gap-1">
+                        <span className="flex items-center gap-1">
                           <Badge variant="secondary" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, padding: '2px 8px' }}>
                             {home ? (selectedTeams.findIndex((id) => id === home.team_id) !== -1 ? (selectedTeams.findIndex((id) => id === home.team_id) + 1) : '-') : '-'}
                           </Badge>
                           {home ? (
                             <>
                               {home.team_name}
-                              <span style={{ marginLeft: 4, color: '#888', fontSize: 13 }}>
+                              <span className="ml-1 text-muted-foreground text-xs">
                                 {home.final_rank && home.final_rank >= 1 && home.final_rank <= 25 ? `#${home.final_rank}` : '#NR'}
                               </span>
                             </>
                           ) : (
-                            <span>TBD</span>
+                            <span className="text-muted-foreground">TBD</span>
                           )}
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className="flex items-center gap-1">
                           <Badge variant="secondary" style={{ minWidth: 28, textAlign: 'center', fontSize: 13, padding: '2px 8px' }}>
                             {away ? (selectedTeams.findIndex((id) => id === away.team_id) !== -1 ? (selectedTeams.findIndex((id) => id === away.team_id) + 1) : '-') : '-'}
                           </Badge>
                           {away ? (
                             <>
                               {away.team_name}
-                              <span style={{ marginLeft: 4, color: '#888', fontSize: 13 }}>
+                              <span className="ml-1 text-muted-foreground text-xs">
                                 {away.final_rank && away.final_rank >= 1 && away.final_rank <= 25 ? `#${away.final_rank}` : '#NR'}
                               </span>
                             </>
                           ) : (
-                            <span>TBD</span>
+                            <span className="text-muted-foreground">TBD</span>
                           )}
                         </span>
                       </div>
                       {/* Score Display/Input */}
                       {hasScore && !isEditing ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, justifyContent: 'center' }}>
-                          <span style={{ fontSize: 20, fontWeight: 700 }}>{game.home_score} - {game.away_score}</span>
-                          <Button variant="ghost" size="icon" onClick={() => setEditingGameId(game.game_id)} style={{ marginLeft: 8 }} title="Edit Score">
+                        <div className="flex items-center gap-2 mt-2 justify-center">
+                          <span className="text-lg font-bold">{game.home_score} - {game.away_score}</span>
+                          <Button variant="ghost" size="icon" onClick={() => setEditingGameId(game.game_id)} className="ml-2" title="Edit Score">
                             <Pencil size={18} />
                           </Button>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, justifyContent: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ fontSize: 12, color: '#666' }}>H:</span>
+                        <div className="flex items-center gap-2 mt-2 justify-center">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">H:</span>
                             <ScoreInput
                               value={resultForms[game.game_id]?.home_score ?? ''}
                               onChange={(value) => handleScoreChange(game.game_id, 'home_score', value)}
                               disabled={savingScore === game.game_id}
                             />
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <span style={{ fontSize: 12, color: '#666' }}>A:</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">A:</span>
                             <ScoreInput
                               value={resultForms[game.game_id]?.away_score ?? ''}
                               onChange={(value) => handleScoreChange(game.game_id, 'away_score', value)}
@@ -527,7 +527,7 @@ const BracketVisual = memo(function BracketVisual({
                             size="sm"
                             onClick={() => { saveScoreAndAdvance(game, round.key, idx); setEditingGameId(null); }}
                             disabled={savingScore === game.game_id || !resultForms[game.game_id]?.home_score || !resultForms[game.game_id]?.away_score}
-                            style={{ fontSize: 12, padding: '4px 8px' }}
+                            className="text-xs px-2 py-1 ml-1"
                           >
                             {savingScore === game.game_id ? 'Saving...' : 'Save'}
                           </Button>
@@ -536,7 +536,7 @@ const BracketVisual = memo(function BracketVisual({
                               variant="ghost"
                               size="icon"
                               onClick={() => setEditingGameId(null)}
-                              style={{ marginLeft: 4 }}
+                              className="ml-1"
                               title="Cancel Edit"
                             >
                               ✕

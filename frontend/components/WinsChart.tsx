@@ -33,9 +33,9 @@ export function WinsChart() {
       });
   }, []);
 
-  if (loading) return <Card><CardContent className="p-6">Loading chart...</CardContent></Card>;
-  if (error) return <Card><CardContent className="p-6 text-red-500">Error: {error}</CardContent></Card>;
-  if (!data || data.chart_data.length === 0) return <Card><CardContent className="p-6">No data available</CardContent></Card>;
+  if (loading) return <Card><CardContent className="p-md">Loading chart...</CardContent></Card>;
+  if (error) return <Card><CardContent className="p-md text-destructive">Error: {error}</CardContent></Card>;
+  if (!data || data.chart_data.length === 0) return <Card><CardContent className="p-md">No data available</CardContent></Card>;
 
   return (
     <Card>
@@ -61,10 +61,10 @@ export function WinsChart() {
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 6px -1px hsl(var(--foreground) / 0.1)'
                 }}
                 formatter={(value: any, name: string) => [
                   value, 
@@ -74,25 +74,25 @@ export function WinsChart() {
               />
               <Bar 
                 dataKey="wins" 
-                fill="#10b981" 
+                fill="hsl(var(--success))" 
                 radius={[4, 4, 0, 0]}
               />
               <Bar 
                 dataKey="losses" 
-                fill="#ef4444" 
+                fill="hsl(var(--destructive))" 
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          <div className="flex items-center gap-4 gap-[var(--gap-4)]">
+            <div className="flex items-center gap-2 gap-[var(--gap-2)]">
+              <div className="w-3 h-3 bg-success rounded-full w-[var(--size-3)] h-[var(--size-3)]"></div>
               <span>Wins</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+            <div className="flex items-center gap-2 gap-[var(--gap-2)]">
+              <div className="w-3 h-3 bg-destructive rounded-full w-[var(--size-3)] h-[var(--size-3)]"></div>
               <span>Losses</span>
             </div>
           </div>

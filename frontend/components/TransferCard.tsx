@@ -23,7 +23,7 @@ interface TransferCardProps {
 
 export function TransferCard({ transfer, index }: TransferCardProps) {
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>

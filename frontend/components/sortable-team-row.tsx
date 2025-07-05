@@ -21,11 +21,11 @@ export default function SortableTeamRow({ team, index, children }: SortableTeamR
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+      className="flex items-center justify-between p-3 bg-card rounded-lg hover:bg-muted transition-colors"
     >
       {children}
       <button
-        className="ml-4 cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-gray-600"
+        className="ml-4 cursor-grab active:cursor-grabbing p-1 text-muted-foreground hover:text-foreground"
         type="button"
         {...attributes}
         {...listeners}

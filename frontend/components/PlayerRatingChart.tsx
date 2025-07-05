@@ -61,7 +61,7 @@ export function PlayerRatingChart({ playerId }: PlayerRatingChartProps) {
   };
 
   if (loading) return <Card><CardContent className="p-6">Loading rating development...</CardContent></Card>;
-  if (error) return <Card><CardContent className="p-6 text-red-500">Error: {error}</CardContent></Card>;
+  if (error) return <Card><CardContent className="p-6 text-destructive">Error: {error}</CardContent></Card>;
   if (!data || data.chart_data.length === 0) return <Card><CardContent className="p-6">No rating data available</CardContent></Card>;
 
   return (
@@ -88,10 +88,10 @@ export function PlayerRatingChart({ playerId }: PlayerRatingChartProps) {
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e2e8f0',
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '8px',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 4px 6px -1px hsl(var(--foreground) / 0.1)'
                 }}
                 formatter={(value: any, name: string) => [
                   value, 
@@ -102,10 +102,10 @@ export function PlayerRatingChart({ playerId }: PlayerRatingChartProps) {
               <Line 
                 type="monotone" 
                 dataKey="ovr_rating" 
-                stroke="#3b82f6" 
+                stroke="hsl(var(--primary))" 
                 strokeWidth={3}
-                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
-                activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
+                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 5 }}
+                activeDot={{ r: 7, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -113,20 +113,20 @@ export function PlayerRatingChart({ playerId }: PlayerRatingChartProps) {
         <div className="mt-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-primary rounded-full"></div>
               <span>Overall Rating</span>
             </div>
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-xs text-muted-foreground">
             {data.chart_data.map((season, index) => (
               <div key={season.season_year} className="flex items-center gap-2 mb-1">
                 <span className="font-medium">Season {season.season_year}:</span>
                 <span className={`font-bold ${season.ovr_rating >= 90 ? 'text-purple-600' : season.ovr_rating >= 80 ? 'text-blue-600' : season.ovr_rating >= 70 ? 'text-green-600' : season.ovr_rating >= 60 ? 'text-yellow-600' : 'text-gray-600'}`}>
                   {season.ovr_rating}
                 </span>
-                <span className="text-gray-400">({season.current_year})</span>
+                <span className="text-muted-foreground">({season.current_year})</span>
                 {season.redshirted && <span className="text-orange-500 text-xs">RS</span>}
-                <span className="text-gray-400">- {season.team_name}</span>
+                <span className="text-muted-foreground">- {season.team_name}</span>
               </div>
             ))}
           </div>

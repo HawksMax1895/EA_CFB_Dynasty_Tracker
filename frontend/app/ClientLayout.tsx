@@ -38,8 +38,14 @@ const AppInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const ClientLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <SeasonProvider>
     <AppInitializer>
+      <div className="flex flex-col min-h-screen bg-background">
         <Navigation />
-        <main>{children}</main>
+        <main className="flex-1 py-8">
+          <div className="container mx-auto px-4">
+            {children}
+          </div>
+        </main>
+      </div>
     </AppInitializer>
   </SeasonProvider>
 );

@@ -273,392 +273,374 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-            <div className="container mx-auto p-6">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
-                            <Settings className="h-8 w-8 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                                Settings
-                            </h1>
-                            <p className="text-gray-600 mt-1">Manage your dynasty configuration and preferences</p>
-                        </div>
-                    </div>
+        <>
+            {/* Standardized Header */}
+            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 className="text-4xl font-bold text-foreground">Settings</h1>
+                    <p className="text-muted-foreground text-lg">Manage your dynasty configuration and preferences</p>
                 </div>
+            </div>
 
-                <Tabs defaultValue="teams-conferences" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm border border-gray-200/50">
-                        <TabsTrigger value="teams-conferences" className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4" />
-                            Teams & Conferences
-                        </TabsTrigger>
-                        <TabsTrigger value="awards" className="flex items-center gap-2">
-                            <Trophy className="h-4 w-4" />
-                            Awards
-                        </TabsTrigger>
-                        <TabsTrigger value="seasons" className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Seasons
-                        </TabsTrigger>
-                    </TabsList>
+            <Tabs defaultValue="teams-conferences" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="teams-conferences">Teams & Conferences</TabsTrigger>
+                    <TabsTrigger value="awards">Awards</TabsTrigger>
+                    <TabsTrigger value="seasons">Seasons</TabsTrigger>
+                </TabsList>
 
-                    <TabsContent value="teams-conferences" className="space-y-6">
-                        {/* User Team Selection */}
-                        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                            <CardHeader className="pb-4">
-                                <CardTitle className="flex items-center gap-2 text-xl">
-                                    <Target className="h-5 w-5 text-blue-600" />
-                                    User-Controlled Team
-                                </CardTitle>
-                                <p className="text-gray-600 text-sm">Select which team you want to control in your dynasty</p>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="user-team">Your Team</Label>
-                                    {loadingTeams ? (
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Loading teams...
-                                        </div>
-                                    ) : (
-                                        <Select value={selectedTeam?.toString() || ""} onValueChange={handleChange} disabled={saving}>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select your team" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {teams.map((team) => (
-                                                    <SelectItem key={team.team_id} value={team.team_id.toString()}>
-                                                        <div className="flex items-center gap-2">
-                                                            {team.logo_url && (
-                                                                <img src={team.logo_url} alt={team.name} className="w-6 h-6 rounded" />
-                                                            )}
-                                                            {team.name}
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                    {saving && (
-                                        <div className="flex items-center gap-2 text-blue-600">
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                            Saving...
-                                        </div>
-                                    )}
-                                    {message && (
-                                        <div className={`flex items-center gap-2 p-3 rounded-lg ${
-                                            message.includes('successfully') 
-                                                ? 'bg-green-50 text-green-700 border border-green-200' 
-                                                : 'bg-red-50 text-red-700 border border-red-200'
-                                        }`}>
-                                            {message.includes('successfully') ? (
-                                                <CheckCircle className="h-4 w-4" />
-                                            ) : (
-                                                <AlertCircle className="h-4 w-4" />
-                                            )}
-                                            {message}
-                                        </div>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* Teams and Conferences Management */}
-                        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-xl">
-                                    <Building2 className="h-5 w-5 text-purple-600" />
-                                    Manage Teams & Conferences
-                                </CardTitle>
-                                <p className="text-gray-600 text-sm">Edit team information, conferences, and prestige ratings</p>
-                            </CardHeader>
-                            <CardContent>
-                                {/* Search and Filter Controls */}
-                                <div className="mb-6 space-y-4">
-                                    <div className="flex flex-col sm:flex-row gap-4">
-                                        <div className="flex-1 relative">
-                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                                            <Input
-                                                placeholder="Search teams and conferences..."
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="pl-10"
-                                            />
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                                                <SelectTrigger className="w-40">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">All</SelectItem>
-                                                    <SelectItem value="teams">Teams Only</SelectItem>
-                                                    <SelectItem value="conferences">Conferences Only</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            {filterType !== "conferences" && (
-                                                <Select value={selectedConference} onValueChange={setSelectedConference}>
-                                                    <SelectTrigger className="w-48">
-                                                        <SelectValue placeholder="Filter by conference" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="all">All Conferences</SelectItem>
-                                                        {conferences.map((conf) => (
-                                                            <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>
-                                                                {conf.name}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            )}
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Stats */}
-                                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                                        <span>Teams: {filteredTeams.length}</span>
-                                        <span>Conferences: {filteredConferences.length}</span>
-                                        {searchTerm && <span>Search: "{searchTerm}"</span>}
-                                    </div>
-                                </div>
-
+                <TabsContent value="teams-conferences" className="space-y-6">
+                    {/* User Team Selection */}
+                    <Card className="border-0 shadow-md bg-card">
+                        <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Target className="h-5 w-5 text-primary" />
+                                User-Controlled Team
+                            </CardTitle>
+                            <p className="text-muted-foreground text-sm">Select which team you want to control in your dynasty</p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="user-team">Your Team</Label>
                                 {loadingTeams ? (
-                                    <div className="flex items-center justify-center py-12">
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Loader2 className="h-6 w-6 animate-spin" />
-                                            Loading teams and conferences...
-                                        </div>
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Loading teams...
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
-                                        {/* Teams Grid */}
-                                        {(filterType === "all" || filterType === "teams") && filteredTeams.length > 0 && (
-                                            <div>
-                                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                                    <Building2 className="h-5 w-5 text-purple-600" />
-                                                    Teams ({filteredTeams.length})
-                                                </h3>
-                                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                                                    {filteredTeams.map((team) => (
-                                                        <CompactTeamCard key={team.team_id} team={team} conferences={conferences} />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Conferences Grid */}
-                                        {(filterType === "all" || filterType === "conferences") && filteredConferences.length > 0 && (
-                                            <div>
-                                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                                    <Users className="h-5 w-5 text-green-600" />
-                                                    Conferences ({filteredConferences.length})
-                                                </h3>
-                                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                                                    {filteredConferences.map((conf) => (
-                                                        <CompactConferenceCard key={conf.conference_id} conference={conf} />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* No Results */}
-                                        {((filterType === "all" && filteredTeams.length === 0 && filteredConferences.length === 0) ||
-                                          (filterType === "teams" && filteredTeams.length === 0) ||
-                                          (filterType === "conferences" && filteredConferences.length === 0)) && (
-                                            <div className="text-center py-12 text-gray-500">
-                                                <Filter className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                                                <p>No {filterType === "all" ? "teams or conferences" : filterType} found matching your search.</p>
-                                            </div>
-                                        )}
+                                    <Select value={selectedTeam?.toString() || ""} onValueChange={handleChange} disabled={saving}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select your team" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {teams.map((team) => (
+                                                <SelectItem key={team.team_id} value={team.team_id.toString()}>
+                                                    <div className="flex items-center gap-2">
+                                                        {team.logo_url && (
+                                                            <img src={team.logo_url} alt={team.name} className="w-6 h-6 rounded" />
+                                                        )}
+                                                        {team.name}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                {saving && (
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Saving...
                                     </div>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    <TabsContent value="awards" className="space-y-6">
-                        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-xl">
-                                    <Trophy className="h-5 w-5 text-yellow-600" />
-                                    Manage Awards & Honors
-                                </CardTitle>
-                                <p className="text-gray-600 text-sm">Create, edit, and delete awards and honor types (e.g., All-American, Player of the Week)</p>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    <div className="flex justify-end mb-2">
-                                        <Button onClick={() => setAddModalOpen(true)} variant="default">+ Add Award/Honor</Button>
+                                {message && (
+                                    <div className={`flex items-center gap-2 p-3 rounded-lg ${
+                                        message.includes('successfully') 
+                                            ? 'bg-success/10 text-success border border-success/20' 
+                                            : 'bg-destructive/10 text-destructive border border-destructive/20'
+                                    }`}>
+                                        {message.includes('successfully') ? (
+                                            <CheckCircle className="h-4 w-4" />
+                                        ) : (
+                                            <AlertCircle className="h-4 w-4" />
+                                        )}
+                                        {message}
                                     </div>
-                                    {/* Combined list of awards and honors */}
-                                    {[...awards.map(a => ({ ...a, type: 'Award' })), ...honorTypes.map(h => ({ ...h, type: 'Honor' }))]
-                                      .sort((a, b) => a.name.localeCompare(b.name))
-                                      .map((item: any) => (
-                                        <div key={item.award_id || item.honor_id} className="flex items-center gap-4 p-2 border rounded">
-                                          <div className="flex-1">
-                                            <div className="font-medium flex items-center gap-2">
-                                              <span>{item.name}</span>
-                                              <Badge className={item.type === 'Award' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}>{item.type}</Badge>
-                                            </div>
-                                            {item.type === 'Honor' && (
-                                              <div className="text-sm text-gray-500">Side: {item.side || 'N/A'} | Conference: {item.conference_id || 'N/A'}</div>
-                                            )}
-                                            {item.type === 'Award' && (
-                                              <div className="text-sm text-gray-500">{item.description}</div>
-                                            )}
-                                          </div>
-                                          <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>Edit</Button>
-                                        </div>
-                                      ))}
-                                    {/* Add Award/Honor Modal */}
-                                    <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-                                        <DialogContent className="max-w-lg w-full">
-                                            <DialogHeader>
-                                                <DialogTitle>Add Award or Honor</DialogTitle>
-                                            </DialogHeader>
-                                            <form onSubmit={handleAdd} className="space-y-4">
-                                                <div>
-                                                    <label className="block mb-1 font-medium">Type</label>
-                                                    <Select value={addForm.type} onValueChange={v => setAddForm((f: any) => ({ ...f, type: v }))} required>
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue placeholder="Type" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Award">Award</SelectItem>
-                                                            <SelectItem value="Honor">Honor</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div>
-                                                    <label className="block mb-1 font-medium">Name</label>
-                                                    <Input value={addForm.name} onChange={e => setAddForm((f: any) => ({ ...f, name: e.target.value }))} required />
-                                                </div>
-                                                {addForm.type === 'Award' && (
-                                                    <div>
-                                                        <label className="block mb-1 font-medium">Description</label>
-                                                        <Input value={addForm.description} onChange={e => setAddForm((f: any) => ({ ...f, description: e.target.value }))} />
-                                                    </div>
-                                                )}
-                                                {addForm.type === 'Honor' && (
-                                                    <>
-                                                        <div>
-                                                            <label className="block mb-1 font-medium">Side</label>
-                                                            <Select value={addForm.side} onValueChange={v => setAddForm((f: any) => ({ ...f, side: v }))}>
-                                                                <SelectTrigger className="w-full">
-                                                                    <SelectValue placeholder="Side" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">None</SelectItem>
-                                                                    <SelectItem value="offense">Offense</SelectItem>
-                                                                    <SelectItem value="defense">Defense</SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block mb-1 font-medium">Conference</label>
-                                                            <Select value={addForm.conference_id} onValueChange={v => setAddForm((f: any) => ({ ...f, conference_id: v }))}>
-                                                                <SelectTrigger className="w-full">
-                                                                    <SelectValue placeholder="Conference" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">None</SelectItem>
-                                                                    {conferences.map((conf: any) => (
-                                                                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>{conf.name}</SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    </>
-                                                )}
-                                                {addError && <div className="text-red-500 text-sm">{addError}</div>}
-                                                <DialogFooter>
-                                                    <Button type="submit" disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
-                                                </DialogFooter>
-                                            </form>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                    <TabsContent value="seasons" className="space-y-6">
-                        {loadingSeasons ? (
-                            <div className="flex items-center justify-center py-12">
-                                <div className="flex items-center gap-2 text-gray-500">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                    Loading seasons...
+                    {/* Teams and Conferences Management */}
+                    <Card className="border-0 shadow-md bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Building2 className="h-5 w-5 text-purple-600" />
+                                Manage Teams & Conferences
+                            </CardTitle>
+                            <p className="text-muted-foreground text-sm">Edit team information, conferences, and prestige ratings</p>
+                        </CardHeader>
+                        <CardContent>
+                            {/* Search and Filter Controls */}
+                            <div className="mb-6 space-y-4">
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <div className="flex-1 relative">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                                        <Input
+                                            placeholder="Search teams and conferences..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="pl-10"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+                                            <SelectTrigger className="w-40">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All</SelectItem>
+                                                <SelectItem value="teams">Teams Only</SelectItem>
+                                                <SelectItem value="conferences">Conferences Only</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {filterType !== "conferences" && (
+                                            <Select value={selectedConference} onValueChange={setSelectedConference}>
+                                                <SelectTrigger className="w-48">
+                                                    <SelectValue placeholder="Filter by conference" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">All Conferences</SelectItem>
+                                                    {conferences.map((conf) => (
+                                                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>
+                                                            {conf.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {/* Stats */}
+                                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                    <span>Teams: {filteredTeams.length}</span>
+                                    <span>Conferences: {filteredConferences.length}</span>
+                                    {searchTerm && <span>Search: "{searchTerm}"</span>}
                                 </div>
                             </div>
-                        ) : seasonError ? (
-                            <Card className="border-red-200 bg-red-50">
+
+                            {loadingTeams ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                        Loading teams and conferences...
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Teams Grid */}
+                                    {(filterType === "all" || filterType === "teams") && filteredTeams.length > 0 && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                                <Building2 className="h-5 w-5 text-purple-600" />
+                                                Teams ({filteredTeams.length})
+                                            </h3>
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {filteredTeams.map((team) => (
+                                                    <CompactTeamCard key={team.team_id} team={team} conferences={conferences} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Conferences Grid */}
+                                    {(filterType === "all" || filterType === "conferences") && filteredConferences.length > 0 && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                                <Users className="h-5 w-5 text-green-600" />
+                                                Conferences ({filteredConferences.length})
+                                            </h3>
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {filteredConferences.map((conf) => (
+                                                    <CompactConferenceCard key={conf.conference_id} conference={conf} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* No Results */}
+                                    {((filterType === "all" && filteredTeams.length === 0 && filteredConferences.length === 0) ||
+                                      (filterType === "teams" && filteredTeams.length === 0) ||
+                                      (filterType === "conferences" && filteredConferences.length === 0)) && (
+                                        <div className="text-center py-12 text-muted-foreground">
+                                            <Filter className="h-12 w-12 mx-auto mb-4 text-muted-foreground/40" />
+                                            <p>No {filterType === "all" ? "teams or conferences" : filterType} found matching your search.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="awards" className="space-y-6">
+                    <Card className="border-0 shadow-md bg-card">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-xl">
+                                <Trophy className="h-5 w-5 text-yellow-600" />
+                                Manage Awards & Honors
+                            </CardTitle>
+                            <p className="text-muted-foreground text-sm">Create, edit, and delete awards and honor types (e.g., All-American, Player of the Week)</p>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                <div className="flex justify-end mb-2">
+                                    <Button onClick={() => setAddModalOpen(true)} variant="default">+ Add Award/Honor</Button>
+                                </div>
+                                {/* Combined list of awards and honors */}
+                                {[...awards.map(a => ({ ...a, type: 'Award' })), ...honorTypes.map(h => ({ ...h, type: 'Honor' }))]
+                                  .sort((a, b) => a.name.localeCompare(b.name))
+                                  .map((item: any) => (
+                                    <div key={item.award_id || item.honor_id} className="flex items-center gap-4 p-2 border rounded">
+                                      <div className="flex-1">
+                                        <div className="font-medium flex items-center gap-2">
+                                          <span>{item.name}</span>
+                                          <Badge variant={item.type === 'Award' ? 'accent' : 'default'}>{item.type}</Badge>
+                                        </div>
+                                        {item.type === 'Honor' && (
+                                          <div className="text-sm text-muted-foreground">Side: {item.side || 'N/A'} | Conference: {item.conference_id || 'N/A'}</div>
+                                        )}
+                                        {item.type === 'Award' && (
+                                          <div className="text-sm text-muted-foreground">{item.description}</div>
+                                        )}
+                                      </div>
+                                      <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>Edit</Button>
+                                    </div>
+                                  ))}
+                                {/* Add Award/Honor Modal */}
+                                <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+                                    <DialogContent className="max-w-lg w-full">
+                                        <DialogHeader>
+                                            <DialogTitle>Add Award or Honor</DialogTitle>
+                                        </DialogHeader>
+                                        <form onSubmit={handleAdd} className="space-y-4">
+                                            <div>
+                                                <label className="block mb-1 font-medium">Type</label>
+                                                <Select value={addForm.type} onValueChange={v => setAddForm((f: any) => ({ ...f, type: v }))} required>
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Type" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Award">Award</SelectItem>
+                                                        <SelectItem value="Honor">Honor</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <label className="block mb-1 font-medium">Name</label>
+                                                <Input value={addForm.name} onChange={e => setAddForm((f: any) => ({ ...f, name: e.target.value }))} required />
+                                            </div>
+                                            {addForm.type === 'Award' && (
+                                                <div>
+                                                    <label className="block mb-1 font-medium">Description</label>
+                                                    <Input value={addForm.description} onChange={e => setAddForm((f: any) => ({ ...f, description: e.target.value }))} />
+                                                </div>
+                                            )}
+                                            {addForm.type === 'Honor' && (
+                                                <>
+                                                    <div>
+                                                        <label className="block mb-1 font-medium">Side</label>
+                                                        <Select value={addForm.side} onValueChange={v => setAddForm((f: any) => ({ ...f, side: v }))}>
+                                                            <SelectTrigger className="w-full">
+                                                                <SelectValue placeholder="Side" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">None</SelectItem>
+                                                                <SelectItem value="offense">Offense</SelectItem>
+                                                                <SelectItem value="defense">Defense</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block mb-1 font-medium">Conference</label>
+                                                        <Select value={addForm.conference_id} onValueChange={v => setAddForm((f: any) => ({ ...f, conference_id: v }))}>
+                                                            <SelectTrigger className="w-full">
+                                                                <SelectValue placeholder="Conference" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">None</SelectItem>
+                                                                {conferences.map((conf: any) => (
+                                                                    <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>{conf.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </>
+                                            )}
+                                            {addError && <div className="text-destructive text-sm">{addError}</div>}
+                                            <DialogFooter>
+                                                <Button type="submit" disabled={adding}>{adding ? 'Adding...' : 'Add'}</Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="seasons" className="space-y-6">
+                    {loadingSeasons ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                                Loading seasons...
+                            </div>
+                        </div>
+                    ) : seasonError ? (
+                        <Card className="border-destructive/20 bg-destructive/5">
+                            <CardContent className="pt-6">
+                                <div className="flex items-center gap-2 text-destructive">
+                                    <AlertCircle className="h-5 w-5" />
+                                    Error: {seasonError}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-6">
+                            {/* Season Actions */}
+                            <Card className="border-0 shadow-md bg-card">
                                 <CardContent className="pt-6">
-                                    <div className="flex items-center gap-2 text-red-700">
-                                        <AlertCircle className="h-5 w-5" />
-                                        Error: {seasonError}
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h2 className="text-2xl font-bold mb-2 text-foreground">Season Management</h2>
+                                            <p className="text-muted-foreground">Create new seasons or manage existing ones</p>
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <Button 
+                                                onClick={handleCreateSeason} 
+                                                disabled={creating} 
+                                                variant="secondary"
+                                                className="bg-white/20 hover:bg-white/30 border-white/30"
+                                            >
+                                                {creating ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                                        Creating...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Zap className="h-4 w-4 mr-2" />
+                                                        Add New Season
+                                                    </>
+                                                )}
+                                            </Button>
+                                            <Button 
+                                                onClick={handleDeleteLatestSeason} 
+                                                disabled={creating || !seasons.length} 
+                                                variant="destructive"
+                                                className="bg-red-500/20 hover:bg-red-500/30 border-red-500/30"
+                                            >
+                                                Delete Latest Season
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
-                        ) : (
-                            <div className="space-y-6">
-                                {/* Season Actions */}
-                                <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                                    <CardContent className="pt-6">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <h2 className="text-2xl font-bold mb-2">Season Management</h2>
-                                                <p className="text-blue-100">Create new seasons or manage existing ones</p>
-                                            </div>
-                                            <div className="flex gap-3">
-                                                <Button 
-                                                    onClick={handleCreateSeason} 
-                                                    disabled={creating} 
-                                                    variant="secondary"
-                                                    className="bg-white/20 hover:bg-white/30 border-white/30"
-                                                >
-                                                    {creating ? (
-                                                        <>
-                                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                                            Creating...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Zap className="h-4 w-4 mr-2" />
-                                                            Add New Season
-                                                        </>
-                                                    )}
-                                                </Button>
-                                                <Button 
-                                                    onClick={handleDeleteLatestSeason} 
-                                                    disabled={creating || !seasons.length} 
-                                                    variant="destructive"
-                                                    className="bg-red-500/20 hover:bg-red-500/30 border-red-500/30"
-                                                >
-                                                    Delete Latest Season
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
 
-                                {/* Season History */}
-                                <div className="grid gap-6">
-                                    {seasons.map((season: any) => {
-                                        const details = seasonDetails[season.season_id];
-                                        return (
-                                            <SeasonCard key={season.season_id} season={season} details={details} />
-                                        )
-                                    })}
-                                </div>
+                            {/* Season History */}
+                            <div className="grid gap-6">
+                                {seasons.map((season: any) => {
+                                    const details = seasonDetails[season.season_id];
+                                    return (
+                                        <SeasonCard key={season.season_id} season={season} details={details} />
+                                    )
+                                })}
                             </div>
-                        )}
-                    </TabsContent>
-                </Tabs>
-            </div>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
             <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
                 <DialogContent className="max-w-lg w-full">
                     <DialogHeader>
@@ -706,14 +688,14 @@ export default function SettingsPage() {
                                 </div>
                             </>
                         )}
-                        {editError && <div className="text-red-500 text-sm">{editError}</div>}
+                        {editError && <div className="text-destructive text-sm">{editError}</div>}
                         <DialogFooter>
                             <Button type="submit" disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save Changes'}</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </>
     );
 }
 
@@ -757,7 +739,7 @@ function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] 
     const conference = conferences.find(c => c.conference_id === editTeam.primary_conference_id);
 
     return (
-        <Card className="border border-gray-200 hover:shadow-md transition-all duration-200">
+        <Card className="border border-card bg-card hover:shadow-md transition-all duration-200">
             <CardContent className="p-4">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-3">
@@ -766,11 +748,11 @@ function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] 
                     )}
                     <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{editTeam.name}</h3>
-                        <p className="text-xs text-gray-500">ID: {editTeam.team_id}</p>
+                        <p className="text-xs text-muted-foreground">ID: {editTeam.team_id}</p>
                     </div>
                     <div className="flex items-center gap-1">
                         {editTeam.is_user_controlled && (
-                            <Badge variant="default" className="text-xs bg-blue-100 text-blue-700">
+                            <Badge variant="default" className="text-xs bg-primary/10 text-primary">
                                 <Target className="h-3 w-3" />
                             </Badge>
                         )}
@@ -875,7 +857,7 @@ function CompactTeamCard({ team, conferences }: { team: any, conferences: any[] 
                             
                             {(success || error) && (
                                 <div className={`flex items-center gap-1 text-xs ${
-                                    success ? 'text-green-600' : 'text-red-600'
+                                    success ? 'text-success bg-success/10 border border-success/20 rounded px-2 py-1' : 'text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1'
                                 }`}>
                                     {success ? (
                                         <CheckCircle className="h-3 w-3" />
@@ -926,13 +908,13 @@ function CompactConferenceCard({ conference }: { conference: any }) {
     };
 
     return (
-        <Card className="border border-gray-200 hover:shadow-md transition-all duration-200">
+        <Card className="border border-card bg-card hover:shadow-md transition-all duration-200">
             <CardContent className="p-4">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{editConf.name}</h3>
-                        <p className="text-xs text-gray-500">ID: {editConf.conference_id}</p>
+                        <p className="text-xs text-muted-foreground">ID: {editConf.conference_id}</p>
                     </div>
                     <div className="flex items-center gap-1">
                         <Badge variant="outline" className="text-xs">
@@ -1000,7 +982,7 @@ function CompactConferenceCard({ conference }: { conference: any }) {
                             
                             {(success || error) && (
                                 <div className={`flex items-center gap-1 text-xs ${
-                                    success ? 'text-green-600' : 'text-red-600'
+                                    success ? 'text-success bg-success/10 border border-success/20 rounded px-2 py-1' : 'text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-1'
                                 }`}>
                                     {success ? (
                                         <CheckCircle className="h-3 w-3" />
@@ -1020,29 +1002,29 @@ function CompactConferenceCard({ conference }: { conference: any }) {
 
 function SeasonCard({ season, details }: { season: any, details?: Team }) {
     return (
-        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
+        <Card className="border-0 shadow-md bg-card hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="bg-card p-6 border-b border-card">
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="text-3xl font-bold mb-2">{season.year} Season</CardTitle>
+                        <CardTitle className="text-3xl font-bold mb-2 text-foreground">{season.year} Season</CardTitle>
                         <div className="flex items-center gap-4">
-                            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-lg px-4 py-2">
+                            <Badge variant="secondary" className="bg-muted text-foreground border-card text-lg px-4 py-2">
                                 {details ? `${details.wins}-${details.losses}` : "-"}
                             </Badge>
-                            <Badge variant="outline" className="border-white/50 text-white">
+                            <Badge variant="outline" className="border-card text-muted-foreground">
                                 {details?.conference_name || "-"}
                             </Badge>
-                            <Badge variant="default" className="bg-yellow-500/20 text-yellow-100 border-yellow-500/30">
+                            <Badge variant="default" className="bg-yellow-500/20 text-yellow-900 border-yellow-500/30">
                                 {details?.final_rank ? `#${details.final_rank} Ranked` : "Unranked"}
                             </Badge>
                         </div>
                     </div>
                     <div className="text-right">
                         <div className="flex items-center gap-2 mb-2">
-                            <Star className="h-5 w-5 text-yellow-300" />
-                            <span className="font-bold text-xl">{details?.prestige || "-"}</span>
+                            <Star className="h-5 w-5 text-yellow-400" />
+                            <span className="font-bold text-xl text-foreground">{details?.prestige || "-"}</span>
                         </div>
-                        <p className="text-blue-100 text-sm">Prestige Rating</p>
+                        <p className="text-muted-foreground text-sm">Prestige Rating</p>
                     </div>
                 </div>
             </div>
@@ -1050,7 +1032,7 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
             <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-red-600">
+                        <h4 className="font-semibold flex items-center gap-2 text-destructive">
                             <Sword className="h-5 w-5" />
                             Offense
                         </h4>
@@ -1087,7 +1069,7 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
                     </div>
 
                     <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-blue-600">
+                        <h4 className="font-semibold flex items-center gap-2 text-primary">
                             <Shield className="h-5 w-5" />
                             Defense
                         </h4>
@@ -1124,7 +1106,7 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
                     </div>
 
                     <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-yellow-600">
+                        <h4 className="font-semibold flex items-center gap-2 text-yellow-700">
                             <Trophy className="h-5 w-5" />
                             Achievements
                         </h4>
@@ -1147,9 +1129,9 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
                     </div>
 
                     <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2 text-green-600">
-                            <Target className="h-5 w-5" />
-                            Recruiting
+                        <h4 className="font-semibold flex items-center gap-2 text-success">
+                            <Users className="h-5 w-5" />
+                            Teamwork
                         </h4>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
@@ -1166,9 +1148,9 @@ function SeasonCard({ season, details }: { season: any, details?: Team }) {
                     </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-gray-200 flex gap-3">
+                <div className="mt-6 pt-6 border-t border-card flex gap-3">
                     <Link href={`/games?season=${season.season_id}`} passHref legacyBehavior>
-                        <Button asChild variant="outline" className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700">
+                        <Button asChild variant="outline" className="flex-1 border-blue-500 text-blue-500 hover:bg-blue-500/10">
                             <span className="flex items-center gap-2">
                                 <ArrowUpRight className="h-4 w-4" />
                                 View Games
@@ -1224,17 +1206,17 @@ function TeamEditCard({ team, conferences }: { team: any, conferences: any[] }) 
     };
 
     return (
-        <div className="border border-gray-200 rounded-lg p-4 bg-white/50 backdrop-blur-sm hover:shadow-md transition-all">
+        <div className="border border-card rounded-lg p-4 bg-card hover:shadow-md transition-all">
             <div className="flex items-center gap-4 mb-4">
                 {editTeam.logo_url && (
                     <img src={editTeam.logo_url} alt={editTeam.name} className="w-12 h-12 rounded-lg object-cover" />
                 )}
                 <div className="flex-1">
                     <h3 className="font-semibold text-lg">{editTeam.name}</h3>
-                    <p className="text-sm text-gray-600">Team ID: {editTeam.team_id}</p>
+                    <p className="text-sm text-muted-foreground">Team ID: {editTeam.team_id}</p>
                 </div>
                 {editTeam.is_user_controlled && (
-                    <Badge variant="default" className="bg-blue-100 text-blue-700">
+                    <Badge variant="default" className="text-xs bg-primary/10 text-primary">
                         <Target className="h-3 w-3 mr-1" />
                         Your Team
                     </Badge>
@@ -1354,11 +1336,11 @@ function ConferenceEditCard({ conference }: { conference: any }) {
     };
 
     return (
-        <div className="border border-gray-200 rounded-lg p-4 bg-white/50 backdrop-blur-sm hover:shadow-md transition-all">
+        <div className="border border-card rounded-lg p-4 bg-card hover:shadow-md transition-all">
             <div className="flex items-center justify-between mb-4">
                 <div>
                     <h3 className="font-semibold text-lg">{editConf.name}</h3>
-                    <p className="text-sm text-gray-600">Conference ID: {editConf.conference_id}</p>
+                    <p className="text-sm text-muted-foreground">Conference ID: {editConf.conference_id}</p>
                 </div>
                 <Badge variant="outline" className="text-sm">
                     Tier {editConf.tier}

@@ -130,7 +130,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
           Add Player
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[var(--size-48)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Player</DialogTitle>
         </DialogHeader>
@@ -177,7 +177,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Speed <span className="text-xs text-gray-400">(optional)</span></Label>
+                  <Label>Speed <span className="text-xs text-muted-foreground">(optional)</span></Label>
                   <Input id="speed" value={form.speed} onChange={e => handleFormChange("speed", e.target.value)} placeholder="Optional" />
                 </div>
                 <div className="space-y-2">
@@ -194,7 +194,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                   </Select>
                 </div>
               </div>
-              <div className="mt-6 mb-2 font-semibold text-gray-700">Physical Attributes</div>
+              <div className="mt-6 mb-2 font-semibold text-foreground">Physical Attributes</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="flex items-center gap-2">
                   <Label className="mb-0">Height (ft/in)</Label>
@@ -228,7 +228,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
             <Button type="submit" disabled={loading}>{loading ? "Adding..." : "Add Player"}</Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           </div>
-          {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+          {error && <div className="text-destructive text-sm mt-2">{error}</div>}
         </form>
       </DialogContent>
     </Dialog>
