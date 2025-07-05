@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
 from models import Game
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _build_bracket(games):
@@ -25,7 +28,7 @@ def _fix_playoff_rounds(season_id):
     """Fix playoff_round values for existing playoff games based on their week."""
     from models import Game
     
-    print(f"Fixing playoff rounds for season {season_id}")  # Debug log
+    logger.info(f"Fixing playoff rounds for season {season_id}")  # Debug log
     
     games = (
         Game.query.filter_by(season_id=season_id, game_type="Playoff")
@@ -33,7 +36,7 @@ def _fix_playoff_rounds(season_id):
         .all()
     )
     
-    print(f"Found {len(games)} playoff games")  # Debug log
+    logger.info(f"Found {len(games)} playoff games")  # Debug log
     
     # Map weeks to playoff rounds
     week_to_round = {
@@ -46,17 +49,17 @@ def _fix_playoff_rounds(season_id):
     updated = False
     for game in games:
         expected_round = week_to_round.get(game.week)
-        print(f"Game {game.game_id}: week={game.week}, current_round={game.playoff_round}, expected_round={expected_round}")  # Debug log
+        logger.info(f"Game {game.game_id}: week={game.week}, current_round={game.playoff_round}, expected_round={expected_round}")  # Debug log
         if expected_round and game.playoff_round != expected_round:
             game.playoff_round = expected_round
             updated = True
-            print(f"Updated game {game.game_id} to round {expected_round}")  # Debug log
+            logger.info(f"Updated game {game.game_id} to round {expected_round}")  # Debug log
     
     if updated:
         db.session.commit()
-        print(f"Fixed playoff_round values for season {season_id}")
+        logger.info(f"Fixed playoff_round values for season {season_id}")
     else:
-        print(f"No updates needed for season {season_id}")
+        logger.info(f"No updates needed for season {season_id}")
     
     return games
 
@@ -75,11 +78,11 @@ def get_playoff_bracket(season_id):
     bracket = _build_bracket(games)
     
     # Debug: print all games to see what's being returned
-    print(f"Bracket for season {season_id}:")
+    logger.info(f"Bracket for season {season_id}:")
     for round_name, round_games in bracket.items():
-        print(f"  {round_name}: {len(round_games)} games")
+        logger.info(f"  {round_name}: {len(round_games)} games")
         for game in round_games:
-            print(f"    Game {game['game_id']}: {game['home_team_id']} vs {game['away_team_id']}, {game['home_score']}-{game['away_score']}")
+            logger.info(f"    Game {game['game_id']}: {game['home_team_id']} vs {game['away_team_id']}, {game['home_score']}-{game['away_score']}")
     
     return jsonify(bracket)
 
@@ -116,23 +119,23 @@ def create_or_update_bracket(season_id):
         .order_by(Game.week.asc(), Game.game_id.asc())
         .all()
     )
-    print("Bracket after save:")
+    logger.info("Bracket after save:")
     for g in games_after:
-        print(f"Game {g.game_id}: {g.home_team_id} vs {g.away_team_id}, {g.home_score}-{g.away_score}, round={g.playoff_round}")
+        logger.info(f"Game {g.game_id}: {g.home_team_id} vs {g.away_team_id}, {g.home_score}-{g.away_score}, round={g.playoff_round}")
     return jsonify({"created_game_ids": created_games}), 201
 
 
 @playoff_bp.route("/playoff/<int:season_id>/playoff-result", methods=["POST"])
 def add_playoff_result(season_id):
     data = request.json
-    print("Received data for playoff-result:", data)  # Debug log
+    logger.info(f"Received data for playoff-result: {data}")  # Debug log
     game_id = data.get("game_id")
     home_score = data.get("home_score")
     away_score = data.get("away_score")
     playoff_round = data.get("playoff_round")
-    print(f"Looking for game_id={game_id} in season_id={season_id}")
+    logger.info(f"Looking for game_id={game_id} in season_id={season_id}")
     if not game_id or home_score is None or away_score is None:
-        print("Missing required fields in request")
+        logger.info("Missing required fields in request")
         return (
             jsonify({"error": "game_id, home_score, and away_score are required"}),
             400,
@@ -147,17 +150,17 @@ def add_playoff_result(season_id):
     )
     game = Game.query.get(game_id)
     if not game or game.season_id != season_id:
-        print(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")  # Debug log
+        logger.info(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")  # Debug log
         return jsonify({"error": "Game not found for this season"}), 404
 
-    print(f"Found game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
+    logger.info(f"Found game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
 
     # Update the game score
     game.home_score = home_score
     game.away_score = away_score
     if playoff_round:
         game.playoff_round = playoff_round
-    print(f"Updated game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
+    logger.info(f"Updated game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
 
     # Clear downstream games when this result changes
     def clear_downstream_games(changed_round):
@@ -166,11 +169,11 @@ def add_playoff_result(season_id):
             changed_idx = round_order.index(changed_round)
             # Only clear rounds that come AFTER the changed round
             downstream_rounds = round_order[changed_idx + 1:]
-            print(f"Clearing downstream rounds for {changed_round}: {downstream_rounds}")
+            logger.info(f"Clearing downstream rounds for {changed_round}: {downstream_rounds}")
             for round_name in downstream_rounds:
                 for g in games:
                     if g.playoff_round == round_name:
-                        print(f"Clearing game {g.game_id} in {round_name}")
+                        logger.info(f"Clearing game {g.game_id} in {round_name}")
                         if round_name == 'Quarterfinals':
                             # Only clear away_team_id and scores for QF, keep home_team_id (seeds 1-4)
                             g.away_team_id = None
@@ -207,21 +210,21 @@ def add_playoff_result(season_id):
                       and g.home_team_id is not None and g.away_team_id is not None 
                       for g in current_round_games)
     
-    print(f"Round {current_round}: {len(current_round_games)} games, all_complete={all_complete}")
+    logger.info(f"Round {current_round}: {len(current_round_games)} games, all_complete={all_complete}")
     
     # Debug each game in the current round
     for g in current_round_games:
-        print(f"  Game {g.game_id}: home_team_id={g.home_team_id}, away_team_id={g.away_team_id}, home_score={g.home_score}, away_score={g.away_score}")
+        logger.info(f"  Game {g.game_id}: home_team_id={g.home_team_id}, away_team_id={g.away_team_id}, home_score={g.home_score}, away_score={g.away_score}")
         game_complete = (g.home_score is not None and g.away_score is not None 
                        and g.home_team_id is not None and g.away_team_id is not None)
-        print(f"    Game complete: {game_complete}")
+        logger.info(f"    Game complete: {game_complete}")
     
     if not all_complete:
         db.session.commit()
         return jsonify({"message": "Score updated, waiting for all games in round to complete"}), 200
 
     # All games in current round are complete - implement reseeding logic
-    print(f"All games in {current_round} complete, implementing reseeding for {next_round}")
+    logger.info(f"All games in {current_round} complete, implementing reseeding for {next_round}")
     
     # Get the seed mapping for teams
     seed_mapping = {}
@@ -319,7 +322,7 @@ def add_playoff_result(season_id):
     # Special handling for Semifinals to Championship transition
     elif current_round == 'Semifinals' and next_round == 'Championship':
         # For Championship, assign as many winners as possible
-        print(f"Championship seeding logic: {len(next_round_games)} championship games, {len(winners)} winners")
+        logger.info(f"Championship seeding logic: {len(next_round_games)} championship games, {len(winners)} winners")
         if len(next_round_games) >= 1:
             if len(winners) == 1:
                 # Only one semifinal complete, assign that team as home
@@ -327,17 +330,17 @@ def add_playoff_result(season_id):
                 next_round_games[0].away_team_id = None
                 next_round_games[0].home_score = None
                 next_round_games[0].away_score = None
-                print(f"Championship partial seed: {winners[0][1]} (seed {winners[0][0]}) vs None")
+                logger.info(f"Championship partial seed: {winners[0][1]} (seed {winners[0][0]}) vs None")
             elif len(winners) >= 2:
                 # Both semifinals complete, assign both
                 next_round_games[0].home_team_id = winners[0][1]  # Best seed (home)
                 next_round_games[0].away_team_id = winners[1][1]  # Worst seed (away)
                 next_round_games[0].home_score = None
                 next_round_games[0].away_score = None
-                print(f"Championship seeded: {winners[0][1]} (seed {winners[0][0]}) vs {winners[1][1]} (seed {winners[1][0]})")
+                logger.info(f"Championship seeded: {winners[0][1]} (seed {winners[0][0]}) vs {winners[1][1]} (seed {winners[1][0]})")
             # else: no winners yet, do nothing
         else:
-            print(f"Championship seeding failed: not enough games ({len(next_round_games)}) or winners ({len(winners)})")
+            logger.info(f"Championship seeding failed: not enough games ({len(next_round_games)}) or winners ({len(winners)})")
     
     # For other rounds, implement best vs worst seeding
     else:
@@ -359,14 +362,14 @@ def add_playoff_result(season_id):
     db.session.commit()
     
     # Debug: print final state of all games
-    print("Final state after commit:")
+    logger.info("Final state after commit:")
     final_games = (
         Game.query.filter_by(season_id=season_id, game_type="Playoff")
         .order_by(Game.week.asc(), Game.game_id.asc())
         .all()
     )
     for game in final_games:
-        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+        logger.info(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
     
     return jsonify({"message": "Batch playoff results updated and reseeding applied"}), 200
 
@@ -548,15 +551,15 @@ def manual_seed_bracket(season_id):
 @playoff_bp.route("/playoff/<int:season_id>/batch-playoff-result", methods=["POST"])
 def batch_playoff_result(season_id):
     data = request.json
-    print("Received data for batch-playoff-result:", data)  # Debug log
+    logger.info(f"Received data for batch-playoff-result: {data}")  # Debug log
     results = data.get("results", [])
     if not isinstance(results, list) or not results:
-        print("Invalid or empty results list in request")
+        logger.info("Invalid or empty results list in request")
         return jsonify({"error": "results must be a non-empty list"}), 400
     
-    print(f"Processing {len(results)} results for season {season_id}")
+    logger.info(f"Processing {len(results)} results for season {season_id}")
     for i, result in enumerate(results):
-        print(f"  Result {i}: {result}")
+        logger.info(f"  Result {i}: {result}")
     
     from models import Game
     
@@ -567,9 +570,9 @@ def batch_playoff_result(season_id):
         .all()
     )
     
-    print(f"Found {len(games)} playoff games in database")
+    logger.info(f"Found {len(games)} playoff games in database")
     for game in games:
-        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+        logger.info(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
     
     # Track which rounds were modified
     modified_rounds = set()
@@ -580,20 +583,20 @@ def batch_playoff_result(season_id):
         home_score = result.get("home_score")
         away_score = result.get("away_score")
         playoff_round = result.get("playoff_round")
-        print(f"Processing result: game_id={game_id}, home_score={home_score}, away_score={away_score}, playoff_round={playoff_round}")
+        logger.info(f"Processing result: game_id={game_id}, home_score={home_score}, away_score={away_score}, playoff_round={playoff_round}")
         game = Game.query.get(game_id)
         if not game or game.season_id != season_id:
-            print(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")
+            logger.info(f"Game not found or season mismatch: game_id={game_id}, season_id={season_id}")
             continue
-        print(f"Found game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
+        logger.info(f"Found game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
         game.home_score = home_score
         game.away_score = away_score
         if playoff_round:
             game.playoff_round = playoff_round
-        print(f"Updated game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
+        logger.info(f"Updated game: id={game.game_id}, round={game.playoff_round}, home_score={game.home_score}, away_score={game.away_score}")
         modified_rounds.add(game.playoff_round)
     
-    print(f"Modified rounds: {modified_rounds}")
+    logger.info(f"Modified rounds: {modified_rounds}")
     
     # Commit the score updates first
     db.session.commit()
@@ -608,9 +611,9 @@ def batch_playoff_result(season_id):
     # Also refresh the session to ensure we have the latest data
     db.session.expire_all()
     
-    print("Games after score updates:")
+    logger.info("Games after score updates:")
     for game in games:
-        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+        logger.info(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
     
     # Clear downstream games for all modified rounds
     def clear_downstream_games(changed_round):
@@ -619,11 +622,11 @@ def batch_playoff_result(season_id):
             changed_idx = round_order.index(changed_round)
             # Only clear rounds that come AFTER the changed round
             downstream_rounds = round_order[changed_idx + 1:]
-            print(f"Clearing downstream rounds for {changed_round}: {downstream_rounds}")
+            logger.info(f"Clearing downstream rounds for {changed_round}: {downstream_rounds}")
             for round_name in downstream_rounds:
                 for g in games:
                     if g.playoff_round == round_name:
-                        print(f"Clearing game {g.game_id} in {round_name}")
+                        logger.info(f"Clearing game {g.game_id} in {round_name}")
                         if round_name == 'Quarterfinals':
                             # Only clear away_team_id and scores for QF, keep home_team_id (seeds 1-4)
                             g.away_team_id = None
@@ -653,14 +656,14 @@ def batch_playoff_result(season_id):
                           and g.home_team_id is not None and g.away_team_id is not None 
                           for g in current_round_games)
         
-        print(f"Round {current_round}: {len(current_round_games)} games, all_complete={all_complete}")
+        logger.info(f"Round {current_round}: {len(current_round_games)} games, all_complete={all_complete}")
         
         # Debug each game in the current round
         for g in current_round_games:
-            print(f"  Game {g.game_id}: home_team_id={g.home_team_id}, away_team_id={g.away_team_id}, home_score={g.home_score}, away_score={g.away_score}")
+            logger.info(f"  Game {g.game_id}: home_team_id={g.home_team_id}, away_team_id={g.away_team_id}, home_score={g.home_score}, away_score={g.away_score}")
             game_complete = (g.home_score is not None and g.away_score is not None 
                            and g.home_team_id is not None and g.away_team_id is not None)
-            print(f"    Game complete: {game_complete}")
+            logger.info(f"    Game complete: {game_complete}")
         
         # If round is complete, implement reseeding logic
         if all_complete and current_round in modified_rounds:
@@ -670,14 +673,14 @@ def batch_playoff_result(season_id):
             )
 
             if next_round_started:
-                print(
+                logger.info(
                     f"Next round {next_round} already has recorded scores – clearing before reseeding"
                 )
                 clear_downstream_games(current_round)
                 # Refresh the lists after the clear so we reseed using the cleared slate
                 next_round_games = [g for g in games if g.playoff_round == next_round]
 
-            print(
+            logger.info(
                 f"All games in {current_round} complete, implementing reseeding for {next_round}"
             )
             
@@ -777,7 +780,7 @@ def batch_playoff_result(season_id):
             # Special handling for Semifinals to Championship transition
             elif current_round == 'Semifinals' and next_round == 'Championship':
                 # For Championship, assign as many winners as possible
-                print(f"Championship seeding logic: {len(next_round_games)} championship games, {len(winners)} winners")
+                logger.info(f"Championship seeding logic: {len(next_round_games)} championship games, {len(winners)} winners")
                 if len(next_round_games) >= 1:
                     if len(winners) == 1:
                         # Only one semifinal complete, assign that team as home
@@ -785,17 +788,17 @@ def batch_playoff_result(season_id):
                         next_round_games[0].away_team_id = None
                         next_round_games[0].home_score = None
                         next_round_games[0].away_score = None
-                        print(f"Championship partial seed: {winners[0][1]} (seed {winners[0][0]}) vs None")
+                        logger.info(f"Championship partial seed: {winners[0][1]} (seed {winners[0][0]}) vs None")
                     elif len(winners) >= 2:
                         # Both semifinals complete, assign both
                         next_round_games[0].home_team_id = winners[0][1]  # Best seed (home)
                         next_round_games[0].away_team_id = winners[1][1]  # Worst seed (away)
                         next_round_games[0].home_score = None
                         next_round_games[0].away_score = None
-                        print(f"Championship seeded: {winners[0][1]} (seed {winners[0][0]}) vs {winners[1][1]} (seed {winners[1][0]})")
+                        logger.info(f"Championship seeded: {winners[0][1]} (seed {winners[0][0]}) vs {winners[1][1]} (seed {winners[1][0]})")
                     # else: no winners yet, do nothing
                 else:
-                    print(f"Championship seeding failed: not enough games ({len(next_round_games)}) or winners ({len(winners)})")
+                    logger.info(f"Championship seeding failed: not enough games ({len(next_round_games)}) or winners ({len(winners)})")
             
             # For other rounds, implement best vs worst seeding
             else:
@@ -816,18 +819,18 @@ def batch_playoff_result(season_id):
         
         # Only clear downstream games if the current round was modified AND is incomplete
         elif current_round in modified_rounds and not all_complete:
-            print(f"Clearing downstream games for incomplete modified round: {current_round}")
+            logger.info(f"Clearing downstream games for incomplete modified round: {current_round}")
             clear_downstream_games(current_round)
             
             # Debug: check what happened to the scores after clearing
-            print(f"After clearing downstream games for {current_round}:")
+            logger.info(f"After clearing downstream games for {current_round}:")
             for g in current_round_games:
-                print(f"  Game {g.game_id}: home_score={g.home_score}, away_score={g.away_score}")
+                logger.info(f"  Game {g.game_id}: home_score={g.home_score}, away_score={g.away_score}")
     
     # Debug: print final state of all games before final commit
-    print("Final state before commit:")
+    logger.info("Final state before commit:")
     for game in games:
-        print(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
+        logger.info(f"  Game {game.game_id}: {game.home_team_id} vs {game.away_team_id}, {game.home_score}-{game.away_score}, round={game.playoff_round}")
     
     db.session.commit()
     return jsonify({"message": "Batch playoff results updated and reseeding applied"}), 200

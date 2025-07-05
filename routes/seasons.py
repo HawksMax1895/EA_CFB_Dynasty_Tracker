@@ -3,6 +3,9 @@ from marshmallow import ValidationError
 from extensions import db
 from models import Season, Conference, TeamSeason, Game, Team, PlayerSeason, AwardWinner, Honor
 from schemas import CreateSeasonSchema
+import logging
+
+logger = logging.getLogger(__name__)
 import datetime
 
 seasons_bp = Blueprint('seasons', __name__)
@@ -114,17 +117,17 @@ def create_season():
 
     # Debug: print all seasons after commit
     all_seasons = Season.query.order_by(Season.year).all()
-    print('All seasons after commit:', [(s.season_id, s.year) for s in all_seasons])
+    logger.info(f"All seasons after commit: {[(s.season_id, s.year) for s in all_seasons]}")
 
     # --- NEW: Automatically progress players from the previous season ---
     if prev_season:
         try:
             from routes.season_actions import progress_players_logic
-            print(f'Progressing players for prev_season.year={prev_season.year}, prev_season.season_id={prev_season.season_id}')
+            logger.info(f'Progressing players for prev_season.year={prev_season.year}, prev_season.season_id={prev_season.season_id}')
             progression_result = progress_players_logic(prev_season.season_id)
-            print(f"Player progression completed: {progression_result}")
+            logger.info(f"Player progression completed: {progression_result}")
         except Exception as e:
-            print(f"Error during player progression: {e}")
+            logger.info(f"Error during player progression: {e}")
             pass
 
     return jsonify({'season_id': season.season_id, 'year': season.year}), 201

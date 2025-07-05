@@ -1,6 +1,9 @@
 from flask import Flask # type: ignore
 from extensions import db, cors
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 # Initialize Flask app
 app = Flask(__name__)
