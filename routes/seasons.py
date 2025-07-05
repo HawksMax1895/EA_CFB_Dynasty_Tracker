@@ -151,12 +151,53 @@ def get_season(season_id):
     season = Season.query.get_or_404(season_id)
     return jsonify({'season_id': season.season_id, 'year': season.year})
 
+# --- Helper for robust conference record calculation for user team ---
+def calculate_user_team_conference_record(team_id, season_id):
+    from models import Game, TeamSeason
+    # Build a mapping: (season_id, team_id) -> conference_id
+    team_conf_map = {(ts.season_id, ts.team_id): ts.conference_id for ts in TeamSeason.query.filter_by(season_id=season_id).all()}
+    all_games = (
+        Game.query.filter(
+            ((Game.home_team_id == team_id) | (Game.away_team_id == team_id)) &
+            (Game.season_id == season_id)
+        ).order_by(Game.week.asc()).all()
+    )
+    conf_wins = 0
+    conf_losses = 0
+    for g in all_games:
+        if getattr(g, 'game_type', None) == 'Bye Week':
+            continue
+        if g.home_score is None or g.away_score is None or (g.home_score == 0 and g.away_score == 0):
+            continue
+        home_conf = team_conf_map.get((g.season_id, g.home_team_id))
+        away_conf = team_conf_map.get((g.season_id, g.away_team_id))
+        if not home_conf or not away_conf:
+            continue
+        if home_conf != away_conf:
+            continue  # Not a conference game
+        is_home = g.home_team_id == team_id
+        is_away = g.away_team_id == team_id
+        if not (is_home or is_away):
+            continue
+        team_score = g.home_score if is_home else g.away_score
+        opp_score = g.away_score if is_home else g.home_score
+        if team_score > opp_score:
+            conf_wins += 1
+        elif team_score < opp_score:
+            conf_losses += 1
+    return conf_wins, conf_losses
+
 @seasons_bp.route('/seasons/<int:season_id>/teams', methods=['GET'])
 def get_teams_in_season(season_id):
     all_param = request.args.get('all', 'false').lower() == 'true'
     team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
     teams = {t.team_id: t for t in Team.query.all()}
     conferences = {c.conference_id: c for c in Conference.query.all()}
+    user_team_id = None
+    for t in teams.values():
+        if getattr(t, 'is_user_controlled', False):
+            user_team_id = t.team_id
+            break
     if all_param:
         # Return all teams for the season
         return jsonify([
@@ -170,8 +211,8 @@ def get_teams_in_season(season_id):
                 'conference_name': conferences[ts.conference_id].name if ts.conference_id in conferences else None,
                 'wins': ts.wins,
                 'losses': ts.losses,
-                'conference_wins': ts.conference_wins,
-                'conference_losses': ts.conference_losses,
+                'conference_wins': (calculate_user_team_conference_record(ts.team_id, season_id)[0] if ts.team_id == user_team_id else ts.conference_wins),
+                'conference_losses': (calculate_user_team_conference_record(ts.team_id, season_id)[1] if ts.team_id == user_team_id else ts.conference_losses),
                 'points_for': ts.points_for,
                 'points_against': ts.points_against,
                 'pass_yards': ts.pass_yards,
@@ -216,8 +257,8 @@ def get_teams_in_season(season_id):
             'conference_name': conferences[ts.conference_id].name if ts.conference_id in conferences else None,
             'wins': ts.wins,
             'losses': ts.losses,
-            'conference_wins': ts.conference_wins,
-            'conference_losses': ts.conference_losses,
+            'conference_wins': (calculate_user_team_conference_record(ts.team_id, season_id)[0] if ts.team_id == user_team_id else ts.conference_wins),
+            'conference_losses': (calculate_user_team_conference_record(ts.team_id, season_id)[1] if ts.team_id == user_team_id else ts.conference_losses),
             'points_for': ts.points_for,
             'points_against': ts.points_against,
             'pass_yards': ts.pass_yards,
@@ -256,7 +297,8 @@ def update_team_season(season_id, team_id):
         'recruiting_rank', 'conference_id',
         'offense_yards_rank', 'defense_yards_rank', 'pass_yards_rank', 'rush_yards_rank',
         'pass_tds_rank', 'rush_tds_rank', 'off_ppg_rank', 'def_ppg_rank', 'sacks_rank',
-        'interceptions_rank', 'points_for_rank', 'points_against_rank'
+        'interceptions_rank', 'points_for_rank', 'points_against_rank',
+        'manual_conference_position'
     ]:
         if field in data:
             setattr(ts, field, data[field])
@@ -309,13 +351,17 @@ def get_season_standings(season_id):
 @seasons_bp.route('/conferences/<int:conference_id>/teams', methods=['GET'])
 def get_conference_teams(conference_id):
     season_id = request.args.get('season_id', type=int)
+    from models import Team, TeamSeason, Conference
     teams = Team.query.filter_by(primary_conference_id=conference_id).all()
     team_map = {t.team_id: t for t in teams}
     conference = Conference.query.get(conference_id)
     team_seasons = {ts.team_id: ts for ts in TeamSeason.query.filter_by(conference_id=conference_id, season_id=season_id).all()} if season_id else {}
+    # Use shared helper for standings
+    conf_team_entries_sorted = get_conference_standings(conference_id, season_id) if season_id else []
     result = []
-    for team in teams:
-        ts = team_seasons.get(team.team_id)
+    for entry in conf_team_entries_sorted:
+        team = team_map.get(entry['team_id'])
+        ts = team_seasons.get(entry['team_id'])
         result.append({
             'team_id': team.team_id,
             'team_name': team.name,
@@ -323,8 +369,8 @@ def get_conference_teams(conference_id):
             'abbreviation': team.abbreviation,
             'wins': ts.wins if ts else 0,
             'losses': ts.losses if ts else 0,
-            'conference_wins': ts.conference_wins if ts else 0,
-            'conference_losses': ts.conference_losses if ts else 0,
+            'conference_wins': entry['conference_wins'],
+            'conference_losses': entry['conference_losses'],
             'points_for': ts.points_for if ts else None,
             'points_against': ts.points_against if ts else None,
             'pass_yards': ts.pass_yards if ts else None,
@@ -405,3 +451,65 @@ def delete_season(season_id):
     db.session.delete(season)
     db.session.commit()
     return jsonify({'message': f'Season {season.year} and all related data deleted.'}), 200
+
+# --- Shared helper for conference standings ---
+def get_conference_standings(conference_id, season_id):
+    from models import Team, TeamSeason, Game
+    teams = Team.query.filter_by(primary_conference_id=conference_id).all()
+    team_seasons = {ts.team_id: ts for ts in TeamSeason.query.filter_by(conference_id=conference_id, season_id=season_id).all()}
+    # Build a mapping: (season_id, team_id) -> conference_id
+    team_conf_map = {(ts.season_id, ts.team_id): ts.conference_id for ts in TeamSeason.query.filter_by(season_id=season_id).all()}
+    all_games = Game.query.filter_by(season_id=season_id).all()
+    conf_team_entries = []
+    for team_entry in teams:
+        ts = team_seasons.get(team_entry.team_id)
+        manual_pos = ts.manual_conference_position if ts else None
+        if team_entry.is_user_controlled:
+            # Robust conference record calculation for user team only
+            conf_wins = 0
+            conf_losses = 0
+            for g in all_games:
+                if getattr(g, 'game_type', None) == 'Bye Week':
+                    continue
+                if g.home_score is None or g.away_score is None or (g.home_score == 0 and g.away_score == 0):
+                    continue
+                home_conf = team_conf_map.get((g.season_id, g.home_team_id))
+                away_conf = team_conf_map.get((g.season_id, g.away_team_id))
+                if not home_conf or not away_conf:
+                    continue
+                if home_conf != away_conf:
+                    continue
+                is_home = g.home_team_id == team_entry.team_id
+                is_away = g.away_team_id == team_entry.team_id
+                if not (is_home or is_away):
+                    continue
+                team_score = g.home_score if is_home else g.away_score
+                opp_score = g.away_score if is_home else g.home_score
+                if team_score > opp_score:
+                    conf_wins += 1
+                elif team_score < opp_score:
+                    conf_losses += 1
+        else:
+            conf_wins = ts.conference_wins if ts else 0
+            conf_losses = ts.conference_losses if ts else 0
+        conf_team_entries.append({
+            'team_id': team_entry.team_id,
+            'conference_wins': conf_wins,
+            'conference_losses': conf_losses,
+            'manual_conference_position': manual_pos
+        })
+    # If any team has manual_conference_position set, sort by it (nulls last)
+    if any(e['manual_conference_position'] is not None for e in conf_team_entries):
+        conf_team_entries_sorted = sorted(
+            conf_team_entries,
+            key=lambda x: (x['manual_conference_position'] if x['manual_conference_position'] is not None else 9999)
+        )
+    else:
+        # Sort by conference_wins DESC, conference_losses ASC, team_id ASC
+        conf_team_entries_sorted = sorted(
+            conf_team_entries,
+            key=lambda x: (-x['conference_wins'], x['conference_losses'], x['team_id'])
+        )
+    return conf_team_entries_sorted
+
+# --- END SHARED HELPER ---

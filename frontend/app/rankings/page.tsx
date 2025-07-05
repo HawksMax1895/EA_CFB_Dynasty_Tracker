@@ -413,7 +413,7 @@ export default function RankingsPage() {
                       try {
                         await Promise.all(
                           newOrder.map((team, i) =>
-                            updateTeamSeason(selectedSeason, team.team_id, { final_rank: i + 1 })
+                            updateTeamSeason(selectedSeason, team.team_id, { manual_conference_position: i + 1 })
                           )
                         )
                       } catch (e) {

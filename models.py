@@ -73,6 +73,7 @@ class TeamSeason(db.Model):
     interceptions_rank = db.Column(db.Integer)
     points_for_rank = db.Column(db.Integer)
     points_against_rank = db.Column(db.Integer)
+    manual_conference_position = db.Column(db.Integer, nullable=True)  # User-set conference position for the season
 
 class Player(db.Model):
     __tablename__ = 'players'

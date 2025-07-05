@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify # type: ignore
 from models import Team, TeamSeason, Season, Player, PlayerSeason, Game
+from routes.seasons import get_conference_standings
+from routes.recruiting import Recruit
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -37,61 +39,227 @@ def dashboard():
     if not team:
         return jsonify({"error": "No user-controlled team found"}), 404
 
-    # Get the latest season
-    season = Season.query.order_by(Season.year.desc()).first()
-    if not season:
-        return jsonify({"error": "No seasons found"}), 404
+    # Accept season_id as a query parameter
+    season_id = request.args.get('season_id', type=int)
+    if season_id:
+        season = Season.query.get(season_id)
+        if not season:
+            return jsonify({"error": "Season not found"}), 404
+    else:
+        season = Season.query.order_by(Season.year.desc()).first()
+        if not season:
+            return jsonify({"error": "No seasons found"}), 404
 
-    # Get this team's TeamSeason for the current season
+    # Get this team's TeamSeason for the selected season
     team_season = TeamSeason.query.filter_by(team_id=team.team_id, season_id=season.season_id).first()
 
-    # Team record
-    record = f"{team_season.wins}-{team_season.losses}" if team_season else "-"
+    # Calculate all-time record across all seasons
+    all_team_seasons = TeamSeason.query.filter_by(team_id=team.team_id).all()
+    total_wins = sum(ts.wins for ts in all_team_seasons)
+    total_losses = sum(ts.losses for ts in all_team_seasons)
+    all_time_record = f"{total_wins}-{total_losses}"
+
+    # Calculate all-time conference record (robust)
+    all_games = Game.query.filter(
+        (Game.home_team_id == team.team_id) | (Game.away_team_id == team.team_id)
+    ).order_by(Game.season_id.asc(), Game.week.asc()).all()
+    team_seasons_by_season = {ts.season_id: ts for ts in TeamSeason.query.filter_by(team_id=team.team_id).all()}
+    # Build a mapping: (season_id, team_id) -> conference_id
+    team_conf_map = {(ts.season_id, ts.team_id): ts.conference_id for ts in TeamSeason.query.all()}
+    conf_wins = 0
+    conf_losses = 0
+    for g in all_games:
+        # Skip byes and unplayed games
+        if getattr(g, 'game_type', None) == 'Bye Week':
+            continue
+        if g.home_score is None or g.away_score is None or (g.home_score == 0 and g.away_score == 0):
+            continue
+        # Get both teams' conference for this season
+        home_conf = team_conf_map.get((g.season_id, g.home_team_id))
+        away_conf = team_conf_map.get((g.season_id, g.away_team_id))
+        if not home_conf or not away_conf:
+            continue
+        if home_conf != away_conf:
+            continue  # Not a conference game
+        # Determine if user team is home or away
+        is_home = g.home_team_id == team.team_id
+        is_away = g.away_team_id == team.team_id
+        if not (is_home or is_away):
+            continue
+        # Count win/loss
+        team_score = g.home_score if is_home else g.away_score
+        opp_score = g.away_score if is_home else g.home_score
+        if team_score > opp_score:
+            conf_wins += 1
+        elif team_score < opp_score:
+            conf_losses += 1
+    conference_record = f"{conf_wins}-{conf_losses}"
+
+    # Calculate current season conference record for user team
+    current_conf_wins = 0
+    current_conf_losses = 0
+    # Build a mapping: (season_id, team_id) -> conference_id
+    team_conf_map = {(ts.season_id, ts.team_id): ts.conference_id for ts in TeamSeason.query.filter_by(season_id=season.season_id).all()}
+    # Get all games for this team in the current season
+    all_games_current_season = (
+        Game.query.filter(
+            ((Game.home_team_id == team.team_id) | (Game.away_team_id == team.team_id)) &
+            (Game.season_id == season.season_id)
+        ).order_by(Game.week.asc()).all()
+    )
+    for g in all_games_current_season:
+        if getattr(g, 'game_type', None) == 'Bye Week':
+            continue
+        if g.home_score is None or g.away_score is None or (g.home_score == 0 and g.away_score == 0):
+            continue
+        home_conf = team_conf_map.get((g.season_id, g.home_team_id))
+        away_conf = team_conf_map.get((g.season_id, g.away_team_id))
+        if not home_conf or not away_conf:
+            continue
+        if home_conf != away_conf:
+            continue  # Not a conference game
+        is_home = g.home_team_id == team.team_id
+        is_away = g.away_team_id == team.team_id
+        if not (is_home or is_away):
+            continue
+        team_score = g.home_score if is_home else g.away_score
+        opp_score = g.away_score if is_home else g.home_score
+        if team_score > opp_score:
+            current_conf_wins += 1
+        elif team_score < opp_score:
+            current_conf_losses += 1
+    current_season_conference_record = f"{current_conf_wins}-{current_conf_losses}"
+
+    # Team record (all-time)
+    record = all_time_record
+
+    # Current season record
+    current_season_record = f"{team_season.wins}-{team_season.losses}" if team_season else "-"
 
     # Team prestige, ranking, etc.
     prestige = team_season.prestige if team_season else "-"
     national_ranking = team_season.final_rank if team_season else "-"
     championships = "Conference Champions" if team_season and team_season.final_rank == 1 else "-"
 
-    # Active players
-    active_players = Player.query.filter_by(team_id=team.team_id).count()
+    # Recruiting info
+    recruiting_commits = Recruit.query.filter_by(team_id=team.team_id, season_id=season.season_id, committed=True).count()
+    recruiting_rank = team_season.recruiting_rank if team_season else None
 
-    # Recent activity: last 3 games for this team
-    recent_games = (
+    # Get all games for this team in the current season
+    all_games = (
         Game.query.filter(
             ((Game.home_team_id == team.team_id) | (Game.away_team_id == team.team_id)) &
             (Game.season_id == season.season_id)
         )
-        .order_by(Game.week.desc())
-        .limit(3)
+        .order_by(Game.week.asc())
         .all()
     )
+
+    # Find the last completed game (has scores and not 0-0)
+    last_completed_game = None
+    for game in reversed(all_games):
+        if (
+            game.home_score is not None and game.away_score is not None
+            and not (game.home_score == 0 and game.away_score == 0)
+        ):
+            last_completed_game = game
+            break
+
+    # Get the 3 games to display
+    display_games = []
+    if last_completed_game:
+        # Get the last completed game and next 2 games
+        completed_games = [g for g in all_games if g.home_score is not None and g.away_score is not None and not (g.home_score == 0 and g.away_score == 0)]
+        future_games = [g for g in all_games if g.home_score is None or g.away_score is None or (g.home_score == 0 and g.away_score == 0)]
+        # Start with the last completed game
+        display_games.append(last_completed_game)
+        # Add up to 2 future games after the last completed game
+        last_index = all_games.index(last_completed_game)
+        for game in all_games[last_index+1:]:
+            if len(display_games) < 3:
+                display_games.append(game)
+        # If we don't have 3 games yet, add more completed games from the end (before last completed)
+        if len(display_games) < 3:
+            for game in reversed(completed_games[:-1]):  # Skip the last completed game as it's already added
+                if len(display_games) < 3:
+                    display_games.append(game)
+    else:
+        # No games played yet, show next 3 games
+        future_games = [g for g in all_games if g.home_score is None or g.away_score is None or (g.home_score == 0 and g.away_score == 0)]
+        display_games = future_games[:3]
+        # If we don't have 3 future games, add completed games from the end
+        if len(display_games) < 3:
+            completed_games = [g for g in all_games if g.home_score is not None and g.away_score is not None and not (g.home_score == 0 and g.away_score == 0)]
+            for game in reversed(completed_games):
+                if len(display_games) < 3:
+                    display_games.append(game)
 
     # Prefetch opponent team names in one query to avoid an N+1 pattern
     opponent_ids = [
         g.away_team_id if g.home_team_id == team.team_id else g.home_team_id
-        for g in recent_games
+        for g in display_games
     ]
     opponents = {
         t.team_id: t.name for t in Team.query.filter(Team.team_id.in_(opponent_ids)).all()
     }
 
     recent_activity = []
-    for game in recent_games:
+    for game in display_games:
+        is_bye_week = (
+            getattr(game, 'game_type', None) == 'Bye Week' or
+            (game.home_team_id == game.away_team_id == team.team_id)
+        )
+        if is_bye_week:
+            recent_activity.append({
+                "title": "Bye Week",
+                "description": "No game this week",
+                "time_ago": f"Week {game.week}",
+                "status": "bye"
+            })
+            continue
         opponent_id = game.away_team_id if game.home_team_id == team.team_id else game.home_team_id
         opponent_name = opponents.get(opponent_id, f"Team {opponent_id}")
-        result = "-"
-        if game.home_score is not None and game.away_score is not None:
+        if game.home_team_id == team.team_id:
+            prefix = "vs"
+        else:
+            prefix = "@"
+        title = f"{prefix} {opponent_name}"
+        if (
+            game.home_score is not None and game.away_score is not None
+            and not (game.home_score == 0 and game.away_score == 0)
+        ):
+            # Completed game
             if (game.home_team_id == team.team_id and game.home_score > game.away_score) or \
                (game.away_team_id == team.team_id and game.away_score > game.home_score):
                 result = "Win"
             else:
                 result = "Loss"
-        recent_activity.append({
-            "title": f"Game vs {opponent_name}",
-            "description": f"{result} ({game.home_score}-{game.away_score}) in week {game.week}",
-            "time_ago": f"Week {game.week}"
-        })
+            recent_activity.append({
+                "title": f"{title}",
+                "description": f"{result} ({game.home_score}-{game.away_score}) in week {game.week}",
+                "time_ago": f"Week {game.week}",
+                "status": "completed"
+            })
+        else:
+            # Future game
+            recent_activity.append({
+                "title": f"{title}",
+                "description": f"Upcoming game in week {game.week}",
+                "time_ago": f"Week {game.week}",
+                "status": "upcoming"
+            })
+
+    # Use manual_conference_position if set
+    if team_season and team_season.manual_conference_position:
+        conference_position = team_season.manual_conference_position
+    else:
+        if team_season:
+            user_conference_id = team_season.conference_id
+            conf_team_entries_sorted = get_conference_standings(user_conference_id, season.season_id)
+            for idx, entry in enumerate(conf_team_entries_sorted, 1):
+                if entry['team_id'] == team.team_id:
+                    conference_position = idx
+                    break
 
     return jsonify({
         "season": {
@@ -100,12 +268,15 @@ def dashboard():
         },
         "team": {
             "record": record,
+            "current_season_record": current_season_record,
+            "current_season_conference_record": current_season_conference_record,
+            "conference_record": conference_record,
             "championships": championships,
             "prestige": prestige,
-            "national_ranking": national_ranking
-        },
-        "stats": {
-            "active_players": active_players
+            "national_ranking": national_ranking,
+            "conference_position": conference_position,
+            "recruiting_commits": recruiting_commits,
+            "recruiting_rank": recruiting_rank
         },
         "recent_activity": recent_activity
     }) 

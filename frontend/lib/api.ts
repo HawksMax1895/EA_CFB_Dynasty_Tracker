@@ -337,10 +337,14 @@ export async function updateGameResult(gameId: number, data: { home_score: numbe
 }
 
 // DASHBOARD
-export async function fetchDashboard() {
-  const response = await fetch(`${API_BASE_URL}/dashboard`)
-  if (!response.ok) throw new Error("Failed to fetch dashboard data")
-  return response.json()
+export async function fetchDashboard(seasonId?: number) {
+  let url = `${API_BASE_URL}/dashboard`;
+  if (seasonId) {
+    url += `?season_id=${seasonId}`;
+  }
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Failed to fetch dashboard");
+  return response.json();
 }
 
 // Update Team Season
