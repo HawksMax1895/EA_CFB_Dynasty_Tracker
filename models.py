@@ -194,3 +194,22 @@ class HonorWinner(db.Model):
     season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'), nullable=False)
     honor_id = db.Column(db.Integer, db.ForeignKey('honors.honor_id'), nullable=False)
     week = db.Column(db.Integer)  # Only set for weekly honors
+
+
+class Recruit(db.Model):
+    __tablename__ = 'recruits'
+    recruit_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    position = db.Column(db.String(8), nullable=False)
+    recruit_stars = db.Column(db.Integer)
+    recruit_rank_nat = db.Column(db.Integer)
+    recruit_rank_pos = db.Column(db.Integer)
+    speed = db.Column(db.Integer)
+    dev_trait = db.Column(db.String(16))
+    height = db.Column(db.String(8))
+    weight = db.Column(db.Integer)
+    state = db.Column(db.String(2))
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
+    season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'))
+    committed = db.Column(db.Boolean, default=True)
+    ovr_rating = db.Column(db.Integer, nullable=True)  # Optional overall rating

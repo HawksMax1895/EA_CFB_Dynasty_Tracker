@@ -52,7 +52,7 @@ export async function progressPlayers(seasonId: number): Promise<ApiResponse> {
 export async function progressPlayerClass(): Promise<ApiResponse> {
   // Get the current season (you might want to make this configurable)
   const seasons = await fetchSeasons()
-  const currentSeason = seasons[seasons.length - 1] // Get the most recent season
+  const currentSeason = seasons[0] // seasons returned in descending order; first element is most recent
   if (!currentSeason) {
     throw new Error("No season found")
   }

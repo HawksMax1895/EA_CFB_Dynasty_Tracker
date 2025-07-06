@@ -195,7 +195,7 @@ export default function SettingsPage() {
 
     const handleDeleteLatestSeason = async () => {
       if (!seasons.length) return;
-      const latest = seasons[seasons.length - 1];
+      const latest = seasons[0];
       if (!window.confirm(`Are you sure you want to delete the latest season (${latest.year}) and all its data? This cannot be undone.`)) return;
       setCreating(true);
       setSeasonError(null);

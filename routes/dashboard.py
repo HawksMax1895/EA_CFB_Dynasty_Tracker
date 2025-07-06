@@ -1,12 +1,184 @@
-from flask import Blueprint, request, jsonify # type: ignore
+from flask import Blueprint, request, jsonify, Response
 from models import Team, TeamSeason, Season, Player, PlayerSeason, Game
 from routes.seasons import get_conference_standings
 from routes.recruiting import Recruit
+from routes import logger
+from typing import Dict, List, Any, Optional, Union
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
+@dashboard_bp.route('/dashboard/<int:season_id>', methods=['GET'])
+def get_dashboard_data(season_id: int) -> Response:
+    """
+    Retrieve comprehensive dashboard data for the user-controlled team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get dashboard data for
+        
+    Returns:
+        Response: JSON object containing season information, team details,
+        team season statistics, conference standings, roster count, and
+        recent games for the user-controlled team.
+        
+    Raises:
+        404: If season is not found, no user-controlled team exists, or
+             TeamSeason record is not found
+    """
+    # Get current season info
+    season = Season.query.get_or_404(season_id)
+    
+    # Get user-controlled team
+    user_team = Team.query.filter_by(is_user_controlled=True).first()
+    if not user_team:
+        return jsonify({'error': 'No user-controlled team found'}), 404
+    
+    # Get team season data
+    team_season = TeamSeason.query.filter_by(
+        team_id=user_team.team_id, 
+        season_id=season_id
+    ).first()
+    
+    if not team_season:
+        return jsonify({'error': 'TeamSeason not found'}), 404
+    
+    # Get conference standings
+    conference_standings = get_conference_standings(
+        team_season.conference_id, 
+        season_id
+    ) if team_season.conference_id else []
+    
+    # Get team roster
+    roster = PlayerSeason.query.filter_by(
+        team_id=user_team.team_id, 
+        season_id=season_id
+    ).all()
+    
+    # Get recent games
+    recent_games = Game.query.filter(
+        Game.season_id == season_id,
+        ((Game.home_team_id == user_team.team_id) | 
+         (Game.away_team_id == user_team.team_id))
+    ).order_by(Game.week.desc()).limit(5).all()
+    
+    return jsonify({
+        'season': {
+            'season_id': season.season_id,
+            'year': season.year
+        },
+        'team': {
+            'team_id': user_team.team_id,
+            'name': user_team.name,
+            'abbreviation': user_team.abbreviation,
+            'logo_url': user_team.logo_url
+        },
+        'team_season': {
+            'wins': team_season.wins,
+            'losses': team_season.losses,
+            'conference_wins': team_season.conference_wins,
+            'conference_losses': team_season.conference_losses,
+            'points_for': team_season.points_for,
+            'points_against': team_season.points_against,
+            'final_rank': team_season.final_rank,
+            'prestige': team_season.prestige,
+            'team_rating': team_season.team_rating
+        },
+        'conference_standings': conference_standings,
+        'roster_count': len(roster),
+        'recent_games': [{
+            'game_id': g.game_id,
+            'week': g.week,
+            'home_team_id': g.home_team_id,
+            'away_team_id': g.away_team_id,
+            'home_score': g.home_score,
+            'away_score': g.away_score,
+            'game_type': g.game_type
+        } for g in recent_games]
+    })
+
+@dashboard_bp.route('/dashboard/<int:season_id>/stats', methods=['GET'])
+def get_dashboard_stats(season_id: int) -> Response:
+    """
+    Retrieve statistical summary for the user-controlled team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get stats for
+        
+    Returns:
+        Response: JSON object containing team statistics (passing, rushing,
+        receiving, defensive stats) and team season record (wins, losses,
+        points for/against) for the user-controlled team.
+        
+    Raises:
+        404: If no user-controlled team exists or TeamSeason record is not found
+    """
+    # Get user-controlled team
+    user_team = Team.query.filter_by(is_user_controlled=True).first()
+    if not user_team:
+        return jsonify({'error': 'No user-controlled team found'}), 404
+    
+    # Get team season data
+    team_season = TeamSeason.query.filter_by(
+        team_id=user_team.team_id, 
+        season_id=season_id
+    ).first()
+    
+    if not team_season:
+        return jsonify({'error': 'TeamSeason not found'}), 404
+    
+    # Get player stats
+    players = PlayerSeason.query.filter_by(
+        team_id=user_team.team_id, 
+        season_id=season_id
+    ).all()
+    
+    # Calculate team stats
+    total_pass_yards = sum(p.pass_yards or 0 for p in players)
+    total_rush_yards = sum(p.rush_yards or 0 for p in players)
+    total_rec_yards = sum(p.rec_yards or 0 for p in players)
+    total_tackles = sum(p.tackles or 0 for p in players)
+    total_sacks = sum(p.sacks or 0 for p in players)
+    total_interceptions = sum(p.interceptions or 0 for p in players)
+    
+    return jsonify({
+        'team_stats': {
+            'pass_yards': total_pass_yards,
+            'rush_yards': total_rush_yards,
+            'rec_yards': total_rec_yards,
+            'tackles': total_tackles,
+            'sacks': total_sacks,
+            'interceptions': total_interceptions
+        },
+        'team_season': {
+            'wins': team_season.wins,
+            'losses': team_season.losses,
+            'points_for': team_season.points_for,
+            'points_against': team_season.points_against
+        }
+    })
+
 @dashboard_bp.route('/dashboard/overview', methods=['GET'])
-def dashboard_overview():
+def dashboard_overview() -> Response:
+    """
+    Retrieve team overview information for a specific team and season.
+    
+    Query Parameters:
+        team_id (int): ID of the team to get overview for (required)
+        season_id (int): ID of the season to get overview for (required)
+        
+    Returns:
+        Response: JSON object containing team overview including team name,
+        overall record, team prestige, team rating, national ranking,
+        recruiting ranking, and counts of all-conference players, all-Americans,
+        and drafted players.
+        
+    Raises:
+        400: If team_id or season_id are not provided
+        404: If team is not found
+        
+    Note:
+        All-conference, all-American, and drafted player counts are currently
+        placeholder values as these systems are not fully implemented.
+    """
     team_id = request.args.get('team_id', type=int)
     season_id = request.args.get('season_id', type=int)
     if not team_id or not season_id:
@@ -33,7 +205,28 @@ def dashboard_overview():
     return jsonify(overview)
 
 @dashboard_bp.route('/dashboard', methods=['GET'])
-def dashboard():
+def dashboard() -> Response:
+    """
+    Retrieve comprehensive dashboard information for the user-controlled team.
+    
+    Query Parameters:
+        season_id (int, optional): Specific season to get dashboard for.
+                                 If not provided, uses the most recent season.
+                                 
+    Returns:
+        Response: JSON object containing comprehensive team information including
+        current season details, all-time records, conference records, recent
+        performance, and team statistics.
+        
+    Raises:
+        404: If no user-controlled team exists, no seasons exist, or
+             specified season is not found
+        
+    Note:
+        All-time records and conference records are calculated from actual
+        game results for accuracy. Conference record calculation excludes
+        bye weeks and unplayed games.
+    """
     # Get the user's team
     team = Team.query.filter_by(is_user_controlled=True).first()
     if not team:
@@ -282,7 +475,22 @@ def dashboard():
     })
 
 @dashboard_bp.route('/dashboard/wins-chart', methods=['GET'])
-def dashboard_wins_chart():
+def dashboard_wins_chart() -> Response:
+    """
+    Retrieve wins chart data for the user-controlled team across all seasons.
+    
+    Returns:
+        Response: JSON object containing team name and chart data with
+        season-by-season win/loss records including year, wins, losses,
+        and total games for each season.
+        
+    Raises:
+        404: If no user-controlled team exists
+        
+    Note:
+        Data is ordered by season year (ascending) for proper chart visualization.
+        Includes total games calculation for each season.
+    """
     # Get the user's team
     team = Team.query.filter_by(is_user_controlled=True).first()
     if not team:

@@ -1,45 +1,97 @@
-from flask import Blueprint, request, jsonify, current_app # type: ignore
+from flask import Blueprint, request, jsonify, current_app, Response
 from marshmallow import ValidationError
 from extensions import db
-from models import Team, TeamSeason
-from schemas import CreateTeamSchema
+from models import Team, TeamSeason, Season, Conference
+from routes import logger
+from typing import Dict, List, Any, Optional, Union
 import os
 
 teams_bp = Blueprint('teams', __name__)
 
 @teams_bp.route('/teams', methods=['GET'])
-def get_teams():
+def get_teams() -> Response:
+    """
+    Retrieve all teams in the system.
+    
+    Returns:
+        Response: JSON array containing all teams with their basic information
+        including team_id, name, abbreviation, logo_url, primary_conference_id,
+        and is_user_controlled status.
+    """
     teams = Team.query.all()
-    return jsonify([
-        {
-            'team_id': t.team_id,
-            'name': t.name,
-            'abbreviation': t.abbreviation,
-            'logo_url': t.logo_url,
-            'is_user_controlled': t.is_user_controlled,
-            'primary_conference_id': t.primary_conference_id
-        }
-        for t in teams
-    ])
+    return jsonify([{
+        'team_id': t.team_id,
+        'name': t.name,
+        'abbreviation': t.abbreviation,
+        'logo_url': t.logo_url,
+        'primary_conference_id': t.primary_conference_id,
+        'is_user_controlled': t.is_user_controlled
+    } for t in teams])
 
 @teams_bp.route('/teams', methods=['POST'])
-def create_team():
-    data = request.json or {}
-    try:
-        validated = CreateTeamSchema().load(data)
-    except ValidationError as err:
-        return jsonify(err.messages), 400
+def create_team() -> Response:
+    """
+    Create a new team in the system.
+    
+    Expected JSON payload:
+        name (str): Team name (required)
+        abbreviation (str, optional): Team abbreviation
+        logo_url (str, optional): URL to team logo
+        primary_conference_id (int, optional): ID of primary conference
+        is_user_controlled (bool, optional): Whether team is user-controlled (default: False)
+    
+    Returns:
+        Response: JSON object with created team information and 201 status code
+        on success, or error message with 400 status code on validation failure.
+    """
+    data = request.json
+    name = data.get('name')
+    abbreviation = data.get('abbreviation')
+    logo_url = data.get('logo_url')
+    primary_conference_id = data.get('primary_conference_id')
+    is_user_controlled = data.get('is_user_controlled', False)
+    
+    if not name:
+        return jsonify({'error': 'Team name is required'}), 400
+    
     team = Team(
-        name=validated['name'],
-        abbreviation=validated.get('abbreviation'),
-        logo_url=validated.get('logo_url')
+        name=name,
+        abbreviation=abbreviation,
+        logo_url=logo_url,
+        primary_conference_id=primary_conference_id,
+        is_user_controlled=is_user_controlled
     )
     db.session.add(team)
     db.session.commit()
-    return jsonify({'team_id': team.team_id, 'name': team.name, 'abbreviation': team.abbreviation, 'logo_url': team.logo_url}), 201
+    
+    return jsonify({
+        'team_id': team.team_id,
+        'name': team.name,
+        'abbreviation': team.abbreviation,
+        'logo_url': team.logo_url,
+        'primary_conference_id': team.primary_conference_id,
+        'is_user_controlled': team.is_user_controlled
+    }), 201
 
 @teams_bp.route('/teams/<int:team_id>/logo', methods=['POST'])
-def upload_team_logo(team_id):
+def upload_team_logo(team_id: int) -> Response:
+    """
+    Upload a logo file for a specific team.
+    
+    Args:
+        team_id (int): ID of the team to upload logo for
+        
+    Expected form data:
+        logo (file): Logo file to upload
+        
+    Returns:
+        Response: JSON object with team_id and logo_url on success,
+        or error message with appropriate status code on failure.
+        
+    Raises:
+        404: If team is not found
+        400: If no logo file is provided or file is empty
+    """
     team = Team.query.get_or_404(team_id)
     if 'logo' not in request.files:
         return jsonify({'error': 'No logo file provided'}), 400
@@ -59,7 +111,17 @@ def upload_team_logo(team_id):
     return jsonify({'team_id': team_id, 'logo_url': logo_url}), 200
 
 @teams_bp.route('/teams/<int:team_id>/seasons', methods=['GET'])
-def get_team_seasons(team_id):
+def get_team_seasons(team_id: int) -> Response:
+    """
+    Retrieve all season records for a specific team.
+    
+    Args:
+        team_id (int): ID of the team to get season records for
+        
+    Returns:
+        Response: JSON array containing team season records with season_id,
+        wins, losses, prestige, and team_rating for each season.
+    """
     team_seasons = TeamSeason.query.filter_by(team_id=team_id).all()
     return jsonify([
         {'season_id': ts.season_id, 'wins': ts.wins, 'losses': ts.losses, 'prestige': ts.prestige, 'team_rating': ts.team_rating}
@@ -67,22 +129,104 @@ def get_team_seasons(team_id):
     ])
 
 @teams_bp.route('/teams/<int:team_id>', methods=['GET'])
-def get_team(team_id):
+def get_team(team_id: int) -> Response:
+    """
+    Retrieve detailed information for a specific team.
+    
+    Args:
+        team_id (int): ID of the team to retrieve
+        
+    Returns:
+        Response: JSON object containing team information including team_id,
+        name, abbreviation, logo_url, primary_conference_id, and is_user_controlled status.
+        
+    Raises:
+        404: If team is not found
+    """
     team = Team.query.get_or_404(team_id)
-    return jsonify({'team_id': team.team_id, 'name': team.name, 'abbreviation': team.abbreviation, 'is_user_controlled': team.is_user_controlled, 'logo_url': team.logo_url})
+    return jsonify({
+        'team_id': team.team_id,
+        'name': team.name,
+        'abbreviation': team.abbreviation,
+        'logo_url': team.logo_url,
+        'primary_conference_id': team.primary_conference_id,
+        'is_user_controlled': team.is_user_controlled
+    })
 
 @teams_bp.route('/teams/<int:team_id>', methods=['PUT'])
-def update_team(team_id):
+def update_team(team_id: int) -> Response:
+    """
+    Update information for a specific team.
+    
+    Args:
+        team_id (int): ID of the team to update
+        
+    Expected JSON payload (all fields optional):
+        name (str): New team name
+        abbreviation (str): New team abbreviation
+        logo_url (str): New logo URL
+        primary_conference_id (int): New primary conference ID
+        is_user_controlled (bool): New user-controlled status
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If team is not found
+    """
     team = Team.query.get_or_404(team_id)
     data = request.json
-    for field in ['name', 'abbreviation', 'is_user_controlled', 'primary_conference_id']:
-        if field in data:
-            setattr(team, field, data[field])
+    
+    if 'name' in data:
+        team.name = data['name']
+    if 'abbreviation' in data:
+        team.abbreviation = data['abbreviation']
+    if 'logo_url' in data:
+        team.logo_url = data['logo_url']
+    if 'primary_conference_id' in data:
+        team.primary_conference_id = data['primary_conference_id']
+    if 'is_user_controlled' in data:
+        team.is_user_controlled = data['is_user_controlled']
+    
     db.session.commit()
-    return jsonify({'message': 'Team updated'})
+    return jsonify({'message': 'Team updated successfully'})
+
+@teams_bp.route('/teams/<int:team_id>', methods=['DELETE'])
+def delete_team(team_id: int) -> Response:
+    """
+    Delete a specific team from the system.
+    
+    Args:
+        team_id (int): ID of the team to delete
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If team is not found
+    """
+    team = Team.query.get_or_404(team_id)
+    db.session.delete(team)
+    db.session.commit()
+    return jsonify({'message': 'Team deleted successfully'})
 
 @teams_bp.route('/teams/<int:team_id>/players', methods=['GET'])
-def get_team_players(team_id):
+def get_team_players(team_id: int) -> Response:
+    """
+    Retrieve all players currently on a specific team's roster.
+    
+    Args:
+        team_id (int): ID of the team to get players for
+        
+    Returns:
+        Response: JSON array containing player information including player_id,
+        name, position, current_year, recruit_stars, dev_trait, height, weight,
+        and state for each player on the team's current roster.
+        
+    Note:
+        Only returns players for the most recent season. Returns empty array
+        if no current season exists.
+    """
     from models import Player, PlayerSeason, Season
     # Get the current season to show current class info
     current_season = Season.query.order_by(Season.year.desc()).first()
@@ -114,7 +258,22 @@ def get_team_players(team_id):
     ])
 
 @teams_bp.route('/teams/<int:team_id>/drafted', methods=['GET'])
-def get_team_drafted_players(team_id):
+def get_team_drafted_players(team_id: int) -> Response:
+    """
+    Retrieve all players drafted from a specific team.
+    
+    Args:
+        team_id (int): ID of the team to get drafted players for
+        
+    Query Parameters:
+        season_id (int, optional): Specific season to filter by
+        
+    Returns:
+        Response: JSON array containing drafted players information.
+        
+    Note:
+        Currently returns empty array as draft tracking system is not yet implemented.
+    """
     from models import Player, PlayerSeason
     season_id = request.args.get('season_id', type=int)
     # Since drafted_year was removed from Player model, we'll need to track this differently
@@ -122,7 +281,18 @@ def get_team_drafted_players(team_id):
     return jsonify([])
 
 @teams_bp.route('/teams/<int:team_id>/history', methods=['GET'])
-def get_team_history(team_id):
+def get_team_history(team_id: int) -> Response:
+    """
+    Retrieve complete historical record for a specific team across all seasons.
+    
+    Args:
+        team_id (int): ID of the team to get history for
+        
+    Returns:
+        Response: JSON array containing team season records with season_id,
+        conference_id, wins, losses, prestige, team_rating, final_rank,
+        and recruiting_rank for each season the team has participated in.
+    """
     from models import TeamSeason
     history = TeamSeason.query.filter_by(team_id=team_id).order_by(TeamSeason.season_id).all()
     return jsonify([
@@ -140,7 +310,19 @@ def get_team_history(team_id):
     ])
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/leaders', methods=['GET'])
-def get_team_stat_leaders(season_id, team_id):
+def get_team_stat_leaders(season_id: int, team_id: int) -> Response:
+    """
+    Retrieve statistical leaders for a specific team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get leaders for
+        team_id (int): ID of the team to get leaders for
+        
+    Returns:
+        Response: JSON object containing top 3 players in each statistical category
+        including Passing Yards, Rushing Yards, Receiving Yards, Tackles, Sacks,
+        and Interceptions. Each category contains player_id, name, and value.
+    """
     from models import PlayerSeason, Player
     stat_fields = [
         ('pass_yards', 'Passing Yards'),
@@ -171,7 +353,18 @@ def get_team_stat_leaders(season_id, team_id):
     return jsonify(leaders)
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/awards', methods=['GET'])
-def get_team_awards(season_id, team_id):
+def get_team_awards(season_id: int, team_id: int) -> Response:
+    """
+    Retrieve all awards won by players from a specific team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get awards for
+        team_id (int): ID of the team to get awards for
+        
+    Returns:
+        Response: JSON array containing award information with award name
+        and player name for each award won by team players in the season.
+    """
     from models import AwardWinner, Award, Player
     query = (
         db.session.query(AwardWinner, Award.name, Player.name)
@@ -188,7 +381,23 @@ def get_team_awards(season_id, team_id):
     ])
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/recruits', methods=['GET'])
-def get_team_recruits(season_id, team_id):
+def get_team_recruits(season_id: int, team_id: int) -> Response:
+    """
+    Retrieve all recruits (freshmen) who joined a specific team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get recruits for
+        team_id (int): ID of the team to get recruits for
+        
+    Returns:
+        Response: JSON array containing recruit information including player_id,
+        name, position, recruit_stars, height, weight, and state for each
+        freshman recruit who joined the team in the specified season.
+        
+    Note:
+        Only returns players whose first season with the team was the specified season
+        and who are currently freshmen (current_year == 'FR').
+    """
     # Players whose first PlayerSeason entry is for this team/season
     from models import Player, PlayerSeason
     first_season_sub = (
@@ -226,7 +435,23 @@ def get_team_recruits(season_id, team_id):
     return jsonify(recruits)
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/transfers', methods=['GET'])
-def get_team_transfers(season_id, team_id):
+def get_team_transfers(season_id: int, team_id: int) -> Response:
+    """
+    Retrieve all transfer players who joined a specific team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get transfers for
+        team_id (int): ID of the team to get transfers for
+        
+    Returns:
+        Response: JSON array containing transfer player information including
+        player_id, name, and position for each player who transferred to
+        the team in the specified season.
+        
+    Note:
+        Only returns players who transferred in (not their first season with any team)
+        and are currently on the specified team in the specified season.
+    """
     # Players who transferred in for this season (not their first PlayerSeason)
     from models import Player, PlayerSeason
     first_season_sub = (
@@ -258,7 +483,28 @@ def get_team_transfers(season_id, team_id):
     return jsonify(transfers)
 
 @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/bulk_stats', methods=['POST'])
-def bulk_stats_entry(season_id, team_id):
+def bulk_stats_entry(season_id: int, team_id: int) -> Response:
+    """
+    Update multiple player statistics for a team in a specific season in bulk.
+    
+    Args:
+        season_id (int): ID of the season to update stats for
+        team_id (int): ID of the team to update stats for
+        
+    Expected JSON payload:
+        List of objects with player_id, stat_field, and value:
+        [
+            {"player_id": 1, "stat_field": "pass_yards", "value": 2500},
+            {"player_id": 2, "stat_field": "rush_yards", "value": 1200}
+        ]
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Note:
+        Only updates stats for players who exist in the specified team/season.
+        Invalid entries are silently ignored.
+    """
     from models import PlayerSeason
     data = request.json
     # data should be a list of {player_id, stat_field, value}
@@ -270,7 +516,25 @@ def bulk_stats_entry(season_id, team_id):
     return jsonify({'message': 'Bulk stats updated'})
 
 @teams_bp.route('/teams/user-controlled', methods=['POST'])
-def set_user_controlled_team():
+def set_user_controlled_team() -> Response:
+    """
+    Set a specific team as the user-controlled team for the dynasty.
+    
+    Expected JSON payload:
+        team_id (int): ID of the team to set as user-controlled (required)
+        
+    Returns:
+        Response: JSON object with success message on completion,
+        or error message with appropriate status code on failure.
+        
+    Raises:
+        400: If team_id is not provided
+        404: If team is not found
+        
+    Note:
+        This will unset all other teams as user-controlled before setting
+        the specified team as user-controlled.
+    """
     data = request.json
     team_id = data.get('team_id')
     if not team_id:
@@ -286,6 +550,47 @@ def set_user_controlled_team():
     from extensions import db
     db.session.commit()
     return jsonify({'message': f'Team {team_id} set as user-controlled'}), 200
+
+@teams_bp.route('/teams/<int:team_id>/seasons/<int:season_id>', methods=['GET'])
+def get_team_season(team_id: int, season_id: int) -> Response:
+    """
+    Retrieve detailed season information for a specific team in a specific season.
+    
+    Args:
+        team_id (int): ID of the team to get season information for
+        season_id (int): ID of the season to get information for
+        
+    Returns:
+        Response: JSON object containing team season information including
+        team_id, season_id, conference_id, wins, losses, conference_wins,
+        conference_losses, points_for, points_against, final_rank, prestige,
+        and team_rating.
+        
+    Raises:
+        404: If team season record is not found
+    """
+    team_season = TeamSeason.query.filter_by(
+        team_id=team_id, 
+        season_id=season_id
+    ).first()
+    
+    if not team_season:
+        return jsonify({'error': 'TeamSeason not found'}), 404
+    
+    return jsonify({
+        'team_id': team_season.team_id,
+        'season_id': team_season.season_id,
+        'conference_id': team_season.conference_id,
+        'wins': team_season.wins,
+        'losses': team_season.losses,
+        'conference_wins': team_season.conference_wins,
+        'conference_losses': team_season.conference_losses,
+        'points_for': team_season.points_for,
+        'points_against': team_season.points_against,
+        'final_rank': team_season.final_rank,
+        'prestige': team_season.prestige,
+        'team_rating': team_season.team_rating
+    })
 
 # @teams_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/players', methods=['GET'])
 # def get_team_players_by_season(season_id, team_id):

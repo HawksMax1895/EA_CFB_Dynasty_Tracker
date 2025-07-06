@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, Suspense } from "react";
 import { Team } from "@/types";
 import { useSearchParams } from 'next/navigation';
 
@@ -19,7 +19,7 @@ interface SeasonContextType {
 
 const SeasonContext = createContext<SeasonContextType | undefined>(undefined);
 
-export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const SeasonProviderInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
   const [userTeam, setUserTeam] = useState<Team | null>(null);
@@ -35,8 +35,8 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setSelectedSeason(Number(seasonFromUrl));
       }
     } else if (seasons.length > 0 && !selectedSeason) {
-      console.log('SeasonContext: setting selectedSeason to latest season', seasons[seasons.length - 1].season_id);
-      setSelectedSeason(seasons[seasons.length - 1].season_id);
+      console.log('SeasonContext: setting selectedSeason to latest season', seasons[0].season_id);
+      setSelectedSeason(seasons[0].season_id);
     }
     // Only run when seasons or searchParams change
   }, [searchParams, seasons]);
@@ -47,6 +47,14 @@ export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     <SeasonContext.Provider value={{ seasons, selectedSeason, setSelectedSeason, setSeasons, userTeam, setUserTeam }}>
       {children}
     </SeasonContext.Provider>
+  );
+};
+
+export const SeasonProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SeasonProviderInner>{children}</SeasonProviderInner>
+    </Suspense>
   );
 };
 

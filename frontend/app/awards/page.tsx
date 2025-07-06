@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy, Pencil } from "lucide-react"
 import React, { useEffect, useState, useRef } from "react"
-import { fetchAllAwardsForSeason, fetchAllPlayersBySeason, fetchTeamsBySeason, updateAwardWinner, declareAwardWinner, addPlayer, fetchHonorsBySeason, fetchHonorTypes, checkHonorRequiresWeek } from "@/lib/api"
+import { fetchAllAwardsForSeason, fetchAllPlayersBySeason, fetchTeamsBySeason, updateAwardWinner, declareAwardWinner, addPlayer, fetchHonorsBySeason, fetchHonorTypes, checkHonorRequiresWeek, addHonors } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { useSeason } from "@/context/SeasonContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -42,12 +42,26 @@ export default function AwardsPage() {
   const [addHonorError, setAddHonorError] = useState<string | null>(null);
   const [honorTypes, setHonorTypes] = useState<HonorType[]>([]);
   const [selectedHonorRequiresWeek, setSelectedHonorRequiresWeek] = useState(false);
+  const [honorsError, setHonorsError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [editTeamId, setEditTeamId] = useState<number | null>(null);
+  const [addPlayerTeamPopoverOpen, setAddPlayerTeamPopoverOpen] = useState(false);
 
   const filteredPlayers = allPlayers.filter(p => {
     const matchesName = p.name.toLowerCase().includes(playerSearch.toLowerCase());
     const matchesTeam = playerTeamFilter == null || p.team_id === playerTeamFilter;
     return matchesName && matchesTeam;
   });
+
+  // Find the user-controlled team and players
+  const userTeam = allTeams.find(t => t.is_user_controlled);
+  const userTeamPlayers = userTeam ? allPlayers.filter(p => p.team_id === userTeam.team_id) : [];
+  
+  // Filter honor types to only show national honors and user team's conference honors
+  const filteredHonorTypes = honorTypes.filter(honor => 
+    honor.conference_id === null || // National honors
+    honor.conference_id === userTeam?.primary_conference_id // User team's conference honors
+  );
 
   useEffect(() => {
     if (!selectedSeason) return;
@@ -61,6 +75,11 @@ export default function AwardsPage() {
         setAllAwards(awardsData)
         setAllPlayers(playersData)
         setAllTeams(teamsData)
+        setLoading(false)
+        setError(null)
+      })
+      .catch(err => {
+        setError(err.message || 'Failed to load data')
         setLoading(false)
       })
   }, [selectedSeason])
@@ -208,21 +227,14 @@ export default function AwardsPage() {
         .catch(e => setHonorsError(e.message))
         .finally(() => setHonorsLoading(false));
     } catch (err: unknown) {
-      setAddHonorError(err.message || 'Failed to add honor');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add honor';
+      setAddHonorError(errorMessage);
     } finally {
       setAddingHonor(false);
     }
   };
 
-  // Find the user-controlled team and players above the return
-  const userTeam = allTeams.find(t => t.is_user_controlled);
-  const userTeamPlayers = userTeam ? allPlayers.filter(p => p.team_id === userTeam.team_id) : [];
-  
-  // Filter honor types to only show national honors and user team's conference honors
-  const filteredHonorTypes = honorTypes.filter(honor => 
-    honor.conference_id === null || // National honors
-    honor.conference_id === userTeam?.primary_conference_id // User team's conference honors
-  );
+
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -396,9 +408,11 @@ export default function AwardsPage() {
                     <SelectTrigger className="w-full mt-2">
                       <SelectValue placeholder="Select player" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent style={{ maxHeight: 320, overflowY: 'auto' }}>
                       {filteredPlayers.map(p => (
-                        <SelectItem key={p.player_id} value={p.player_id.toString()}>{p.name} ({p.team_name})</SelectItem>
+                        <SelectItem key={p.player_id} value={p.player_id.toString()}>
+                          {p.name} ({p.position} - {p.team_name || 'No Team'})
+                        </SelectItem>
                       ))}
                       <SelectSeparator />
                       <SelectItem value="__add_new__" onClick={e => {
@@ -450,14 +464,49 @@ export default function AwardsPage() {
                       </Select>
                     </div>
                     <div className="flex gap-2">
-                      <Input
-                        placeholder="Team ID"
-                        type="number"
-                        value={newPlayer.team_id || ''}
-                        onChange={e => setNewPlayer({ ...newPlayer, team_id: parseInt(e.target.value) || null })}
-                        className="flex-1"
-                        required
-                      />
+                      <Popover open={addPlayerTeamPopoverOpen} onOpenChange={setAddPlayerTeamPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={addPlayerTeamPopoverOpen}
+                            className="flex-1 justify-between"
+                            type="button"
+                          >
+                            {(() => {
+                              console.log('Selected team_id:', newPlayer.team_id, 'allTeams:', allTeams);
+                              const teamId = newPlayer.team_id;
+                              const selectedTeam = allTeams.find(t => String(t.team_id) === String(teamId));
+                              // Show team name if available, otherwise fallback to team_name
+                              return selectedTeam ? (selectedTeam.name || selectedTeam.team_name) : "Select Team";
+                            })()}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-0">
+                          <Command>
+                            <CommandInput placeholder="Search team..." />
+                            <CommandList>
+                              <CommandEmpty>No team found.</CommandEmpty>
+                              <CommandGroup>
+                                {allTeams.map(t => (
+                                  <CommandItem
+                                    key={t.team_id}
+                                    value={t.name || t.team_name}
+                                    onSelect={() => {
+                                      setNewPlayer({ ...newPlayer, team_id: t.team_id });
+                                      setAddPlayerTeamPopoverOpen(false);
+                                    }}
+                                  >
+                                    <Check className={cn("mr-2 h-4 w-4", newPlayer.team_id === t.team_id ? "opacity-100" : "opacity-0")} />
+                                    {t.name || t.team_name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <Input
                         placeholder="OVR"
                         type="number"
@@ -522,7 +571,7 @@ export default function AwardsPage() {
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select honor type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-96 overflow-y-auto">
                       {filteredHonorTypes.map(honor => {
                         const isWeeklyHonor = honor.name.includes("Player of the Week");
                         return (

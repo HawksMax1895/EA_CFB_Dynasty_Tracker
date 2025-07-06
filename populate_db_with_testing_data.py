@@ -300,7 +300,8 @@ with app.app_context():
             state="TX",
             team_id=user_team.team_id,
             season_id=season.season_id,
-            committed=True
+            committed=True,
+            ovr_rating=84
         )
         db.session.add(recruit)
         db.session.flush()

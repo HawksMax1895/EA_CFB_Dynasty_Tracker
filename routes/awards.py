@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify # type: ignore
+from flask import Blueprint, request, jsonify
 from extensions import db
 from models import Award, AwardWinner, Player, Team
 

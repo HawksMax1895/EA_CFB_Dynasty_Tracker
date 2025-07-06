@@ -1,8 +1,8 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { useSeason } from "../context/SeasonContext";
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export const SeasonSelector: React.FC = () => {
+const SeasonSelectorInner: React.FC = () => {
   const { seasons, selectedSeason, setSelectedSeason } = useSeason();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,5 +29,13 @@ export const SeasonSelector: React.FC = () => {
         <option key={season.season_id} value={season.season_id}>{season.year}</option>
       ))}
     </select>
+  );
+};
+
+export const SeasonSelector: React.FC = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SeasonSelectorInner />
+    </Suspense>
   );
 }; 

@@ -308,32 +308,25 @@ export default function PlayersPage() {
       </Card>
 
       {/* Player Cards */}
-      <div className="grid gap-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {filteredPlayers.map((player, index) => {
           const positionStyle = getPositionStyle(player.position);
           const ratingColor = getRatingColor(player.ovr_rating || 0);
           
           return (
-            <Card key={player.player_id || index} className="hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 bg-card overflow-hidden">
-              <div className={`h-2 bg-gradient-to-r ${positionStyle.bg}`}></div>
-              <CardHeader className="pb-4">
-                <div className="flex justify-between items-start">
+            <Card key={player.player_id || index} className="hover:shadow-lg transition-all duration-200 border bg-card overflow-hidden p-3 text-sm">
+              <CardHeader className="pb-2 px-2 pt-2">
+                <div className="flex justify-between items-start gap-2">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-2xl">{positionStyle.icon}</span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xl">{positionStyle.icon}</span>
                       <div>
-                        <CardTitle className="text-xl font-bold text-foreground">{player.name}</CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className={`${positionStyle.color} border-current`}>
-                            {player.position}
-                          </Badge>
-                          <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                            {player.current_year}{player.redshirted ? ' (RS)' : ''}
-                          </Badge>
+                        <CardTitle className="text-base font-bold text-foreground mb-0">{player.name}</CardTitle>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Badge variant="outline" className={`${positionStyle.color} border-current text-xs px-2 py-0.5`}>{player.position}</Badge>
+                          <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs px-2 py-0.5">{player.current_year}{player.redshirted ? ' (RS)' : ''}</Badge>
                           {player.dev_trait && (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                              {player.dev_trait}
-                            </Badge>
+                            <Badge variant="outline" className="bg-yellow-200 text-yellow-800 border-yellow-300 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
                           )}
                         </div>
                       </div>
@@ -376,31 +369,23 @@ export default function PlayersPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 text-foreground/80">
-                        {player.height && (
-                          <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span>{player.height}</span>
-                          </div>
-                        )}
-                        {player.weight && (
-                          <div className="flex items-center gap-1">
-                            <Target className="h-3 w-3" />
-                            <span>{player.weight} lbs</span>
-                          </div>
-                        )}
-                        {player.recruit_stars && (
-                          <div className="flex items-center gap-1">
-                            <Star className="h-3 w-3 text-yellow-500" />
-                            <span>{player.recruit_stars}★</span>
-                          </div>
-                        )}
-                        {player.state && (
-                          <div className="flex items-center gap-1">
-                            <Shield className="h-3 w-3" />
-                            <span>{player.state}</span>
-                          </div>
-                        )}
+                      <div className="flex w-full justify-between items-center gap-2 mt-3 text-foreground/80">
+                        <div className="flex items-center gap-1 min-w-0">
+                          <User className="h-3 w-3" />
+                          <span>{player.height || '-'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <Target className="h-3 w-3" />
+                          <span>{player.weight ? `${player.weight} lbs` : '-'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <Star className="h-3 w-3 text-yellow-500" />
+                          <span>{player.recruit_stars ? `${player.recruit_stars}★` : '-'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <Shield className="h-3 w-3" />
+                          <span>{player.state || '-'}</span>
+                        </div>
                       </div>
                     )}
                   </div>

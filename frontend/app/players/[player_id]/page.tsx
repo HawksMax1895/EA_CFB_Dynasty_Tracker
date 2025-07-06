@@ -164,7 +164,7 @@ export default function PlayerProfilePage() {
       
       setEditingSeason(null);
       setEditingStats({});
-    } catch () {
+    } catch (error) {
       setSaving(false);
     }
   };
@@ -219,7 +219,7 @@ export default function PlayerProfilePage() {
       setPlayer(playerData);
       setEditingProfile(false);
       setProfileEdits({});
-    } catch () {
+    } catch (error) {
       setSavingProfile(false);
     }
   };
@@ -269,80 +269,65 @@ export default function PlayerProfilePage() {
         {/* Player Info Card */}
         <div className="lg:col-span-1">
           <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-            <div className={`h-2 bg-gradient-to-r ${positionStyle.bg}`}></div>
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">{positionStyle.icon}</div>
-                <div className="flex-1">
-                  <CardTitle className="text-2xl font-bold text-gray-900">{player.name}</CardTitle>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline" className={`${positionStyle.color} border-current`}>
-                      {player.position}
-                    </Badge>
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-700">
-                      {player.current_year}{player.redshirted ? ' (RS)' : ''}
-                    </Badge>
-                    {player.dev_trait && (
-                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                        {player.dev_trait}
-                      </Badge>
-                    )}
+            <div className="p-6">
+              {/* Top Row: Icon, Name, Badges (left) | OVR (right) */}
+              <div className="flex items-center justify-between mb-2 gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl flex-shrink-0">{positionStyle.icon}</span>
+                  <div className="min-w-0">
+                    <span className="text-base font-bold text-gray-900 leading-tight block truncate">{player.name}</span>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge variant="outline" className={`${positionStyle.color} border-current text-xs px-2 py-0.5`}>{player.position}</Badge>
+                      {player.current_year && (
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5">{player.current_year}</Badge>
+                      )}
+                      {player.dev_trait && (
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              {/* Overall Rating */}
-              <div className="mt-4 text-center">
-                <div className="flex items-center justify-center gap-2">
-                  <TrendingUp className="h-6 w-6 text-blue-500" />
-                  <span className={`text-4xl font-bold ${ratingColor}`}>
-                    {player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}
-                  </span>
+                <div className="flex flex-col items-end min-w-[70px]">
+                  <div className="flex items-center gap-1">
+                    <TrendingUp className="h-5 w-5 text-blue-500" />
+                    <span className={`text-2xl font-bold ${ratingColor}`}>{player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
                 </div>
-                <span className="text-sm text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
               </div>
-
-              {/* Player Details */}
-              <div className="grid grid-cols-2 gap-4 mt-4 text-sm text-gray-600">
-                {player.height && (
-                  <div className="flex items-center gap-2">
+              {/* Player Details: 2x2 grid on left, Edit button on right */}
+              <div className="flex w-full mt-4 gap-4 items-stretch">
+                <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-x-4 gap-y-2 text-gray-600 text-sm">
+                  <div className="flex items-center gap-1 min-w-0">
                     <User className="h-4 w-4" />
-                    <span>{player.height}</span>
+                    <span>{player.height || '-'}</span>
                   </div>
-                )}
-                {player.weight && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
                     <Target className="h-4 w-4" />
-                    <span>{player.weight} lbs</span>
+                    <span>{player.weight ? `${player.weight} lbs` : '-'}</span>
                   </div>
-                )}
-                {player.recruit_stars && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
                     <Star className="h-4 w-4 text-yellow-500" />
-                    <span>{player.recruit_stars}★</span>
+                    <span>{player.recruit_stars ? `${player.recruit_stars}★` : '-'}</span>
                   </div>
-                )}
-                {player.state && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 min-w-0">
                     <Shield className="h-4 w-4" />
-                    <span>{player.state}</span>
+                    <span>{player.state || '-'}</span>
                   </div>
-                )}
+                </div>
+                <div className="flex flex-col justify-center items-end w-28">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-10 px-6"
+                    onClick={handleEditProfile}
+                    disabled={editingProfile}
+                  >
+                    Edit
+                  </Button>
+                </div>
               </div>
-
-              {/* Edit Profile Button */}
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={handleEditProfile}
-                  className="w-full"
-                  disabled={editingProfile}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Edit Profile
-                </Button>
-              </div>
-            </CardHeader>
+            </div>
           </Card>
 
           {/* Awards & Honors */}

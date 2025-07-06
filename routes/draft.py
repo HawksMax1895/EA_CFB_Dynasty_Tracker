@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
 from models import Player
 
 draft_bp = Blueprint('draft', __name__)
 
 @draft_bp.route('/drafted-players', methods=['POST'])
-def add_drafted_players():
+def add_drafted_players() -> Response:
     data = request.json
     season_id = data.get('season_id')
     drafted_players = data.get('drafted_players', [])

@@ -23,6 +23,7 @@ interface RecruitForm {
   height: string;
   weight: string;
   state: string;
+  ovr_rating: number;
 }
 
 const recruitPositions = [
@@ -61,6 +62,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     height: "",
     weight: "",
     state: "",
+    ovr_rating: 70,
   });
 
   const handleFormChange = (field: keyof RecruitForm, value: string | number) => {
@@ -97,6 +99,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     try {
       await addPlayer({
         ...form,
+        ovr_rating: Number(form.ovr_rating),
         team_id: userTeam?.team_id || 1,
         season_id: selectedSeason || 1,
       });
@@ -111,6 +114,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
         height: "",
         weight: "",
         state: "",
+        ovr_rating: 70,
       });
       setOpen(false);
       onPlayerAdded();
@@ -129,7 +133,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
           Add Player
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-[var(--size-48)] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Player</DialogTitle>
         </DialogHeader>
@@ -154,6 +158,19 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ovr_rating">Overall Rating (OVR)</Label>
+                  <Input
+                    id="ovr_rating"
+                    type="number"
+                    value={form.ovr_rating}
+                    onChange={e => handleFormChange("ovr_rating", e.target.value)}
+                    placeholder="OVR"
+                    min={0}
+                    max={99}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Stars</Label>
@@ -195,17 +212,46 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
               </div>
               <div className="mt-6 mb-2 font-semibold text-foreground">Physical Attributes</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <div className="flex items-center gap-2">
-                  <Label className="mb-0">Height (ft/in)</Label>
-                  <Input id="height_feet" type="number" value={feet} onChange={e => handleHeightChange('feet', e.target.value)} placeholder="Feet" className="w-20 text-sm" />
-                  <span>&apos;</span>
-                  <Input id="height_inches" type="number" value={inches} onChange={e => handleHeightChange('inches', e.target.value)} placeholder="Inches" className="w-20 text-sm" />
-                  <span>&quot;</span>
+                <div>
+                  <Label className="block mb-1">Height (ft/in)</Label>
+                  <div className="flex items-center gap-2 w-full">
+                    <Input
+                      id="height_feet"
+                      type="number"
+                      value={feet}
+                      onChange={e => handleHeightChange('feet', e.target.value)}
+                      placeholder="Feet"
+                      className="w-24 text-base px-4 py-2"
+                      min={0}
+                    />
+                    <span className="text-lg font-medium">'</span>
+                    <Input
+                      id="height_inches"
+                      type="number"
+                      value={inches}
+                      onChange={e => handleHeightChange('inches', e.target.value)}
+                      placeholder="Inches"
+                      className="w-24 text-base px-4 py-2"
+                      min={0}
+                      max={11}
+                    />
+                    <span className="text-lg font-medium">"</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label className="mb-0">Weight</Label>
-                  <Input id="weight" type="number" value={form.weight} onChange={e => handleFormChange("weight", e.target.value)} placeholder="Weight" className="w-24 text-sm" />
-                  <span>lbs</span>
+                <div>
+                  <Label className="block mb-1">Weight</Label>
+                  <div className="flex items-center w-full">
+                    <Input
+                      id="weight"
+                      type="number"
+                      value={form.weight}
+                      onChange={e => handleFormChange("weight", e.target.value)}
+                      placeholder="Weight"
+                      className="w-full text-sm"
+                      min={0}
+                    />
+                    <span className="ml-1 text-sm text-muted-foreground">lbs</span>
+                  </div>
                 </div>
               </div>
               <div className="mt-6 space-y-2">

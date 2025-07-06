@@ -1,11 +1,200 @@
-from flask import Blueprint, request, jsonify # type: ignore
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
 from models import Game, TeamSeason, Conference, Team
+from routes import logger
+from typing import Dict, List, Any, Optional, Union
 
 games_bp = Blueprint('games', __name__)
 
+@games_bp.route('/games/<int:season_id>', methods=['GET'])
+def get_games_for_season(season_id: int) -> Response:
+    """
+    Retrieve all games for a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get games for
+        
+    Returns:
+        Response: JSON array containing all games in the season ordered by week
+        and game_id. Each game includes game_id, season_id, week, home_team_id,
+        away_team_id, home_score, away_score, game_type, and playoff_round.
+    """
+    games = Game.query.filter_by(season_id=season_id).order_by(Game.week.asc(), Game.game_id.asc()).all()
+    return jsonify([{
+        'game_id': g.game_id,
+        'season_id': g.season_id,
+        'week': g.week,
+        'home_team_id': g.home_team_id,
+        'away_team_id': g.away_team_id,
+        'home_score': g.home_score,
+        'away_score': g.away_score,
+        'game_type': g.game_type,
+        'playoff_round': g.playoff_round
+    } for g in games])
+
+@games_bp.route('/games/<int:season_id>', methods=['POST'])
+def create_game(season_id: int) -> Response:
+    """
+    Create a new game in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to create the game in
+        
+    Expected JSON payload:
+        week (int): Week number (required)
+        home_team_id (int): Home team ID (required)
+        away_team_id (int): Away team ID (required)
+        game_type (str, optional): Type of game (default: 'Regular Season')
+        playoff_round (int, optional): Playoff round number
+        
+    Returns:
+        Response: JSON object with created game information and 201 status code
+        on success, or error message with 400 status code on validation failure.
+        
+    Raises:
+        400: If required fields (week, home_team_id, away_team_id) are missing
+    """
+    data = request.json
+    week = data.get('week')
+    home_team_id = data.get('home_team_id')
+    away_team_id = data.get('away_team_id')
+    game_type = data.get('game_type', 'Regular Season')
+    playoff_round = data.get('playoff_round')
+    
+    if not all([week, home_team_id, away_team_id]):
+        return jsonify({'error': 'week, home_team_id, and away_team_id are required'}), 400
+    
+    game = Game(
+        season_id=season_id,
+        week=week,
+        home_team_id=home_team_id,
+        away_team_id=away_team_id,
+        game_type=game_type,
+        playoff_round=playoff_round
+    )
+    db.session.add(game)
+    db.session.commit()
+    
+    return jsonify({
+        'game_id': game.game_id,
+        'season_id': game.season_id,
+        'week': game.week,
+        'home_team_id': game.home_team_id,
+        'away_team_id': game.away_team_id,
+        'game_type': game.game_type,
+        'playoff_round': game.playoff_round
+    }), 201
+
+@games_bp.route('/games/<int:game_id>', methods=['PUT'])
+def update_game(game_id: int) -> Response:
+    """
+    Update information for a specific game.
+    
+    Args:
+        game_id (int): ID of the game to update
+        
+    Expected JSON payload (all fields optional):
+        home_score (int): Home team score
+        away_score (int): Away team score
+        home_team_id (int): Home team ID
+        away_team_id (int): Away team ID
+        game_type (str): Type of game
+        playoff_round (int): Playoff round number
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If game is not found
+    """
+    game = Game.query.get_or_404(game_id)
+    data = request.json
+    
+    if 'home_score' in data:
+        game.home_score = data['home_score']
+    if 'away_score' in data:
+        game.away_score = data['away_score']
+    if 'home_team_id' in data:
+        game.home_team_id = data['home_team_id']
+    if 'away_team_id' in data:
+        game.away_team_id = data['away_team_id']
+    if 'game_type' in data:
+        game.game_type = data['game_type']
+    if 'playoff_round' in data:
+        game.playoff_round = data['playoff_round']
+    if 'overtime' in data:
+        game.overtime = data['overtime']
+    
+    db.session.commit()
+    return jsonify({'message': 'Game updated successfully'})
+
+@games_bp.route('/games/<int:game_id>', methods=['DELETE'])
+def delete_game(game_id: int) -> Response:
+    """
+    Delete a specific game from the system.
+    
+    Args:
+        game_id (int): ID of the game to delete
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If game is not found
+    """
+    game = Game.query.get_or_404(game_id)
+    db.session.delete(game)
+    db.session.commit()
+    return jsonify({'message': 'Game deleted successfully'})
+
+@games_bp.route('/games/<int:season_id>/week/<int:week>', methods=['GET'])
+def get_games_for_week(season_id: int, week: int) -> Response:
+    """
+    Retrieve all games for a specific week in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get games for
+        week (int): Week number to get games for
+        
+    Returns:
+        Response: JSON array containing all games in the specified week including
+        game_id, season_id, week, home_team_id, away_team_id, home_score,
+        away_score, game_type, and playoff_round.
+    """
+    games = Game.query.filter_by(season_id=season_id, week=week).all()
+    return jsonify([{
+        'game_id': g.game_id,
+        'season_id': g.season_id,
+        'week': g.week,
+        'home_team_id': g.home_team_id,
+        'away_team_id': g.away_team_id,
+        'home_score': g.home_score,
+        'away_score': g.away_score,
+        'game_type': g.game_type,
+        'playoff_round': g.playoff_round
+    } for g in games])
+
 @games_bp.route('/seasons/<int:season_id>/games', methods=['GET'])
-def get_games_in_season(season_id):
+def get_games_in_season(season_id: int) -> Response:
+    """
+    Retrieve games for a specific season with enhanced information.
+    
+    Args:
+        season_id (int): ID of the season to get games for
+        
+    Query Parameters:
+        type (str, optional): Filter by game type - 'regular' for non-playoff games,
+                             'playoff' for playoff games (default: 'regular')
+                             
+    Returns:
+        Response: JSON array containing games with enhanced information including
+        team names, conference game status, overtime information, and all basic
+        game details. Games are ordered by week.
+        
+    Note:
+        Includes team names and determines if each game is a conference game
+        by comparing team conference assignments for the season.
+    """
     game_type = request.args.get('type', 'regular')
     query = Game.query.filter_by(season_id=season_id)
 
@@ -48,7 +237,21 @@ def get_games_in_season(season_id):
     return jsonify(result)
 
 @games_bp.route('/games/<int:game_id>', methods=['GET'])
-def get_game(game_id):
+def get_game(game_id: int) -> Response:
+    """
+    Retrieve detailed information for a specific game.
+    
+    Args:
+        game_id (int): ID of the game to retrieve
+        
+    Returns:
+        Response: JSON object containing game information including game_id,
+        season_id, week, home_team_id, away_team_id, home_score, away_score,
+        game_type, playoff_round, and overtime status.
+        
+    Raises:
+        404: If game is not found
+    """
     game = Game.query.get_or_404(game_id)
     return jsonify({
         'game_id': game.game_id,
@@ -63,191 +266,26 @@ def get_game(game_id):
         'overtime': game.overtime
     })
 
-@games_bp.route('/games', methods=['POST'])
-def create_game():
-    data = request.json
-    season_id = data.get('season_id')
-    week = data.get('week')
-    home_team_id = data.get('home_team_id')
-    away_team_id = data.get('away_team_id')
-    if not all([season_id, week, home_team_id, away_team_id]):
-        return jsonify({'error': 'Missing required fields'}), 400
-    game = Game(season_id=season_id, week=week, home_team_id=home_team_id, away_team_id=away_team_id)
-    db.session.add(game)
-    db.session.commit()
-    return jsonify({'game_id': game.game_id}), 201
-
-@games_bp.route('/games/<int:game_id>', methods=['PUT'])
-def update_game(game_id):
-    game = Game.query.get_or_404(game_id)
-    data = request.json
-    old_home_team_id = game.home_team_id
-    old_away_team_id = game.away_team_id
-    old_home_score = game.home_score
-    old_away_score = game.away_score
-    old_winner = None
-    if game.game_type == 'Playoff' and game.home_score is not None and game.away_score is not None and game.home_team_id and game.away_team_id:
-        old_winner = game.home_team_id if game.home_score > game.away_score else game.away_team_id
-
-    # Update teams and scores
-    game.home_score = data.get('home_score', game.home_score)
-    game.away_score = data.get('away_score', game.away_score)
-    game.home_team_id = data.get('home_team_id', game.home_team_id)
-    game.away_team_id = data.get('away_team_id', game.away_team_id)
-    game.game_type = data.get('game_type', game.game_type)
-    game.playoff_round = data.get('playoff_round', game.playoff_round)
-    game.overtime = data.get('overtime', game.overtime)
-    db.session.commit()
-
-    # --- Playoff winner propagation logic ---
-    if game.game_type == 'Playoff':
-        from models import Game as GameModel
-        season_id = game.season_id
-        games = GameModel.query.filter_by(season_id=season_id, game_type='Playoff').order_by(GameModel.week.asc(), GameModel.game_id.asc()).all()
-        # Find index and round
-        idx = None
-        round_name = game.playoff_round
-        for i, g in enumerate(games):
-            if g.game_id == game_id:
-                idx = i
-                break
-        def propagate_winner(games, idx, round_name, new_winner, old_winner):
-            next_map = {
-                'First Round': ('Quarterfinals', [3, 2, 1, 0], 'away'),
-                'Quarterfinals': ('Semifinals', [0, 1, 1, 0], ['home', 'home', 'away', 'away']),
-                'Semifinals': ('Championship', [0, 0], ['home', 'away'])
-            }
-            if round_name not in next_map:
-                return
-            next_round, next_idxs, slots = next_map[round_name]
-            if idx < 0 or idx >= len(next_idxs):
-                return
-            next_idx = next_idxs[idx]
-            slot = slots if isinstance(slots, str) else slots[idx]
-            games_in_round = [x for x in games if x.playoff_round == next_round]
-            if next_idx < len(games_in_round):
-                next_game = games_in_round[next_idx]
-                # Remove old winner if present
-                if old_winner:
-                    if slot == 'home' and next_game.home_team_id == old_winner:
-                        next_game.home_team_id = None
-                        next_game.home_score = None
-                        next_game.away_score = None
-                        propagate_winner(games, next_idx, next_round, None, old_winner)
-                    elif slot == 'away' and next_game.away_team_id == old_winner:
-                        next_game.away_team_id = None
-                        next_game.home_score = None
-                        next_game.away_score = None
-                        propagate_winner(games, next_idx, next_round, None, old_winner)
-                # Set new winner if provided
-                if new_winner:
-                    if slot == 'home' and next_game.home_team_id != new_winner:
-                        next_game.home_team_id = new_winner
-                        next_game.home_score = None
-                        next_game.away_score = None
-                        propagate_winner(games, next_idx, next_round, new_winner, old_winner)
-                    elif slot == 'away' and next_game.away_team_id != new_winner:
-                        next_game.away_team_id = new_winner
-                        next_game.home_score = None
-                        next_game.away_score = None
-                        propagate_winner(games, next_idx, next_round, new_winner, old_winner)
-        # If teams changed, clear downstream
-        teams_changed = (
-            data.get('home_team_id') is not None and data.get('home_team_id') != old_home_team_id
-        ) or (
-            data.get('away_team_id') is not None and data.get('away_team_id') != old_away_team_id
-        )
-        if idx is not None and round_name and teams_changed:
-            # Remove old winner from downstream
-            propagate_winner(games, idx, round_name, None, old_winner)
-        # If both teams and scores are present, propagate new winner
-        if idx is not None and round_name and game.home_team_id and game.away_team_id and game.home_score is not None and game.away_score is not None:
-            new_winner = game.home_team_id if game.home_score > game.away_score else game.away_team_id
-            if new_winner != old_winner:
-                propagate_winner(games, idx, round_name, new_winner, old_winner)
-        db.session.commit()
-
-    # --- NEW: Update TeamSeason records for both teams ---
-    season_id = game.season_id
-    home_team_id = game.home_team_id
-    away_team_id = game.away_team_id
-
-    # Get all games for this season involving either team
-    all_games = Game.query.filter(
-        Game.season_id == season_id,
-        ((Game.home_team_id == home_team_id) | (Game.away_team_id == home_team_id) |
-         (Game.home_team_id == away_team_id) | (Game.away_team_id == away_team_id))
-    ).all()
-
-    # Prefetch TeamSeason records for teams appearing in these games to avoid
-    # repeated DB queries when recalculating records
-    involved_team_ids = {g.home_team_id for g in all_games} | {g.away_team_id for g in all_games}
-    team_seasons = {
-        ts.team_id: ts
-        for ts in TeamSeason.query.filter_by(season_id=season_id)
-        .filter(TeamSeason.team_id.in_(involved_team_ids))
-        .all()
-    }
-
-    # Helper to recalculate record and scoring stats for a team
-    def recalc_record(team_id):
-        wins = losses = conf_wins = conf_losses = 0
-        points_for = points_against = games_played = 0
-        for g in all_games:
-            # Only count games with valid scores and not bye weeks
-            if g.home_score is None or g.away_score is None or g.game_type == 'Bye Week':
-                continue
-            # Determine if this team is home or away
-            is_home = g.home_team_id == team_id
-            is_away = g.away_team_id == team_id
-            if not (is_home or is_away):
-                continue
-            # Win/loss logic
-            team_score = g.home_score if is_home else g.away_score
-            opp_score = g.away_score if is_home else g.home_score
-            if team_score > opp_score:
-                wins += 1
-            elif team_score < opp_score:
-                losses += 1
-
-            # Points for/against
-            points_for += team_score
-            points_against += opp_score
-            games_played += 1
-            # Conference win/loss: only if both teams are in the same conference
-            if g.home_team_id and g.away_team_id:
-                home_ts = team_seasons.get(g.home_team_id)
-                away_ts = team_seasons.get(g.away_team_id)
-                if home_ts and away_ts and home_ts.conference_id and away_ts.conference_id and home_ts.conference_id == away_ts.conference_id:
-                    if is_home and g.home_score > g.away_score:
-                        conf_wins += 1
-                    elif is_home and g.home_score < g.away_score:
-                        conf_losses += 1
-                    elif is_away and g.away_score > g.home_score:
-                        conf_wins += 1
-                    elif is_away and g.away_score < g.home_score:
-                        conf_losses += 1
-        ts = team_seasons.get(team_id)
-        if ts:
-            ts.wins = wins
-            ts.losses = losses
-            ts.conference_wins = conf_wins
-            ts.conference_losses = conf_losses
-            ts.points_for = points_for
-            ts.points_against = points_against
-            ts.off_ppg = round(points_for / games_played, 1) if games_played else None
-            ts.def_ppg = round(points_against / games_played, 1) if games_played else None
-            db.session.add(ts)
-
-    recalc_record(home_team_id)
-    recalc_record(away_team_id)
-    db.session.commit()
-    # --- END NEW ---
-
-    return jsonify({'game_id': game.game_id})
-
 @games_bp.route('/games/<int:game_id>/details', methods=['GET'])
-def get_game_details(game_id):
+def get_game_details(game_id: int) -> Response:
+    """
+    Retrieve detailed game information including placeholder for player statistics.
+    
+    Args:
+        game_id (int): ID of the game to get details for
+        
+    Returns:
+        Response: JSON object containing game information including game_id,
+        season_id, week, home_team_id, away_team_id, home_score, away_score,
+        game_type, playoff_round, and overtime status.
+        
+    Raises:
+        404: If game is not found
+        
+    Note:
+        Currently returns basic game information. Per-game player statistics
+        are not yet modeled in the database schema.
+    """
     game = Game.query.get_or_404(game_id)
     # Placeholder: per-game player stats not modeled, so just return game info
     return jsonify({
@@ -264,7 +302,16 @@ def get_game_details(game_id):
     })
 
 @games_bp.route('/games', methods=['GET'])
-def get_all_games():
+def get_all_games() -> Response:
+    """
+    Retrieve all games in the system.
+    
+    Returns:
+        Response: JSON array containing all games with comprehensive information
+        including game_id, season_id, week, home_team_id, away_team_id,
+        home_score, away_score, game_type, playoff_round, neutral_site status,
+        and overtime status.
+    """
     games = Game.query.all()
     return jsonify([
         {

@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
 from models import Conference, Team
 
 conferences_bp = Blueprint('conferences', __name__)
 
 @conferences_bp.route('/conferences', methods=['POST'])
-def create_conference():
+def create_conference() -> Response:
     data = request.json
     name = data.get('name')
     tier = data.get('tier')
@@ -17,7 +17,7 @@ def create_conference():
     return jsonify({'conference_id': conf.conference_id, 'name': conf.name, 'tier': conf.tier}), 201
 
 @conferences_bp.route('/conferences/<int:conference_id>/teams', methods=['POST'])
-def assign_teams_to_conference(conference_id):
+def assign_teams_to_conference(conference_id: int) -> Response:
     data = request.json
     team_ids = data.get('team_ids', [])
     if not isinstance(team_ids, list):
@@ -33,7 +33,7 @@ def assign_teams_to_conference(conference_id):
     return jsonify({'updated_team_ids': updated}), 201
 
 @conferences_bp.route('/conferences', methods=['GET'])
-def get_conferences():
+def get_conferences() -> Response:
     conferences = Conference.query.all()
     return jsonify([
         {

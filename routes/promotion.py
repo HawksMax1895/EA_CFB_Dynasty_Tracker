@@ -1,9 +1,9 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 
 promotion_bp = Blueprint('promotion', __name__)
 
 @promotion_bp.route('/promotion-relegation', methods=['POST'])
-def add_promotion_relegation():
+def add_promotion_relegation() -> Response:
     data = request.json
     season_id = data.get('season_id')
     promoted = data.get('promoted', [])

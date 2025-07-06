@@ -1,158 +1,168 @@
-from flask import Blueprint, request, jsonify # type: ignore
+from flask import Blueprint, request, jsonify, Response
 from marshmallow import ValidationError
 from extensions import db
-from models import Season, Conference, TeamSeason, Game, Team, PlayerSeason, AwardWinner, Honor
+from models import Season, Conference, TeamSeason, Game, Team, PlayerSeason, AwardWinner, Honor, HonorWinner
 from schemas import CreateSeasonSchema
+from routes import logger
+from typing import Dict, List, Any, Optional, Union
 import datetime
 
 seasons_bp = Blueprint('seasons', __name__)
 
 @seasons_bp.route('/seasons', methods=['GET'])
-def get_seasons():
-    seasons = Season.query.all()
+def get_seasons() -> Response:
+    """
+    Retrieve all seasons in the system, ordered by year (descending).
+    
+    Returns:
+        Response: JSON array containing all seasons with season_id and year,
+        ordered from most recent to oldest.
+    """
+    seasons = Season.query.order_by(Season.year.desc()).all()
     return jsonify([{'season_id': s.season_id, 'year': s.year} for s in seasons])
 
 @seasons_bp.route('/seasons', methods=['POST'])
-def create_season():
-    data = request.json or {}
+def create_season() -> Response:
+    """
+    Create a new season in the system.
+    
+    Expected JSON payload:
+        year (int): Year of the season to create (required)
+        
+    Returns:
+        Response: JSON object with season_id, year, and success message
+        on successful creation, or error message with appropriate status code.
+        
+    Raises:
+        400: If year is invalid or season already exists
+        422: If payload validation fails
+        
+    Note:
+        Automatically progresses players from the previous season when a new
+        season is created. Logs errors during player progression but continues
+        execution even if progression fails.
+    """
+    # Load and validate the incoming JSON (may be empty)
+    incoming_json = request.get_json(silent=True) or {}
     try:
-        validated = CreateSeasonSchema().load(data)
-    except ValidationError as err:
-        return jsonify(err.messages), 400
-    year = validated.get('year')
-    if not year:
-        # Find the most recent season and increment year
+        data = CreateSeasonSchema().load(incoming_json)
+    except ValidationError as e:
+        return jsonify({'error': e.messages}), 400
+
+    # Determine the year: use provided value or auto-increment from latest season
+    season_year = data.get('year')
+    if season_year is None:
         last_season = Season.query.order_by(Season.year.desc()).first()
-        if last_season:
-            year = last_season.year + 1
+        if last_season is not None:
+            season_year = last_season.year + 1
         else:
-            year = datetime.datetime.now().year
-    if Season.query.filter_by(year=year).first():
-        return jsonify({'error': f'Season for year {year} already exists'}), 400
-    season = Season(year=year)
-    db.session.add(season)
-    db.session.flush()  # Get season_id
+            # If no seasons exist yet, default to current calendar year
+            season_year = datetime.datetime.now().year
 
-    # Find the user-controlled team
-    user_team = Team.query.filter_by(is_user_controlled=True).first()
-    if not user_team:
-        # If no user team exists, create a default one or use the first team
-        user_team = Team.query.first()
-        if not user_team:
-            return jsonify({'error': 'No teams found in database'}), 400
+    # Check if season already exists
+    if Season.query.filter_by(year=season_year).first():
+        return jsonify({'error': f'Season {season_year} already exists'}), 400
 
-    # Create bye week games for weeks 0-16
-    for week in range(17):
-        game = Game(
-            season_id=season.season_id, 
-            week=week, 
-            home_team_id=user_team.team_id, 
-            away_team_id=user_team.team_id,
-            game_type="Bye Week"
-        )
-        db.session.add(game)
-
-    # --- NEW: Create TeamSeason records for all teams ---
-    all_teams = Team.query.all()
-    # Get previous season's AP poll (final_rank 1-25)
-    prev_season = Season.query.order_by(Season.year.desc()).filter(Season.year < year).first()
-    prev_ap_poll = {}
-    if prev_season:
-        prev_team_seasons = TeamSeason.query.filter_by(season_id=prev_season.season_id).all()
-        for ts in prev_team_seasons:
-            if ts.final_rank and ts.final_rank <= 25:
-                prev_ap_poll[ts.team_id] = ts.final_rank
-    for team in all_teams:
-        # Use the team's primary_conference_id
-        conference_id = team.primary_conference_id
-        if not conference_id:
-            # Fallback: assign to first conference if not set
-            first_conf = Conference.query.first()
-            conference_id = first_conf.conference_id if first_conf else None
-        # Set final_rank from previous season if in AP poll
-        final_rank = prev_ap_poll.get(team.team_id)
-        ts = TeamSeason(team_id=team.team_id, season_id=season.season_id, conference_id=conference_id, final_rank=final_rank)
-        db.session.add(ts)
-
-    # --- NEW: Automatically generate empty 12-team playoff bracket ---
-    # Bracket structure:
-    # First Round: 4 games (5v12, 6v11, 7v10, 8v9)
-    # Quarterfinals: 4 games (1vG4, 2vG3, 3vG2, 4vG1)
-    # Semifinals: 2 games (G5vG8, G6vG7)
-    # Championship: 1 game (G9vG10)
-    playoff_games = [
-        # First Round (week 17)
-        {"week": 17, "playoff_round": "First Round"},
-        {"week": 17, "playoff_round": "First Round"},
-        {"week": 17, "playoff_round": "First Round"},
-        {"week": 17, "playoff_round": "First Round"},
-        # Quarterfinals (week 18)
-        {"week": 18, "playoff_round": "Quarterfinals"},
-        {"week": 18, "playoff_round": "Quarterfinals"},
-        {"week": 18, "playoff_round": "Quarterfinals"},
-        {"week": 18, "playoff_round": "Quarterfinals"},
-        # Semifinals (week 19)
-        {"week": 19, "playoff_round": "Semifinals"},
-        {"week": 19, "playoff_round": "Semifinals"},
-        # Championship (week 20)
-        {"week": 20, "playoff_round": "Championship"},
-    ]
-    for g in playoff_games:
-        game = Game(
-            season_id=season.season_id,
-            week=g["week"],
-            home_team_id=None,
-            away_team_id=None,
-            game_type="Playoff",
-            playoff_round=g["playoff_round"]
-        )
-        db.session.add(game)
-    # --- END NEW ---
-
+    # Create the new season
+    new_season = Season(year=season_year)
+    db.session.add(new_season)
     db.session.commit()
-    db.session.expire_all()  # Ensure session is up-to-date
-
+    
     # Debug: print all seasons after commit
     all_seasons = Season.query.order_by(Season.year).all()
-    print('All seasons after commit:', [(s.season_id, s.year) for s in all_seasons])
-
+    logger.debug(f'All seasons after commit: {[(s.season_id, s.year) for s in all_seasons]}')
+    
     # --- NEW: Automatically progress players from the previous season ---
+    prev_season = Season.query.filter(Season.season_id < new_season.season_id).order_by(Season.season_id.desc()).first()
     if prev_season:
         try:
             from routes.season_actions import progress_players_logic
-            print(f'Progressing players for prev_season.year={prev_season.year}, prev_season.season_id={prev_season.season_id}')
+            logger.info(f'Progressing players for prev_season.year={prev_season.year}, prev_season.season_id={prev_season.season_id}')
             progression_result = progress_players_logic(prev_season.season_id)
-            print(f"Player progression completed: {progression_result}")
-        except Exception as e:
-            print(f"Error during player progression: {e}")
-            pass
-
-    return jsonify({'season_id': season.season_id, 'year': season.year}), 201
+            logger.info(f"Player progression completed: {progression_result}")
+        except (ImportError, AttributeError, ValueError, RuntimeError) as e:
+            logger.error(f"Error during player progression: {e}")
+            # Log error but continue execution
+    
+    return jsonify({
+        'season_id': new_season.season_id,
+        'year': new_season.year,
+        'message': f'Season {new_season.year} created successfully'
+    }), 201
 
 @seasons_bp.route('/conferences', methods=['GET'])
-def get_conferences():
+def get_conferences() -> Response:
+    """
+    Retrieve all conferences in the system.
+    
+    Returns:
+        Response: JSON array containing all conferences with conference_id and name.
+    """
     conferences = Conference.query.all()
-    return jsonify([{'conference_id': c.conference_id, 'name': c.name, 'tier': c.tier} for c in conferences])
+    return jsonify([{'conference_id': c.conference_id, 'name': c.name} for c in conferences])
 
 @seasons_bp.route('/conferences', methods=['POST'])
-def create_conference():
+def create_conference() -> Response:
+    """
+    Create a new conference in the system.
+    
+    Expected JSON payload:
+        name (str): Name of the conference to create (required)
+        
+    Returns:
+        Response: JSON object with conference_id and name on successful creation,
+        or error message with 400 status code on validation failure.
+        
+    Raises:
+        400: If conference name is not provided
+    """
     data = request.json
     name = data.get('name')
-    tier = data.get('tier')
     if not name:
-        return jsonify({'error': 'Name is required'}), 400
-    conference = Conference(name=name, tier=tier)
+        return jsonify({'error': 'Conference name is required'}), 400
+    
+    conference = Conference(name=name)
     db.session.add(conference)
     db.session.commit()
-    return jsonify({'conference_id': conference.conference_id, 'name': conference.name, 'tier': conference.tier}), 201
+    return jsonify({'conference_id': conference.conference_id, 'name': conference.name}), 201
 
 @seasons_bp.route('/seasons/<int:season_id>', methods=['GET'])
-def get_season(season_id):
+def get_season(season_id: int) -> Response:
+    """
+    Retrieve information for a specific season.
+    
+    Args:
+        season_id (int): ID of the season to retrieve
+        
+    Returns:
+        Response: JSON object containing season_id and year for the specified season.
+        
+    Raises:
+        404: If season is not found
+    """
     season = Season.query.get_or_404(season_id)
     return jsonify({'season_id': season.season_id, 'year': season.year})
 
 # --- Helper for robust conference record calculation for user team ---
-def calculate_user_team_conference_record(team_id, season_id):
+def calculate_user_team_conference_record(team_id: int, season_id: int) -> tuple[int, int]:
+    """
+    Calculate conference wins and losses for a specific team in a specific season.
+    
+    This helper function provides a robust calculation of conference record by
+    analyzing actual game results rather than relying on stored values.
+    
+    Args:
+        team_id (int): ID of the team to calculate conference record for
+        season_id (int): ID of the season to calculate record for
+        
+    Returns:
+        tuple[int, int]: Tuple of (conference_wins, conference_losses)
+        
+    Note:
+        Only counts games where both teams are in the same conference and
+        the game has been played (scores are not None and not both 0).
+        Bye weeks are excluded from the calculation.
+    """
     from models import Game, TeamSeason
     # Build a mapping: (season_id, team_id) -> conference_id
     team_conf_map = {(ts.season_id, ts.team_id): ts.conference_id for ts in TeamSeason.query.filter_by(season_id=season_id).all()}
@@ -188,7 +198,27 @@ def calculate_user_team_conference_record(team_id, season_id):
     return conf_wins, conf_losses
 
 @seasons_bp.route('/seasons/<int:season_id>/teams', methods=['GET'])
-def get_teams_in_season(season_id):
+def get_teams_in_season(season_id: int) -> Response:
+    """
+    Retrieve all teams participating in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get teams for
+        
+    Query Parameters:
+        all (bool): If 'true', returns all teams. If 'false' or not provided,
+                   returns only top 25 teams by final ranking.
+                   
+    Returns:
+        Response: JSON array containing team information including team details,
+        conference information, season statistics, and rankings. For user-controlled
+        teams, conference record is calculated dynamically from game results.
+        
+    Note:
+        When 'all' parameter is false, only teams ranked in the top 25 by
+        final_rank are returned. User-controlled team conference records are
+        calculated from actual game results for accuracy.
+    """
     all_param = request.args.get('all', 'false').lower() == 'true'
     team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
     teams = {t.team_id: t for t in Team.query.all()}
@@ -277,7 +307,29 @@ def get_teams_in_season(season_id):
     ])
 
 @seasons_bp.route('/seasons/<int:season_id>/teams/<int:team_id>', methods=['PUT'])
-def update_team_season(season_id, team_id):
+def update_team_season(season_id: int, team_id: int) -> Response:
+    """
+    Update or create team season statistics for a specific team in a specific season.
+    
+    Args:
+        season_id (int): ID of the season to update
+        team_id (int): ID of the team to update
+        
+    Expected JSON payload (all fields optional):
+        Various statistical fields including wins, losses, conference_wins,
+        conference_losses, points_for, points_against, offensive/defensive stats,
+        rankings, and team ratings.
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If team is not found
+        
+    Note:
+        If no TeamSeason record exists for the team/season combination,
+        one will be created automatically using the team's primary conference.
+    """
     ts = TeamSeason.query.filter_by(season_id=season_id, team_id=team_id).first()
     if not ts:
         # Create a new TeamSeason if it doesn't exist
@@ -304,7 +356,18 @@ def update_team_season(season_id, team_id):
     return jsonify({'message': 'Team season updated'})
 
 @seasons_bp.route('/seasons/<int:season_id>/leaders', methods=['GET'])
-def get_season_leaders(season_id):
+def get_season_leaders(season_id: int) -> Response:
+    """
+    Retrieve statistical leaders for a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get leaders for
+        
+    Returns:
+        Response: JSON object containing top 5 players in each statistical category
+        including Passing Yards, Rushing Yards, and Receiving Yards. Each category
+        contains player_id, team_id, and value for each leader.
+    """
     # Example: top 5 in passing yards, rushing yards, receiving yards
     leaders = {}
     stat_fields = [
@@ -324,7 +387,21 @@ def get_season_leaders(season_id):
     return jsonify(leaders)
 
 @seasons_bp.route('/seasons/<int:season_id>/standings', methods=['GET'])
-def get_season_standings(season_id):
+def get_season_standings(season_id: int) -> Response:
+    """
+    Retrieve conference standings for a specific season.
+    
+    Args:
+        season_id (int): ID of the season to get standings for
+        
+    Returns:
+        Response: JSON object containing standings grouped by conference name.
+        Each conference contains an array of teams with team_id, wins, losses,
+        prestige, and team_rating.
+        
+    Note:
+        Teams without a conference are grouped under their conference_id as a string.
+    """
     # Group by conference with a join to avoid repeated conference lookups
     query = (
         db.session.query(TeamSeason, Conference.name)
@@ -347,7 +424,26 @@ def get_season_standings(season_id):
     return jsonify(standings)
 
 @seasons_bp.route('/conferences/<int:conference_id>/teams', methods=['GET'])
-def get_conference_teams(conference_id):
+def get_conference_teams(conference_id: int) -> Response:
+    """
+    Retrieve all teams in a specific conference for a specific season.
+    
+    Args:
+        conference_id (int): ID of the conference to get teams for
+        
+    Query Parameters:
+        season_id (int, optional): Specific season to get team data for.
+                                 If not provided, returns basic team information only.
+                                 
+    Returns:
+        Response: JSON array containing team information including team details,
+        season statistics, and conference standings. Teams are sorted by
+        conference record when season_id is provided.
+        
+    Note:
+        When season_id is provided, teams are sorted by conference record
+        using the shared get_conference_standings helper function.
+    """
     season_id = request.args.get('season_id', type=int)
     from models import Team, TeamSeason, Conference
     teams = Team.query.filter_by(primary_conference_id=conference_id).all()
@@ -387,7 +483,21 @@ def get_conference_teams(conference_id):
     return jsonify(result)
 
 @seasons_bp.route('/seasons/<int:season_id>/promotion_relegation', methods=['GET'])
-def get_promotion_relegation(season_id):
+def get_promotion_relegation(season_id: int) -> Response:
+    """
+    Retrieve conference changes (promotion/relegation) between the current season and previous season.
+    
+    Args:
+        season_id (int): ID of the current season to compare against previous season
+        
+    Returns:
+        Response: JSON array containing teams that changed conferences between seasons.
+        Each entry includes team_id, from_conference, and to_conference.
+        
+    Note:
+        Returns empty array if no previous season exists or no teams changed conferences.
+        Conference names are prefetched to avoid repeated database lookups.
+    """
     prev_season = Season.query.filter(Season.season_id < season_id).order_by(Season.season_id.desc()).first()
     if not prev_season:
         return jsonify({'message': 'No previous season to compare.'})
@@ -414,7 +524,28 @@ def get_promotion_relegation(season_id):
     return jsonify(changes)
 
 @seasons_bp.route('/seasons/<int:season_id>', methods=['DELETE'])
-def delete_season(season_id):
+def delete_season(season_id: int) -> Response:
+    """
+    Delete a specific season and all related data.
+    
+    Args:
+        season_id (int): ID of the season to delete
+        
+    Returns:
+        Response: JSON object with success message on completion,
+        or error message with appropriate status code on failure.
+        
+    Raises:
+        404: If season is not found
+        400: If attempting to delete a season that is not the latest
+        
+    Note:
+        Only the latest season can be deleted. This prevents accidental deletion
+        of historical data. All related data including TeamSeason, Game, PlayerSeason,
+        AwardWinner, Honor, Recruit, and Transfer records are also deleted.
+        Errors during deletion of optional data (recruits, transfers) are logged
+        but do not prevent the deletion from completing.
+    """
     season = Season.query.get_or_404(season_id)
     # Only allow deleting the latest season
     latest_season = Season.query.order_by(Season.year.desc()).first()
@@ -430,27 +561,50 @@ def delete_season(season_id):
     PlayerSeason.query.filter_by(season_id=season_id).delete()
     # AwardWinner
     AwardWinner.query.filter_by(season_id=season_id).delete()
-    # Honor
-    Honor.query.filter_by(season_id=season_id).delete()
+    # Honor winners (season-specific)
+    HonorWinner.query.filter_by(season_id=season_id).delete()
     # Recruit (if exists)
     try:
         from routes.recruiting import Recruit
         Recruit.query.filter_by(season_id=season_id).delete()
-    except Exception:
-        pass
+    except (ImportError, AttributeError, ValueError, RuntimeError) as e:
+        # Log error but continue execution
+        logger.error(f"Error deleting recruits: {e}")
     # Transfer (if exists)
     try:
         from routes.transfer import Transfer
         Transfer.query.filter_by(season_id=season_id).delete()
-    except Exception:
-        pass
+    except (ImportError, AttributeError, ValueError, RuntimeError) as e:
+        # Log error but continue execution
+        logger.error(f"Error deleting transfers: {e}")
     # Finally, delete the season itself
     db.session.delete(season)
     db.session.commit()
     return jsonify({'message': f'Season {season.year} and all related data deleted.'}), 200
 
 # --- Shared helper for conference standings ---
-def get_conference_standings(conference_id, season_id):
+def get_conference_standings(conference_id: int, season_id: int) -> list[dict[str, Any]]:
+    """
+    Calculate conference standings for a specific conference in a specific season.
+    
+    This shared helper function provides consistent conference standings calculation
+    across multiple endpoints, with special handling for user-controlled teams.
+    
+    Args:
+        conference_id (int): ID of the conference to calculate standings for
+        season_id (int): ID of the season to calculate standings for
+        
+    Returns:
+        list[dict[str, Any]]: List of team entries sorted by conference record.
+        Each entry contains team_id, conference_wins, conference_losses, and
+        manual_conference_position if set.
+        
+    Note:
+        For user-controlled teams, conference record is calculated from actual
+        game results for accuracy. For other teams, stored values are used.
+        Teams can be sorted by manual position if set, otherwise by conference
+        record (wins descending, losses ascending, team_id ascending).
+    """
     from models import Team, TeamSeason, Game
     teams = Team.query.filter_by(primary_conference_id=conference_id).all()
     team_seasons = {ts.team_id: ts for ts in TeamSeason.query.filter_by(conference_id=conference_id, season_id=season_id).all()}

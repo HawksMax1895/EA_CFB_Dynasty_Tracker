@@ -31,6 +31,7 @@ export default function RankingsPage() {
   const [apPollTeams, setApPollTeams] = useState<Team[]>([])
   const [allSeasonTeams, setAllSeasonTeams] = useState<Team[]>([])
   const [selectedConference, setSelectedConference] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedSeason) return

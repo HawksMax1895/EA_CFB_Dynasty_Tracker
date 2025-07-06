@@ -378,8 +378,11 @@ const BracketVisual = memo(function BracketVisual({
     }
   });
 
-  // Move getTeamInfo here
-
+  // Utility to get team info by ID from eligibleTeams
+  function getTeamInfo(team_id: number | null | undefined, eligibleTeams: PlayoffEligibleTeam[]) {
+    if (team_id == null) return undefined;
+    return eligibleTeams.find(t => t.team_id === team_id);
+  }
 
   const rounds = [
     { key: 'First Round', title: 'First Round', week: 17 },

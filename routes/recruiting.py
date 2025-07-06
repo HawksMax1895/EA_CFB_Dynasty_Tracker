@@ -1,29 +1,43 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
-from models import Player, Team, Season, PlayerSeason
+from models import Player, Team, Season, PlayerSeason, Recruit
 
 recruiting_bp = Blueprint('recruiting', __name__)
 
-# Create a simple Recruit model for storing committed recruits
-class Recruit(db.Model):
-    __tablename__ = 'recruits'
-    recruit_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False)
-    position = db.Column(db.String(8), nullable=False)
-    recruit_stars = db.Column(db.Integer)
-    recruit_rank_nat = db.Column(db.Integer)
-    recruit_rank_pos = db.Column(db.Integer)
-    speed = db.Column(db.Integer)
-    dev_trait = db.Column(db.String(16))
-    height = db.Column(db.String(8))
-    weight = db.Column(db.Integer)
-    state = db.Column(db.String(2))
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
-    season_id = db.Column(db.Integer, db.ForeignKey('seasons.season_id'))
-    committed = db.Column(db.Boolean, default=True)
-
 @recruiting_bp.route('/recruiting-class', methods=['POST'])
-def add_recruiting_class():
+def add_recruiting_class() -> Response:
+    """
+    Add a recruiting class for a specific team in a specific season.
+    
+    Expected JSON payload:
+        team_id (int): ID of the team to add recruits for (required)
+        season_id (int): ID of the season to add recruits for (required)
+        recruits (list): List of recruit objects (required)
+        
+    Each recruit object should contain:
+        name (str): Recruit name (required)
+        position (str): Recruit position (required)
+        recruit_stars (int, optional): Recruit star rating
+        recruit_rank_nat (int, optional): National ranking
+        recruit_rank_pos (int, optional): Position ranking
+        speed (int, optional): Speed rating
+        dev_trait (str, optional): Development trait
+        height (str, optional): Height
+        weight (int, optional): Weight
+        state (str, optional): State
+        
+    Returns:
+        Response: JSON object with created_recruit_ids array and 201 status code
+        on success, or error message with appropriate status code on failure.
+        
+    Raises:
+        400: If required fields are missing or recruits is not a list
+        404: If season is not found
+        
+    Note:
+        Only recruits with valid name and position are created. Invalid recruits
+        are silently skipped without error.
+    """
     data = request.json
     team_id = data.get('team_id')
     season_id = data.get('season_id')
@@ -34,12 +48,12 @@ def add_recruiting_class():
     if not season:
         return jsonify({'error': 'Season not found'}), 404
 
-    progression = ["FR", "SO", "JR", "SR"]
-    future_seasons = (
-        Season.query.filter(Season.year >= season.year)
-        .order_by(Season.year)
-        .all()
-    )
+    # Note: progression and future_seasons variables are defined but not used in current implementation
+    # future_seasons = (
+    #     Season.query.filter(Season.year >= season.year)
+    #     .order_by(Season.year)
+    #     .all()
+    # )
 
     created_recruits = []
     for recruit in recruits:
@@ -53,6 +67,7 @@ def add_recruiting_class():
         height = recruit.get('height')
         weight = recruit.get('weight')
         state = recruit.get('state')
+        ovr_rating = recruit.get('ovr_rating')
         if not name or not position:
             continue
 
@@ -69,7 +84,8 @@ def add_recruiting_class():
             state=state,
             team_id=team_id,
             season_id=season_id,
-            committed=True
+            committed=True,
+            ovr_rating=ovr_rating
         )
         db.session.add(recruit_obj)
         db.session.flush()
@@ -79,7 +95,22 @@ def add_recruiting_class():
     return jsonify({'created_recruit_ids': created_recruits}), 201
 
 @recruiting_bp.route('/recruiting-class', methods=['GET'])
-def get_recruiting_class():
+def get_recruiting_class() -> Response:
+    """
+    Retrieve the recruiting class for a specific team in a specific season.
+    
+    Query Parameters:
+        team_id (int): ID of the team to get recruits for (required)
+        season_id (int): ID of the season to get recruits for (required)
+        
+    Returns:
+        Response: JSON array containing all committed recruits for the team/season
+        including recruit_id, name, position, recruit_stars, recruit_rank_nat,
+        recruit_rank_pos, speed, dev_trait, height, weight, and state.
+        
+    Raises:
+        400: If team_id or season_id are not provided
+    """
     team_id = request.args.get('team_id', type=int)
     season_id = request.args.get('season_id', type=int)
     if not team_id or not season_id:
@@ -103,13 +134,38 @@ def get_recruiting_class():
             'dev_trait': r.dev_trait,
             'height': r.height,
             'weight': r.weight,
-            'state': r.state
+            'state': r.state,
+            'ovr_rating': r.ovr_rating
         }
         for r in recruits
     ])
 
 @recruiting_bp.route('/recruiting-class/<int:recruit_id>', methods=['PUT'])
-def update_recruit(recruit_id):
+def update_recruit(recruit_id: int) -> Response:
+    """
+    Update information for a specific recruit.
+    
+    Args:
+        recruit_id (int): ID of the recruit to update
+        
+    Expected JSON payload (all fields optional):
+        name (str): Recruit name
+        position (str): Recruit position
+        recruit_stars (int): Recruit star rating
+        recruit_rank_nat (int): National ranking
+        recruit_rank_pos (int): Position ranking
+        speed (int): Speed rating
+        dev_trait (str): Development trait
+        height (str): Height
+        weight (int): Weight
+        state (str): State
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If recruit is not found
+    """
     recruit = Recruit.query.get(recruit_id)
     if not recruit:
         return jsonify({'error': 'Recruit not found'}), 404
@@ -125,12 +181,25 @@ def update_recruit(recruit_id):
     recruit.height = data.get('height', recruit.height)
     recruit.weight = data.get('weight', recruit.weight)
     recruit.state = data.get('state', recruit.state)
+    recruit.ovr_rating = data.get('ovr_rating', recruit.ovr_rating)
     
     db.session.commit()
     return jsonify({'message': 'Recruit updated successfully'}), 200
 
 @recruiting_bp.route('/recruiting-class/<int:recruit_id>', methods=['DELETE'])
-def delete_recruit(recruit_id):
+def delete_recruit(recruit_id: int) -> Response:
+    """
+    Delete a specific recruit from the system.
+    
+    Args:
+        recruit_id (int): ID of the recruit to delete
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If recruit is not found
+    """
     recruit = Recruit.query.get(recruit_id)
     if not recruit:
         return jsonify({'error': 'Recruit not found'}), 404

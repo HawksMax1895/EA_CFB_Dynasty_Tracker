@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify # type: ignore
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
 from models import TeamSeason, Team, Season
 
 rankings_bp = Blueprint('rankings', __name__)
 
 @rankings_bp.route('/recruiting-rankings', methods=['POST'])
-def update_recruiting_rankings():
+def update_recruiting_rankings() -> Response:
     data = request.json
     season_id = data.get('season_id')
     rankings = data.get('rankings', [])
@@ -26,7 +26,7 @@ def update_recruiting_rankings():
     return jsonify({'updated_team_ids': updated_teams}), 201
 
 @rankings_bp.route('/recruiting-rankings', methods=['GET'])
-def get_recruiting_rankings():
+def get_recruiting_rankings() -> Response:
     season_id = request.args.get('season_id', type=int)
     query = TeamSeason.query
     if season_id:

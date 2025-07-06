@@ -362,142 +362,56 @@ export default function GamesPage() {
           {[...games].sort((a, b) => a.week - b.week).map((game, index) => (
             <Card key={game.game_id || index} className="hover:shadow-xl transition-all duration-300 border border-card bg-card">
               <CardHeader className="pb-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
+                {/* Modern Scoreboard Layout */}
+                <div className="flex flex-col gap-2">
+                  {/* Top Row: Week, Badges, Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-3">
                       <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-semibold">
                         Week {game.week}
                       </div>
-                      <CardTitle className="text-xl font-bold text-foreground">
-                        {(() => {
-                          const homeName = game.home_team_name || teamMap[game.home_team_id] || game.home_team_id;
-                          const awayName = game.away_team_name || teamMap[game.away_team_id] || game.away_team_id;
-                          
-                          if (game.game_type === 'Bye Week') {
-                            return (
-                              <span className="text-muted-foreground italic">
-                                Bye Week
-                              </span>
-                            );
-                          }
-                          
-                          if (homeName === 'TBD' && awayName === 'TBD') return 'TBD';
-                          if (userTeamId) {
-                            if (game.home_team_id === userTeamId) {
-                              return (
-                                <>
-                                  vs{' '}
-                                  <Popover open={openCombobox[game.game_id] === 'away'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'away' : null }))}>
-                                    <PopoverTrigger asChild>
-                                      <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'away' })); }}>
-                                        {awayName}
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent align="start" className="p-0 w-60">
-                                      <Command>
-                                        <CommandInput placeholder="Search team..." />
-                                        <CommandList>
-                                          {[...teams].sort((a: Team, b: Team) => {
-                                            const nameA = a.team_name || a.name || '';
-                                            const nameB = b.team_name || b.name || '';
-                                            return nameA.localeCompare(nameB);
-                                          }).map((t: Team) => (
-                                            <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
-                                              await updateGameResult(game.game_id, {
-                                                home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
-                                                away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
-                                                home_team_id: game.home_team_id,
-                                                away_team_id: t.team_id
-                                              });
-                                              const data = await fetchGamesBySeason(selectedSeason!);
-                                              setGames(data);
-                                              setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                            }}>{t.team_name || t.name}</CommandItem>
-                                          ))}
-                                        </CommandList>
-                                      </Command>
-                                    </PopoverContent>
-                                  </Popover>
-                                </>
-                              );
-                            }
-                            if (game.away_team_id === userTeamId) {
-                              return (
-                                <>
-                                  @{' '}
-                                  <Popover open={openCombobox[game.game_id] === 'home'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'home' : null }))}>
-                                    <PopoverTrigger asChild>
-                                      <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'home' })); }}>
-                                        {homeName}
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent align="start" className="p-0 w-60">
-                                      <Command>
-                                        <CommandInput placeholder="Search team..." />
-                                        <CommandList>
-                                          {[...teams].sort((a: Team, b: Team) => {
-                                            const nameA = a.team_name || a.name || '';
-                                            const nameB = b.team_name || b.name || '';
-                                            return nameA.localeCompare(nameB);
-                                          }).map((t: Team) => (
-                                            <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
-                                              await updateGameResult(game.game_id, {
-                                                home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
-                                                away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
-                                                home_team_id: t.team_id,
-                                                away_team_id: game.away_team_id
-                                              });
-                                              const data = await fetchGamesBySeason(selectedSeason!);
-                                              setGames(data);
-                                              setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                            }}>{t.team_name || t.name}</CommandItem>
-                                          ))}
-                                        </CommandList>
-                                      </Command>
-                                    </PopoverContent>
-                                  </Popover>
-                                </>
-                              );
-                            }
-                          }
-                          if (homeName === 'TBD') return `@ ${awayName}`;
-                          if (awayName === 'TBD') return `vs ${homeName}`;
-                          return `vs ${awayName}`;
-                        })()}
-                      </CardTitle>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={game.game_type === "Conference" ? "default" : game.game_type === "Bye Week" ? "secondary" : "secondary"} className="text-xs px-2 py-1">
-                        {game.game_type ?? "Regular"}
+                      <Badge variant={game.game_type === 'Conference' ? 'default' : game.game_type === 'Bye Week' ? 'secondary' : 'secondary'} className="text-xs px-2 py-1">
+                        {game.game_type ?? 'Regular'}
                       </Badge>
                       {game.game_type !== 'Bye Week' && (
-                        <Badge variant={game.is_conference_game ? "default" : "secondary"} className="text-xs px-2 py-1">
+                        <Badge variant={game.is_conference_game ? 'default' : 'secondary'} className="text-xs px-2 py-1">
                           {game.is_conference_game ? 'Conf' : 'Non-Conf'}
                         </Badge>
                       )}
                       {game.game_type !== 'Bye Week' && (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id={`overtime-${game.game_id}`}
-                            checked={game.overtime || false}
-                            onChange={async (e) => {
-                              await updateGameResult(game.game_id, {
-                                overtime: e.target.checked
-                              });
-                              setGames(prev => prev.map(g => 
-                                g.game_id === game.game_id 
-                                  ? { ...g, overtime: e.target.checked }
-                                  : g
-                              ));
-                            }}
-                            className="w-4 h-4 text-primary bg-card border-card rounded focus:ring-primary"
-                          />
-                          <label htmlFor={`overtime-${game.game_id}`} className="text-sm font-medium text-foreground/80">
-                            OT
-                          </label>
-                        </div>
+                        (() => {
+                          // Use edited or saved values
+                          const homeScore = Number(resultForms[game.game_id]?.home_score ?? game.home_score);
+                          const awayScore = Number(resultForms[game.game_id]?.away_score ?? game.away_score);
+                          const bothScoresPresent = !isNaN(homeScore) && !isNaN(awayScore) && resultForms[game.game_id]?.home_score !== '' && resultForms[game.game_id]?.away_score !== '';
+                          const diff = Math.abs(homeScore - awayScore);
+                          if (bothScoresPresent && diff <= 8) {
+                            return (
+                              <div className="flex items-center gap-2 ml-2">
+                                <input
+                                  type="checkbox"
+                                  id={`overtime-${game.game_id}`}
+                                  checked={game.overtime || false}
+                                  onChange={async (e) => {
+                                    await updateGameResult(game.game_id, {
+                                      overtime: e.target.checked
+                                    });
+                                    const data = await fetchGamesBySeason(selectedSeason!);
+                                    setGames(data);
+                                  }}
+                                  className="w-4 h-4 text-primary bg-card border-card rounded focus:ring-primary"
+                                />
+                                <label htmlFor={`overtime-${game.game_id}`} className="text-sm font-medium text-foreground/80">
+                                  OT
+                                </label>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()
                       )}
+                    </div>
+                    <div className="flex items-center gap-2">
                       {userTeamId && (game.home_team_id === userTeamId || game.away_team_id === userTeamId) && game.game_type !== 'Bye Week' && (
                         <button
                           onClick={() => handleSwapHomeAway(game.game_id)}
@@ -530,97 +444,176 @@ export default function GamesPage() {
                       )}
                     </div>
                   </div>
-                  <div className="text-right ml-6">
-                    {game.game_type === 'Bye Week' ? (
-                      <div className="text-muted-foreground italic text-sm bg-muted px-3 py-2 rounded-lg">
-                        No game this week
-                      </div>
-                    ) : (
-                      <>
-                        <div className="mb-3">
-                          {getUserResultBadge(game)}
-                        </div>
-                        <div className="bg-card rounded-lg border-2 border-card p-4 shadow-sm">
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                              {(() => {
-                                const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
-                                if (awayTeam && awayTeam.logo_url) {
-                                  return <Image src={awayTeam.logo_url} alt={awayTeam.team_name || awayTeam.name} width={32} height={32} className="w-8 h-8 rounded-full shadow-sm" />;
-                                }
-                                return <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs text-muted-foreground">?</div>;
-                              })()}
-                              {(() => {
-                                const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
-                                if (awayTeam && awayTeam.abbreviation) {
-                                  return <span className="text-sm font-semibold text-foreground min-w-[var(--size-10)]">{awayTeam.abbreviation}</span>;
-                                }
-                                return <span className="text-sm font-semibold text-foreground min-w-[var(--size-10)]">TBD</span>;
-                              })()}
-                              <input
-                                type="number"
-                                value={resultForms[game.game_id]?.away_score ?? (game.away_score ?? '')}
-                                onChange={e => setResultForms(prev => ({
-                                  ...prev,
-                                  [game.game_id]: {
-                                    ...prev[game.game_id],
-                                    away_score: e.target.value,
-                                    home_score: prev[game.game_id]?.home_score ?? (game.home_score ?? '')
-                                  }
-                                }))}
-                                onBlur={() => {
-                                  const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
-                                  const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
-                                  if (!isNaN(home_score) && !isNaN(away_score)) {
-                                    handleUpdateResultInline(game.game_id, home_score, away_score);
-                                  }
-                                }}
-                                className={`border-2 border-card rounded-lg px-3 py-2 w-20 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
-                                disabled={resultLoading === game.game_id}
-                              />
-                            </div>
-                            <div className="flex items-center gap-3">
-                              {(() => {
-                                const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
-                                if (homeTeam && homeTeam.logo_url) {
-                                  return <Image src={homeTeam.logo_url} alt={homeTeam.team_name || homeTeam.name} width={32} height={32} className="w-8 h-8 rounded-full shadow-sm" />;
-                                }
-                                return <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-xs text-muted-foreground">?</div>;
-                              })()}
-                              {(() => {
-                                const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
-                                if (homeTeam && homeTeam.abbreviation) {
-                                  return <span className="text-sm font-semibold text-foreground min-w-[var(--size-10)]">{homeTeam.abbreviation}</span>;
-                                }
-                                return <span className="text-sm font-semibold text-foreground min-w-[var(--size-10)]">TBD</span>;
-                              })()}
-                              <input
-                                type="number"
-                                value={resultForms[game.game_id]?.home_score ?? (game.home_score ?? '')}
-                                onChange={e => setResultForms(prev => ({
-                                  ...prev,
-                                  [game.game_id]: {
-                                    ...prev[game.game_id],
-                                    home_score: e.target.value,
-                                    away_score: prev[game.game_id]?.away_score ?? (game.away_score ?? '')
-                                  }
-                                }))}
-                                onBlur={() => {
-                                  const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
-                                  const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
-                                  if (!isNaN(home_score) && !isNaN(away_score)) {
-                                    handleUpdateResultInline(game.game_id, home_score, away_score);
-                                  }
-                                }}
-                                className={`border-2 border-card rounded-lg px-3 py-2 w-20 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
-                                disabled={resultLoading === game.game_id}
-                              />
-                            </div>
+                  {/* Main Row: Scoreboard or Bye */}
+                  {game.game_type === 'Bye Week' ? (
+                    <div className="flex justify-center items-center min-h-[64px] text-muted-foreground italic text-base bg-muted px-6 py-4 rounded-lg shadow-sm" style={{ boxShadow: 'var(--shadow-md)' }}>
+                      No game this week
+                    </div>
+                  ) : (
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+                      {/* Matchup Row */}
+                      <div className="flex flex-1 items-center justify-center gap-6 py-2" style={{ padding: 'var(--space-4)' }}>
+                        {/* Away Team */}
+                        <div className="flex items-center gap-2 min-w-[120px] justify-end">
+                          {(() => {
+                            const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
+                            if (awayTeam && awayTeam.logo_url) {
+                              return <Image src={awayTeam.logo_url} alt={awayTeam.team_name || awayTeam.name} width={36} height={36} className="w-9 h-9 rounded-full shadow-sm" style={{ boxShadow: 'var(--shadow-xs)' }} />;
+                            }
+                            return <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-xs text-muted-foreground">?</div>;
+                          })()}
+                          <div className="flex flex-col items-end">
+                            <span className="text-sm font-semibold text-foreground">{(() => {
+                              const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
+                              return awayTeam?.abbreviation || 'TBD';
+                            })()}</span>
+                            <span className="text-xs text-muted-foreground">{(() => {
+                              const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
+                              return awayTeam?.team_name || awayTeam?.name || '';
+                            })()}</span>
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
+                        {/* Away Score */}
+                        <input
+                          type="number"
+                          value={resultForms[game.game_id]?.away_score ?? (game.away_score ?? '')}
+                          onChange={e => setResultForms(prev => ({
+                            ...prev,
+                            [game.game_id]: {
+                              ...prev[game.game_id],
+                              away_score: e.target.value,
+                              home_score: prev[game.game_id]?.home_score ?? (game.home_score ?? '')
+                            }
+                          }))}
+                          onBlur={() => {
+                            const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
+                            const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
+                            if (!isNaN(home_score) && !isNaN(away_score)) {
+                              handleUpdateResultInline(game.game_id, home_score, away_score);
+                            }
+                          }}
+                          className={`border-2 border-card rounded-lg px-3 py-2 w-16 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
+                          disabled={resultLoading === game.game_id}
+                          style={{ boxShadow: 'var(--shadow-xs)' }}
+                        />
+                        <span className="text-xl font-bold text-foreground mx-2">-</span>
+                        {/* Home Score */}
+                        <input
+                          type="number"
+                          value={resultForms[game.game_id]?.home_score ?? (game.home_score ?? '')}
+                          onChange={e => setResultForms(prev => ({
+                            ...prev,
+                            [game.game_id]: {
+                              ...prev[game.game_id],
+                              home_score: e.target.value,
+                              away_score: prev[game.game_id]?.away_score ?? (game.away_score ?? '')
+                            }
+                          }))}
+                          onBlur={() => {
+                            const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
+                            const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
+                            if (!isNaN(home_score) && !isNaN(away_score)) {
+                              handleUpdateResultInline(game.game_id, home_score, away_score);
+                            }
+                          }}
+                          className={`border-2 border-card rounded-lg px-3 py-2 w-16 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
+                          disabled={resultLoading === game.game_id}
+                          style={{ boxShadow: 'var(--shadow-xs)' }}
+                        />
+                        {/* Home Team */}
+                        <div className="flex items-center gap-2 min-w-[120px] justify-start">
+                          <div className="flex flex-col items-start">
+                            <span className="text-sm font-semibold text-foreground">{(() => {
+                              const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
+                              return homeTeam?.abbreviation || 'TBD';
+                            })()}</span>
+                            <span className="text-xs text-muted-foreground">{(() => {
+                              const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
+                              return homeTeam?.team_name || homeTeam?.name || '';
+                            })()}</span>
+                          </div>
+                          {(() => {
+                            const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
+                            if (homeTeam && homeTeam.logo_url) {
+                              return <Image src={homeTeam.logo_url} alt={homeTeam.team_name || homeTeam.name} width={36} height={36} className="w-9 h-9 rounded-full shadow-sm" style={{ boxShadow: 'var(--shadow-xs)' }} />;
+                            }
+                            return <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-xs text-muted-foreground">?</div>;
+                          })()}
+                        </div>
+                        {/* W/L Badge */}
+                        <div className="ml-4">{getUserResultBadge(game)}</div>
+                      </div>
+                      {/* Team Selection Popovers (preserved, but visually secondary) */}
+                      <div className="flex flex-col gap-2 items-end min-w-[180px]">
+                        {userTeamId && game.home_team_id === userTeamId && (
+                          <Popover open={openCombobox[game.game_id] === 'away'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'away' : null }))}>
+                            <PopoverTrigger asChild>
+                              <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'away' })); }}>
+                                Change Opponent
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="p-0 w-60">
+                              <Command>
+                                <CommandInput placeholder="Search team..." />
+                                <CommandList>
+                                  {[...teams].sort((a: Team, b: Team) => {
+                                    const nameA = a.team_name || a.name || '';
+                                    const nameB = b.team_name || b.name || '';
+                                    return nameA.localeCompare(nameB);
+                                  }).map((t: Team) => (
+                                    <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
+                                      await updateGameResult(game.game_id, {
+                                        home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
+                                        away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
+                                        home_team_id: game.home_team_id,
+                                        away_team_id: t.team_id
+                                      });
+                                      const data = await fetchGamesBySeason(selectedSeason!);
+                                      setGames(data);
+                                      setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
+                                    }}>{t.team_name || t.name}</CommandItem>
+                                  ))}
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                        {userTeamId && game.away_team_id === userTeamId && (
+                          <Popover open={openCombobox[game.game_id] === 'home'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'home' : null }))}>
+                            <PopoverTrigger asChild>
+                              <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'home' })); }}>
+                                Change Home Team
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="p-0 w-60">
+                              <Command>
+                                <CommandInput placeholder="Search team..." />
+                                <CommandList>
+                                  {[...teams].sort((a: Team, b: Team) => {
+                                    const nameA = a.team_name || a.name || '';
+                                    const nameB = b.team_name || b.name || '';
+                                    return nameA.localeCompare(nameB);
+                                  }).map((t: Team) => (
+                                    <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
+                                      await updateGameResult(game.game_id, {
+                                        home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
+                                        away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
+                                        home_team_id: t.team_id,
+                                        away_team_id: game.away_team_id
+                                      });
+                                      const data = await fetchGamesBySeason(selectedSeason!);
+                                      setGames(data);
+                                      setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
+                                    }}>{t.team_name || t.name}</CommandItem>
+                                  ))}
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-0" />
@@ -652,11 +645,11 @@ export default function GamesPage() {
                 <CardTitle>Offensive Stats</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span>Points Per Game</span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Points Per Game</span>
                     <div className="flex items-center gap-2">
-                      <span className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground">
+                      <span className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm">
                         {editableStats.off_ppg ?? "-"}
                       </span>
                       <input
@@ -665,15 +658,15 @@ export default function GamesPage() {
                         value={editableStats.off_ppg_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Offensive Yards</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Offensive Yards</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -681,7 +674,7 @@ export default function GamesPage() {
                         value={editableStats.offense_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -689,15 +682,15 @@ export default function GamesPage() {
                         value={editableStats.offense_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Passing Yards</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Passing Yards</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -705,7 +698,7 @@ export default function GamesPage() {
                         value={editableStats.pass_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -713,15 +706,15 @@ export default function GamesPage() {
                         value={editableStats.pass_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Rushing Yards</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Rushing Yards</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -729,7 +722,7 @@ export default function GamesPage() {
                         value={editableStats.rush_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -737,15 +730,15 @@ export default function GamesPage() {
                         value={editableStats.rush_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Passing TDs</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Passing TDs</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -753,7 +746,7 @@ export default function GamesPage() {
                         value={editableStats.pass_tds ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -761,15 +754,15 @@ export default function GamesPage() {
                         value={editableStats.pass_tds_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Rushing TDs</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Rushing TDs</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -777,7 +770,7 @@ export default function GamesPage() {
                         value={editableStats.rush_tds ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -785,7 +778,7 @@ export default function GamesPage() {
                         value={editableStats.rush_tds_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
@@ -801,11 +794,11 @@ export default function GamesPage() {
                 <CardTitle>Defensive Stats</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span>Points Allowed Per Game</span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Points Allowed Per Game</span>
                     <div className="flex items-center gap-2">
-                      <span className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground">
+                      <span className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm">
                         {editableStats.def_ppg ?? "-"}
                       </span>
                       <input
@@ -814,15 +807,15 @@ export default function GamesPage() {
                         value={editableStats.def_ppg_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Defensive Yards</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Defensive Yards</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -830,7 +823,7 @@ export default function GamesPage() {
                         value={editableStats.defense_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -838,15 +831,15 @@ export default function GamesPage() {
                         value={editableStats.defense_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Total Sacks</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Total Sacks</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -854,7 +847,7 @@ export default function GamesPage() {
                         value={editableStats.sacks ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -862,15 +855,15 @@ export default function GamesPage() {
                         value={editableStats.sacks_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Interceptions</span>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                    <span className="font-medium text-base">Interceptions</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -878,7 +871,7 @@ export default function GamesPage() {
                         value={editableStats.interceptions ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold bg-muted rounded-md p-1 text-foreground"
+                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -886,7 +879,7 @@ export default function GamesPage() {
                         value={editableStats.interceptions_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-12 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted"
+                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"

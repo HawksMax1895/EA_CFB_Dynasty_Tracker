@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify # type: ignore
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
 from models import Player, Team, Season, PlayerSeason
 
@@ -24,7 +24,40 @@ class Transfer(db.Model):
     committed = db.Column(db.Boolean, default=True)
 
 @transfer_bp.route('/transfer-portal', methods=['POST'])
-def add_transfer_portal():
+def add_transfer_portal() -> Response:
+    """
+    Add transfer portal entries for a specific team in a specific season.
+    
+    Expected JSON payload:
+        team_id (int): ID of the team to add transfers for (required)
+        season_id (int): ID of the season to add transfers for (required)
+        transfers (list): List of transfer objects (required)
+        
+    Each transfer object should contain:
+        name (str): Transfer name (required)
+        position (str): Transfer position (required)
+        previous_school (str, optional): Previous school attended
+        ovr_rating (int, optional): Overall rating
+        recruit_stars (int, optional): Recruit star rating
+        recruit_rank_pos (int, optional): Position ranking
+        dev_trait (str, optional): Development trait
+        height (str, optional): Height
+        weight (int, optional): Weight
+        state (str, optional): State
+        current_status (str, optional): Current academic status (default: 'SO')
+        
+    Returns:
+        Response: JSON object with created_transfer_ids array and 201 status code
+        on success, or error message with appropriate status code on failure.
+        
+    Raises:
+        400: If required fields are missing or transfers is not a list
+        404: If season is not found
+        
+    Note:
+        Only transfers with valid name and position are created. Invalid transfers
+        are silently skipped without error.
+    """
     data = request.json
     team_id = data.get('team_id')
     season_id = data.get('season_id')
@@ -35,12 +68,12 @@ def add_transfer_portal():
     if not season:
         return jsonify({'error': 'Season not found'}), 404
 
-    progression = ["FR", "SO", "JR", "SR", "GR"]
-    future_seasons = (
-        Season.query.filter(Season.year >= season.year)
-        .order_by(Season.year)
-        .all()
-    )
+    # Note: progression and future_seasons variables are defined but not used in current implementation
+    # future_seasons = (
+    #     Season.query.filter(Season.year >= season.year)
+    #     .order_by(Season.year)
+    #     .all()
+    # )
 
     created_transfers = []
     for transfer in transfers:
@@ -81,7 +114,22 @@ def add_transfer_portal():
     return jsonify({'created_transfer_ids': created_transfers}), 201
 
 @transfer_bp.route('/transfer-portal', methods=['GET'])
-def get_transfer_portal():
+def get_transfer_portal() -> Response:
+    """
+    Retrieve the transfer portal entries for a specific team in a specific season.
+    
+    Query Parameters:
+        team_id (int): ID of the team to get transfers for (required)
+        season_id (int): ID of the season to get transfers for (required)
+        
+    Returns:
+        Response: JSON array containing all committed transfers for the team/season
+        including transfer_id, name, position, recruit_stars, recruit_rank_pos,
+        dev_trait, height, weight, state, ovr_rating, previous_school, and current_status.
+        
+    Raises:
+        400: If team_id or season_id are not provided
+    """
     team_id = request.args.get('team_id', type=int)
     season_id = request.args.get('season_id', type=int)
     if not team_id or not season_id:
@@ -112,7 +160,32 @@ def get_transfer_portal():
     ])
 
 @transfer_bp.route('/transfer-portal/<int:transfer_id>', methods=['PUT'])
-def update_transfer(transfer_id):
+def update_transfer(transfer_id: int) -> Response:
+    """
+    Update information for a specific transfer.
+    
+    Args:
+        transfer_id (int): ID of the transfer to update
+        
+    Expected JSON payload (all fields optional):
+        name (str): Transfer name
+        position (str): Transfer position
+        previous_school (str): Previous school attended
+        ovr_rating (int): Overall rating
+        recruit_stars (int): Recruit star rating
+        recruit_rank_pos (int): Position ranking
+        dev_trait (str): Development trait
+        height (str): Height
+        weight (int): Weight
+        state (str): State
+        current_status (str): Current academic status
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If transfer is not found
+    """
     transfer = Transfer.query.get(transfer_id)
     if not transfer:
         return jsonify({'error': 'Transfer not found'}), 404
@@ -134,7 +207,19 @@ def update_transfer(transfer_id):
     return jsonify({'message': 'Transfer updated successfully'}), 200
 
 @transfer_bp.route('/transfer-portal/<int:transfer_id>', methods=['DELETE'])
-def delete_transfer(transfer_id):
+def delete_transfer(transfer_id: int) -> Response:
+    """
+    Delete a specific transfer from the system.
+    
+    Args:
+        transfer_id (int): ID of the transfer to delete
+        
+    Returns:
+        Response: JSON object with success message on completion.
+        
+    Raises:
+        404: If transfer is not found
+    """
     transfer = Transfer.query.get(transfer_id)
     if not transfer:
         return jsonify({'error': 'Transfer not found'}), 404

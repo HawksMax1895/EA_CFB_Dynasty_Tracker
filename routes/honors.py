@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from extensions import db
 from models import Honor, Player, Team, Season, HonorWinner, Conference
 
 honors_bp = Blueprint('honors', __name__)
 
 @honors_bp.route('/honors/types', methods=['POST'])
-def create_honor_type():
+def create_honor_type() -> Response:
     data = request.json
     name = data.get('name')
     side = data.get('side')
@@ -36,7 +36,7 @@ def create_honor_type():
     }), 201
 
 @honors_bp.route('/honors/types', methods=['GET'])
-def get_honor_types():
+def get_honor_types() -> Response:
     honors = Honor.query.all()
     return jsonify([
         {
@@ -50,7 +50,7 @@ def get_honor_types():
     ])
 
 @honors_bp.route('/honors/types/<int:honor_id>', methods=['PUT'])
-def update_honor_type(honor_id):
+def update_honor_type(honor_id: int) -> Response:
     honor = Honor.query.get_or_404(honor_id)
     data = request.json
     
@@ -71,14 +71,14 @@ def update_honor_type(honor_id):
     })
 
 @honors_bp.route('/honors/types/<int:honor_id>', methods=['DELETE'])
-def delete_honor_type(honor_id):
+def delete_honor_type(honor_id: int) -> Response:
     honor = Honor.query.get_or_404(honor_id)
     db.session.delete(honor)
     db.session.commit()
     return jsonify({'message': 'Honor type deleted'})
 
 @honors_bp.route('/honors/types/<int:honor_id>/requires-week', methods=['GET'])
-def check_honor_requires_week(honor_id):
+def check_honor_requires_week(honor_id: int) -> Response:
     honor = Honor.query.get_or_404(honor_id)
     requires_week = "Player of the Week" in honor.name
     return jsonify({
@@ -88,7 +88,7 @@ def check_honor_requires_week(honor_id):
     })
 
 @honors_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/honors', methods=['POST'])
-def add_honors(season_id, team_id):
+def add_honors(season_id: int, team_id: int) -> Response:
     data = request.json
     honors = data.get('honors', [])
     if not isinstance(honors, list):
@@ -130,7 +130,7 @@ def add_honors(season_id, team_id):
     return jsonify({'created_honor_winner_ids': created}), 201
 
 @honors_bp.route('/seasons/<int:season_id>/teams/<int:team_id>/honors', methods=['GET'])
-def get_honors(season_id, team_id):
+def get_honors(season_id: int, team_id: int) -> Response:
     honor_winners = HonorWinner.query.filter_by(season_id=season_id, team_id=team_id).all()
     return jsonify([
         {
@@ -144,7 +144,7 @@ def get_honors(season_id, team_id):
     ])
 
 @honors_bp.route('/honors', methods=['GET'])
-def get_all_honors():
+def get_all_honors() -> Response:
     honor_winners = HonorWinner.query.all()
     return jsonify([
         {
@@ -163,7 +163,7 @@ def get_all_honors():
     ])
 
 @honors_bp.route('/seasons/<int:season_id>/honors', methods=['GET'])
-def get_honors_by_season(season_id):
+def get_honors_by_season(season_id: int) -> Response:
     honor_winners = HonorWinner.query.filter_by(season_id=season_id).all()
     return jsonify([
         {

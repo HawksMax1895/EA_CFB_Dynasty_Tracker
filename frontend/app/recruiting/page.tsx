@@ -179,7 +179,8 @@ export default function RecruitingPage() {
       dev_trait: recruit.dev_trait || '',
       height: recruit.height || '',
       weight: recruit.weight || '',
-      state: recruit.state || ''
+      state: recruit.state || '',
+      ovr_rating: recruit.ovr_rating || '70'
     });
   };
 
@@ -342,7 +343,11 @@ export default function RecruitingPage() {
                   <div className="text-sm text-muted-foreground">Total Commits</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-600">-</div>
+                  <div className="text-3xl font-bold text-purple-600">
+                    {recruits.length > 0
+                      ? Math.round(recruits.reduce((sum, r) => sum + (parseInt(r.ovr_rating) || 0), 0) / recruits.length)
+                      : '-'}
+                  </div>
                   <div className="text-sm text-muted-foreground">Avg Rating</div>
                 </div>
                 <div className="text-center">
@@ -694,6 +699,20 @@ export default function RecruitingPage() {
                   />
                 </div>
                 <div>
+                  <Label className="font-medium">OVR</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={99}
+                    value={editingRecruit.ovr_rating || ''}
+                    onChange={e => setEditingRecruit({...editingRecruit, ovr_rating: e.target.value})}
+                    placeholder="70"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label className="font-medium">Dev Trait</Label>
                   <Select 
                     value={editingRecruit.dev_trait || "None"} 
@@ -710,6 +729,15 @@ export default function RecruitingPage() {
                       <SelectItem value="Normal">Normal</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label className="font-medium">State</Label>
+                  <Input
+                    value={editingRecruit.state || ''}
+                    onChange={(e) => setEditingRecruit({...editingRecruit, state: e.target.value})}
+                    placeholder="TX"
+                    className="mt-1"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
@@ -753,15 +781,6 @@ export default function RecruitingPage() {
                     value={editingRecruit.weight || ''}
                     onChange={(e) => setEditingRecruit({...editingRecruit, weight: e.target.value})}
                     placeholder="200"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="font-medium">State</Label>
-                  <Input
-                    value={editingRecruit.state || ''}
-                    onChange={(e) => setEditingRecruit({...editingRecruit, state: e.target.value})}
-                    placeholder="TX"
                     className="mt-1"
                   />
                 </div>
