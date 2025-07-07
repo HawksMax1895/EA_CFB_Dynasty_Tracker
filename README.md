@@ -128,7 +128,9 @@ ea_cfb_dynasty_tracker/
    ```bash
    python app.py
    ```
-   The API will be available at `http://localhost:5001/api/`
+   The API will be available at `http://localhost:5001/api/`. The server now
+   listens on all interfaces so you can reach it from other devices on your
+   network at `http://<raspberry-pi-ip>:5001`.
 
 ### Frontend Setup
 
@@ -146,7 +148,10 @@ ea_cfb_dynasty_tracker/
    ```bash
    pnpm dev  # or npm run dev
    ```
-   The frontend will be available at `http://localhost:3000`
+   The frontend will be available at `http://localhost:3000`.
+   When accessing the site from another device, set the environment variable
+   `NEXT_PUBLIC_API_URL` to the full URL of your Flask API (for example
+   `http://<raspberry-pi-ip>:5001/api`) so the frontend can reach the backend.
 
 ### Database Seeding (Optional)
 
