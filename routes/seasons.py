@@ -71,6 +71,34 @@ def create_season() -> Response:
     # Debug: print all seasons after commit
     all_seasons = Season.query.order_by(Season.year).all()
     logger.debug(f'All seasons after commit: {[(s.season_id, s.year) for s in all_seasons]}')
+
+    # --- NEW: Automatically create TeamSeason records and copy Top 25 from previous season ---
+    teams = Team.query.all()
+    prev_season = Season.query.filter(Season.season_id < new_season.season_id).order_by(Season.season_id.desc()).first()
+    prev_team_seasons = {ts.team_id: ts for ts in TeamSeason.query.filter_by(season_id=prev_season.season_id).all()} if prev_season else {}
+    for team in teams:
+        ts = TeamSeason(team_id=team.team_id, season_id=new_season.season_id, conference_id=team.primary_conference_id)
+        # Copy final_rank from previous season if present
+        if team.team_id in prev_team_seasons and prev_team_seasons[team.team_id].final_rank:
+            ts.final_rank = prev_team_seasons[team.team_id].final_rank
+        db.session.add(ts)
+    db.session.commit()
+
+    # --- NEW: Generate bye-week schedule for all teams ---
+    REGULAR_SEASON_WEEKS = 12
+    bye_games = []
+    for week in range(1, REGULAR_SEASON_WEEKS + 1):
+        for team in teams:
+            bye_games.append(Game(
+                season_id=new_season.season_id,
+                week=week,
+                home_team_id=team.team_id,
+                away_team_id=None,
+                game_type="Bye Week"
+            ))
+    db.session.add_all(bye_games)
+    db.session.commit()
+    print(f"Created bye-week schedule for new season: {len(bye_games)} games across {REGULAR_SEASON_WEEKS} weeks.")
     
     # --- NEW: Automatically progress players from the previous season ---
     prev_season = Season.query.filter(Season.season_id < new_season.season_id).order_by(Season.season_id.desc()).first()

@@ -359,7 +359,10 @@ export default function GamesPage() {
         </TabsList>
 
         <TabsContent value="schedule" className="space-y-4">
-          {[...games].sort((a, b) => a.week - b.week).map((game, index) => (
+          {[...games]
+            .filter(game => userTeamId && (game.home_team_id === userTeamId || game.away_team_id === userTeamId))
+            .sort((a, b) => a.week - b.week)
+            .map((game, index) => (
             <Card key={game.game_id || index} className="hover:shadow-xl transition-all duration-300 border border-card bg-card">
               <CardHeader className="pb-4">
                 {/* Modern Scoreboard Layout */}
