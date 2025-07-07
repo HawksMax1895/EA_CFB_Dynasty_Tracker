@@ -1,11 +1,36 @@
-# Python-generated files
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+*.pyo
 
-# Virtual environments
-.venv
-.env
+# Virtual environment
+venv/
+env/
+.venv/
+.env/
+
+# SQLite database files
+instance/
+*.db
+
+# Flask instance folder if not globally ignored
+instance/
+
+# IDE settings
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build output
+dist/
+build/
+
+# Misc
+*.bak
+*.swp

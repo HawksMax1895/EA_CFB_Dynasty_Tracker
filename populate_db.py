@@ -1,6 +1,6 @@
 from app import app
 from extensions import db
-from models import Season, Conference, Team, TeamSeason, Award, Honor
+from models import Season, Conference, Team, TeamSeason, Award, Honor, Game
 import os
 
 
@@ -334,6 +334,44 @@ with app.app_context():
         ))
     db.session.commit()
     print(f"Created {len(all_teams)} teams with TeamSeason records.")
+
+    # -------------------------
+    # Initialize schedule with bye weeks for every team in every regular season week
+    # -------------------------
+    REGULAR_SEASON_WEEKS = 12  # Typical number of regular-season weeks prior to playoffs
+    bye_games = []
+    for week in range(1, REGULAR_SEASON_WEEKS + 1):
+        for team in all_teams:
+            bye_games.append(Game(
+                season_id=season.season_id,
+                week=week,
+                home_team_id=team.team_id,
+                away_team_id=None,
+                game_type="Bye Week"
+            ))
+    db.session.add_all(bye_games)
+    db.session.commit()
+    print(f"Created bye-week schedule: {len(bye_games)} games across {REGULAR_SEASON_WEEKS} weeks.")
+
+    # -------------------------
+    # Set initial Top-25 rankings for the season
+    # -------------------------
+    top_25_teams = [
+        "Alabama Crimson Tide", "Texas Longhorns", "Ohio State Buckeyes", "Penn State Nittany Lions",
+        "Notre Dame Fighting Irish", "Georgia Bulldogs", "Clemson Tigers", "Texas A&M Aggies",
+        "Oregon Ducks", "LSU Tigers", "Miami Hurricanes", "Florida Gators", "Texas Tech Red Raiders",
+        "Arizona State Sun Devils", "Michigan Wolverines", "Ole Miss Rebels", "Oklahoma Sooners",
+        "Indiana Hoosiers", "SMU Mustangs", "Tennessee Volunteers", "Missouri Tigers", "Auburn Tigers",
+        "Duke Blue Devils", "South Carolina Gamecocks", "Illinois Fighting Illini"
+    ]
+    team_name_to_rank = {name: idx + 1 for idx, name in enumerate(top_25_teams)}
+
+    team_seasons = TeamSeason.query.filter_by(season_id=season.season_id).all()
+    for ts in team_seasons:
+        if ts.team and ts.team.name in team_name_to_rank:
+            ts.final_rank = team_name_to_rank[ts.team.name]
+    db.session.commit()
+    print("Assigned initial Top-25 national rankings.")
 
     # Create National Awards
     national_awards = [
