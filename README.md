@@ -161,6 +161,7 @@ ea_cfb_dynasty_tracker/
    [`frontend/lib/api.ts`](frontend/lib/api.ts), which is used for all API
    requests. Adjust the URL if your server runs on a different host or port.
 
+
 ### Database Seeding (Optional)
 
 To populate the database with initial data:
