@@ -128,7 +128,9 @@ ea_cfb_dynasty_tracker/
    ```bash
    python app.py
    ```
-   The API will be available at `http://localhost:5001/api/`
+   The API will be available at `http://localhost:5001/api/`. The server now
+   listens on all interfaces so you can reach it from other devices on your
+   network at `http://<raspberry-pi-ip>:5001`.
 
 ### Frontend Setup
 
@@ -146,7 +148,18 @@ ea_cfb_dynasty_tracker/
    ```bash
    pnpm dev  # or npm run dev
    ```
-   The frontend will be available at `http://localhost:3000`
+   The frontend will be available at `http://localhost:3000`.
+   When accessing the site from another device, you need to tell the frontend
+   where the API is hosted. Create a `frontend/.env.local` file and set the
+   variable `NEXT_PUBLIC_API_URL` to your Flask server URL. For example:
+
+   ```bash
+   echo "NEXT_PUBLIC_API_URL=http://<raspberry-pi-ip>:5001/api" > frontend/.env.local
+   ```
+
+   This value is read by the `API_BASE_URL` constant in
+   [`frontend/lib/api.ts`](frontend/lib/api.ts), which is used for all API
+   requests. Adjust the URL if your server runs on a different host or port.
 
 ### Database Seeding (Optional)
 
