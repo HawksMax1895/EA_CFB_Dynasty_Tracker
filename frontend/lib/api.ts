@@ -1,4 +1,4 @@
-import type { 
+import type {
   Season, 
   Team, 
   TeamSeason, 
@@ -24,6 +24,9 @@ import type {
   ApiResponse
 } from '../types'
 
+// Base URL for all API requests. Set the environment variable
+// NEXT_PUBLIC_API_URL (e.g. in frontend/.env.local) to override the default
+// when running the frontend on a different machine than the backend.
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api"
 
 // SEASONS
