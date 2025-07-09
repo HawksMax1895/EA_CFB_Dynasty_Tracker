@@ -185,15 +185,31 @@ def get_logo_filename(team_name):
         "Wyoming Cowboys": "Wyoming_Cowboys"
     }
     if team_name in special_cases:
-        logo_path = f"college_football_logos/{special_cases[team_name]}.png"
+        # Try SVG first, then PNG
+        svg_path = f"college_football_logos/{special_cases[team_name]}.svg"
+        png_path = f"college_football_logos/{special_cases[team_name]}.png"
+        
+        if os.path.exists(svg_path):
+            logo_path = svg_path
+        elif os.path.exists(png_path):
+            logo_path = png_path
+        else:
+            print(f"Warning: Logo file not found for {team_name}: {svg_path} or {png_path}")
+            return "college_football_logos/placeholder.svg"  # Use SVG placeholder
     else:
-        # Default conversion: replace spaces with underscores and add .png
+        # Default conversion: replace spaces with underscores and try both formats
         logo_name = team_name.replace(" ", "_").replace("'", "")
-        logo_path = f"college_football_logos/{logo_name}.png"
-    # Check if the logo file exists, if not return a placeholder
-    if not os.path.exists(logo_path):
-        print(f"Warning: Logo file not found for {team_name}: {logo_path}")
-        return "college_football_logos/placeholder.png"  # You might want to add a placeholder logo
+        svg_path = f"college_football_logos/{logo_name}.svg"
+        png_path = f"college_football_logos/{logo_name}.png"
+        
+        if os.path.exists(svg_path):
+            logo_path = svg_path
+        elif os.path.exists(png_path):
+            logo_path = png_path
+        else:
+            print(f"Warning: Logo file not found for {team_name}: {svg_path} or {png_path}")
+            return "college_football_logos/placeholder.svg"  # Use SVG placeholder
+
     return logo_path
 with app.app_context():
     db.drop_all()

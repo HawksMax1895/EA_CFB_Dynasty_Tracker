@@ -10,11 +10,13 @@ def get_logo_filename(team_name):
     special_cases = {
         "Texas A&M Aggies": "Texas_AM_Aggies",
         "Louisiana Ragin' Cajuns": "Louisiana_Ragin_Cajuns",
+        "Louisiana Tech Bulldogs": "Louisiana_Tech_Bulldogs",
         "Louisiana-Monroe Warhawks": "UL_Monroe_Warhawks",
         "Miami RedHawks": "Miami_OH_RedHawks",
         "San José State Spartans": "San_José_State_Spartans",
         "Ole Miss Rebels": "Ole_Miss_Rebels",
         "Connecticut Huskies": "UConn_Huskies",
+        "Delaware Blue Hens": "Delaware_Blue_Hens",
         "FIU Panthers": "Florida_International_Panthers",
         "Florida Atlantic Owls": "Florida_Atlantic_Owls",
         "Appalachian State Mountaineers": "App_State_Mountaineers",
@@ -49,6 +51,7 @@ def get_logo_filename(team_name):
         "Jacksonville State Gamecocks": "Jacksonville_State_Gamecocks",
         "James Madison Dukes": "James_Madison_Dukes",
         "Kansas Jayhawks": "Kansas_Jayhawks",
+        "Kennesaw State Owls": "Kennesaw_State_Owls",
         "Kansas State Wildcats": "Kansas_State_Wildcats",
         "Kent State Golden Flashes": "Kent_State_Golden_Flashes",
         "Kentucky Wildcats": "Kentucky_Wildcats",
@@ -65,6 +68,7 @@ def get_logo_filename(team_name):
         "Minnesota Golden Gophers": "Minnesota_Golden_Gophers",
         "Mississippi State Bulldogs": "Mississippi_State_Bulldogs",
         "Missouri Tigers": "Missouri_Tigers",
+        "Missouri State Bears": "Missouri_State_Bears",
         "Navy Midshipmen": "Navy_Midshipmen",
         "NC State Wolfpack": "NC_State_Wolfpack",
         "Nebraska Cornhuskers": "Nebraska_Cornhuskers",
@@ -90,6 +94,7 @@ def get_logo_filename(team_name):
         "Rutgers Scarlet Knights": "Rutgers_Scarlet_Knights",
         "San Diego State Aztecs": "San_Diego_State_Aztecs",
         "San Jose State Spartans": "San_José_State_Spartans",
+        "Sam Houston Bearkats": "Sam_Houston_Bearkats",
         "SMU Mustangs": "SMU_Mustangs",
         "South Alabama Jaguars": "South_Alabama_Jaguars",
         "South Carolina Gamecocks": "South_Carolina_Gamecocks",
@@ -130,16 +135,30 @@ def get_logo_filename(team_name):
     }
 
     if team_name in special_cases:
-        logo_path = f"college_football_logos/{special_cases[team_name]}.png"
+        # Try SVG first, then PNG
+        svg_path = f"college_football_logos/{special_cases[team_name]}.svg"
+        png_path = f"college_football_logos/{special_cases[team_name]}.png"
+        
+        if os.path.exists(svg_path):
+            logo_path = svg_path
+        elif os.path.exists(png_path):
+            logo_path = png_path
+        else:
+            print(f"Warning: Logo file not found for {team_name}: {svg_path} or {png_path}")
+            return "college_football_logos/placeholder.svg"  # Use SVG placeholder
     else:
-        # Default conversion: replace spaces with underscores and add .png
+        # Default conversion: replace spaces with underscores and try both formats
         logo_name = team_name.replace(" ", "_").replace("'", "")
-        logo_path = f"college_football_logos/{logo_name}.png"
-
-    # Check if the logo file exists, if not return a placeholder
-    if not os.path.exists(logo_path):
-        print(f"Warning: Logo file not found for {team_name}: {logo_path}")
-        return "college_football_logos/placeholder.png"  # You might want to add a placeholder logo
+        svg_path = f"college_football_logos/{logo_name}.svg"
+        png_path = f"college_football_logos/{logo_name}.png"
+        
+        if os.path.exists(svg_path):
+            logo_path = svg_path
+        elif os.path.exists(png_path):
+            logo_path = png_path
+        else:
+            print(f"Warning: Logo file not found for {team_name}: {svg_path} or {png_path}")
+            return "college_football_logos/placeholder.svg"  # Use SVG placeholder
 
     return logo_path
 
@@ -197,6 +216,7 @@ with app.app_context():
         ("Colorado Buffaloes", "COLO", "Big 12"),
         ("Colorado State Rams", "CSU", "Mountain West"),
         ("Connecticut Huskies", "UCONN", "Independents"),
+        ("Delaware Blue Hens", "DEL", "Conference USA"),
         ("Duke Blue Devils", "DUKE", "ACC"),
         ("East Carolina Pirates", "ECU", "American"),
         ("Eastern Michigan Eagles", "EMU", "MAC"),
@@ -218,11 +238,13 @@ with app.app_context():
         ("Jacksonville State Gamecocks", "JSU", "Conference USA"),
         ("James Madison Dukes", "JMU", "Sun Belt"),
         ("Kansas Jayhawks", "KU", "Big 12"),
+        ("Kennesaw State Owls", "KENN", "Conference USA"),
         ("Kansas State Wildcats", "KSU", "Big 12"),
         ("Kent State Golden Flashes", "KENT", "MAC"),
         ("Kentucky Wildcats", "UK", "SEC"),
         ("Liberty Flames", "LIB", "Conference USA"),
         ("Louisiana Ragin' Cajuns", "ULL", "Sun Belt"),
+        ("Louisiana Tech Bulldogs", "LA Tech", "Conference USA"),
         ("Louisiana-Monroe Warhawks", "ULM", "Sun Belt"),
         ("LSU Tigers", "LSU", "SEC"),
         ("Louisville Cardinals", "LOU", "ACC"),
@@ -239,6 +261,7 @@ with app.app_context():
         ("Ole Miss Rebels", "MISS", "SEC"),
         ("Mississippi State Bulldogs", "MSST", "SEC"),
         ("Missouri Tigers", "MIZZ", "SEC"),
+        ("Missouri State Bears", "MSU", "Conference USA"),
         ("Navy Midshipmen", "NAVY", "American"),
         ("NC State Wolfpack", "NCST", "ACC"),
         ("Nebraska Cornhuskers", "NEB", "Big Ten"),
@@ -264,6 +287,7 @@ with app.app_context():
         ("Rutgers Scarlet Knights", "RUTG", "Big Ten"),
         ("San Diego State Aztecs", "SDSU", "Mountain West"),
         ("San Jose State Spartans", "SJSU", "Mountain West"),
+        ("Sam Houston Bearkats", "SHSU", "Conference USA"),
         ("SMU Mustangs", "SMU", "ACC"),
         ("South Alabama Jaguars", "USA", "Sun Belt"),
         ("South Carolina Gamecocks", "SCAR", "SEC"),
