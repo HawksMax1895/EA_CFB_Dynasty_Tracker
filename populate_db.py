@@ -334,7 +334,7 @@ with app.app_context():
     for team_data in fbs_teams:
         if team_data[0] in teams_map:
             continue
-        is_user_controlled = team_data[0] == "Texas Longhorns"
+        is_user_controlled = team_data[0] == "Missouri State Bears"
         logo_url = get_logo_filename(team_data[0])
         team_obj = Team(
             name=team_data[0], abbreviation=team_data[1],
@@ -360,22 +360,26 @@ with app.app_context():
     print(f"Created {len(all_teams)} teams with TeamSeason records.")
 
     # -------------------------
-    # Initialize schedule with bye weeks for every team in every regular season week
+    # Initialize schedule with bye weeks for the user-controlled team only
     # -------------------------
     REGULAR_SEASON_WEEKS = 12  # Typical number of regular-season weeks prior to playoffs
-    bye_games = []
-    for week in range(1, REGULAR_SEASON_WEEKS + 1):
-        for team in all_teams:
+    user_team = next((team for team in all_teams if team.is_user_controlled), None)
+    
+    if user_team:
+        bye_games = []
+        for week in range(1, REGULAR_SEASON_WEEKS + 1):
             bye_games.append(Game(
                 season_id=season.season_id,
                 week=week,
-                home_team_id=team.team_id,
+                home_team_id=user_team.team_id,
                 away_team_id=None,
                 game_type="Bye Week"
             ))
-    db.session.add_all(bye_games)
-    db.session.commit()
-    print(f"Created bye-week schedule: {len(bye_games)} games across {REGULAR_SEASON_WEEKS} weeks.")
+        db.session.add_all(bye_games)
+        db.session.commit()
+        print(f"Created bye-week schedule for {user_team.name}: {len(bye_games)} games across {REGULAR_SEASON_WEEKS} weeks.")
+    else:
+        print("Warning: No user-controlled team found for schedule creation.")
 
     # -------------------------
     # Set initial Top-25 rankings for the season

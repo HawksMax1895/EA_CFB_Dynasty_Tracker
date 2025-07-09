@@ -278,7 +278,7 @@ with app.app_context():
     teams_map = {}
     for team_data in fbs_teams:
         if team_data[0] in teams_map: continue
-        is_user_controlled = team_data[0] == "Texas Longhorns"
+        is_user_controlled = team_data[0] == "Missouri State Bears"
         logo_url = get_logo_filename(team_data[0])
         team_obj = Team(
             name=team_data[0], abbreviation=team_data[1],
