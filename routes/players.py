@@ -93,16 +93,19 @@ def add_player_to_team(team_id: int) -> Response:
     height = data.get('height', '')
     weight = data.get('weight', 200)
     state = data.get('state', '')
+    redshirt_used = data.get('redshirt_used', False)
+    redshirted = data.get('redshirted', False)
     
     if not all([name, position, ovr_rating, season_id]):
         return jsonify({'error': 'Missing required fields'}), 400
     
     player = Player(
-        name=name, 
-        position=position, 
+        name=name,
+        position=position,
         team_id=team_id,
         recruit_stars=recruit_stars,
-        state=state
+        state=state,
+        redshirt_used=redshirt_used or redshirted
     )
     db.session.add(player)
     db.session.commit()
@@ -114,7 +117,7 @@ def add_player_to_team(team_id: int) -> Response:
         ovr_rating=ovr_rating,
         player_class=current_year,
         current_year=current_year,
-        redshirted=False,
+        redshirted=redshirted,
         speed=speed,
         dev_trait=dev_trait,
         weight=weight,
@@ -243,7 +246,7 @@ def get_team_roster_for_season(season_id: int, team_id: int) -> Response:
             'state': player.state,
             'recruit_stars': player.recruit_stars,
             'redshirted': ps.redshirted,
-            'has_ever_redshirted': db.session.query(PlayerSeason.redshirted).filter(
+            'has_ever_redshirted': player.redshirt_used or db.session.query(PlayerSeason.redshirted).filter(
                 PlayerSeason.player_id == ps.player_id,
                 PlayerSeason.redshirted == True
             ).count() > 0,
@@ -420,8 +423,19 @@ def set_redshirt(player_id: int) -> Response:
     
     if not ps:
         return jsonify({'error': 'PlayerSeason not found'}), 404
-    
+
     ps.redshirted = redshirted
+    player = Player.query.get(player_id)
+    if redshirted:
+        player.redshirt_used = True
+    else:
+        other_rs = db.session.query(PlayerSeason).filter(
+            PlayerSeason.player_id == player_id,
+            PlayerSeason.redshirted == True,
+            PlayerSeason.season_id != season_id
+        ).count() > 0
+        player.redshirt_used = other_rs
+
     db.session.commit()
     return jsonify({'player_id': player_id, 'redshirted': ps.redshirted})
 

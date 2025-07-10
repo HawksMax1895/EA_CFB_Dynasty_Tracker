@@ -88,6 +88,7 @@ class Player(db.Model):
     recruit_stars = db.Column(db.Integer)
     recruit_rank_nat = db.Column(db.Integer)
     state = db.Column(db.String(2))  # State abbreviation
+    redshirt_used = db.Column(db.Boolean, default=False)
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
     player_seasons = db.relationship('PlayerSeason', backref='player', lazy=True)
     award_winners = db.relationship('AwardWinner', backref='player', lazy=True)

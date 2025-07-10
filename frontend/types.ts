@@ -168,6 +168,7 @@ export interface AddPlayerData {
   recruit_rank_nat?: number;
   state?: string;
   team_id: number;
+  redshirt_used?: boolean;
 }
 
 export interface UpdatePlayerData {
