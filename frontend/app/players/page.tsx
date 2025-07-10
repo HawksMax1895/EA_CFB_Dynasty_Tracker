@@ -16,8 +16,7 @@ import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 const POSITION_OPTIONS = [
-  "QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT",
-  "LE", "RE", "DT", "LOLB", "MLB", "ROLB", "CB", "FS", "SS", "K", "P"
+  "QB", "RB", "FB", "WR", "TE", "RT", "RG", "C", "LG", "LT", "LEDG", "REDG", "DT", "SAM", "MIKE", "WILL", "CB", "FS", "SS", "K", "P"
 ];
 
 const devTraits = [
@@ -27,32 +26,32 @@ const devTraits = [
   { value: "Elite", label: "Elite" },
 ];
 
-// Position-specific styling
+// Position-specific styling (copied from player profile page)
 const getPositionStyle = (position: string) => {
-  const styles = {
-    QB: { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-600" },
-    RB: { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-600" },
-    WR: { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-600" },
-    TE: { bg: "from-indigo-500 to-indigo-600", icon: "🎯", color: "text-indigo-600" },
-    FB: { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-600" },
-    LT: { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600" },
-    LG: { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600" },
-    C: { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600" },
-    RG: { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600" },
-    RT: { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600" },
-    LE: { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600" },
-    RE: { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600" },
-    DT: { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600" },
-    LOLB: { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600" },
-    MLB: { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600" },
-    ROLB: { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600" },
-    CB: { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600" },
-    FS: { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600" },
-    SS: { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600" },
-    K: { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600" },
-    P: { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600" }
+  const styles: Record<string, { bg: string; icon: string; color: string; border: string }> = {
+    QB:    { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-600", border: "border-blue-200" },
+    RB:    { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-600", border: "border-green-200" },
+    FB:    { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-600", border: "border-emerald-200" },
+    WR:    { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-600", border: "border-purple-200" },
+    TE:    { bg: "from-indigo-500 to-indigo-600", icon: "🎯", color: "text-indigo-600", border: "border-indigo-200" },
+    RT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    RG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    C:     { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    LG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    LT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    LEDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
+    REDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
+    DT:    { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600", border: "border-red-200" },
+    SAM:   { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
+    MIKE:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
+    WILL:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
+    CB:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
+    FS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
+    SS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
+    K:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600", border: "border-gray-200" },
+    P:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600", border: "border-gray-200" },
   };
-  return styles[position as keyof typeof styles] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-600" };
+  return styles[position] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-600", border: "border-gray-200" };
 };
 
 // Get rating color based on overall rating
@@ -324,7 +323,7 @@ export default function PlayersPage() {
                         <CardTitle className="text-base font-bold text-foreground mb-0">{player.name}</CardTitle>
                         <div className="flex items-center gap-1 mt-0.5">
                           <Badge variant="outline" className={`${positionStyle.color} border-current text-xs px-2 py-0.5`}>{player.position}</Badge>
-                          <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs px-2 py-0.5">{player.current_year}{player.redshirted ? ' (RS)' : ''}</Badge>
+                          <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs px-2 py-0.5">{player.current_year}{(player.redshirted || player.has_ever_redshirted) ? ' (RS)' : ''}</Badge>
                           {player.dev_trait && (
                             <Badge variant="outline" className="bg-yellow-200 text-yellow-800 border-yellow-300 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
                           )}

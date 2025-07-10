@@ -63,6 +63,20 @@ export interface Player {
   player_id: number;
   name: string;
   position: string;
+  /** Class year e.g., 'FR', 'SO', 'JR', 'SR' */
+  current_year?: string;
+  /** True if the player is redshirting in the **current** season */
+  redshirted?: boolean;
+  /** True if the player has ever taken a redshirt year in their career */
+  has_ever_redshirted?: boolean;
+  /** Overall rating in the most recent/selected season */
+  ovr_rating?: number;
+  /** Development trait e.g., Normal, Star */
+  dev_trait?: string;
+  /** Recorded height string like 6'2" */
+  height?: string;
+  /** Recorded weight in pounds */
+  weight?: number;
   recruit_stars?: number;
   recruit_rank_nat?: number;
   state?: string;
@@ -169,6 +183,8 @@ export interface AddPlayerData {
   state?: string;
   team_id: number;
   redshirt_used?: boolean;
+  /** Starting class year for the player (defaults to 'FR') */
+  current_year?: string;
 }
 
 export interface UpdatePlayerData {

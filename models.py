@@ -92,6 +92,7 @@ class Player(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('teams.team_id'))
     player_seasons = db.relationship('PlayerSeason', backref='player', lazy=True)
     award_winners = db.relationship('AwardWinner', backref='player', lazy=True)
+    leaving = db.Column(db.Boolean, default=False)  # True if player leaves after season
 
 
 class PlayerSeason(db.Model):

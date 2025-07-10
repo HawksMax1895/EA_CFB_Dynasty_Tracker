@@ -46,6 +46,10 @@ export default function AwardsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editTeamId, setEditTeamId] = useState<number | null>(null);
   const [addPlayerTeamPopoverOpen, setAddPlayerTeamPopoverOpen] = useState(false);
+  const [addHonorPlayerPopoverOpen, setAddHonorPlayerPopoverOpen] = useState(false);
+  const [addHonorPlayerSearch, setAddHonorPlayerSearch] = useState("");
+  const [addHonorTypePopoverOpen, setAddHonorTypePopoverOpen] = useState(false);
+  const [addHonorTypeSearch, setAddHonorTypeSearch] = useState("");
 
   const filteredPlayers = allPlayers.filter(p => {
     const matchesName = p.name.toLowerCase().includes(playerSearch.toLowerCase());
@@ -61,6 +65,14 @@ export default function AwardsPage() {
   const filteredHonorTypes = honorTypes.filter(honor => 
     honor.conference_id === null || // National honors
     honor.conference_id === userTeam?.primary_conference_id // User team's conference honors
+  );
+
+  const filteredHonorPlayers = userTeamPlayers.filter(p => 
+    p.name.toLowerCase().includes(addHonorPlayerSearch.toLowerCase())
+  );
+
+  const filteredHonorTypesForDropdown = filteredHonorTypes.filter(honor => 
+    honor.name.toLowerCase().includes(addHonorTypeSearch.toLowerCase())
   );
 
   useEffect(() => {
@@ -388,42 +400,69 @@ export default function AwardsPage() {
                   </Popover>
                 </div>
                 <div>
-                  <Select
-                    open={playerSelectOpen}
-                    onOpenChange={setPlayerSelectOpen}
-                    value={editPlayerId?.toString() || ""}
-                    onValueChange={v => {
-                      if (v === "__add_new__") {
-                        setShowAddPlayer(true)
-                        setPlayerSelectOpen(false)
-                        return
-                      }
-                      setEditPlayerId(Number(v))
-                      setUserSelectedPlayer(true);
-                      // When player changes, update editTeamId to match the player's team
-                      const selected = allPlayers.find(p => p.player_id === Number(v))
-                      if (selected) setEditTeamId(selected.team_id)
-                    }}
-                  >
-                    <SelectTrigger className="w-full mt-2">
-                      <SelectValue placeholder="Select player" />
-                    </SelectTrigger>
-                    <SelectContent style={{ maxHeight: 320, overflowY: 'auto' }}>
-                      {filteredPlayers.map(p => (
-                        <SelectItem key={p.player_id} value={p.player_id.toString()}>
-                          {p.name} ({p.position} - {p.team_name || 'No Team'})
-                        </SelectItem>
-                      ))}
-                      <SelectSeparator />
-                      <SelectItem value="__add_new__" onClick={e => {
-                        e.preventDefault();
-                        setShowAddPlayer(true)
-                        setPlayerSelectOpen(false)
-                      }}>
-                        + Add new player
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Popover open={playerSelectOpen} onOpenChange={setPlayerSelectOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={playerSelectOpen}
+                        className="w-full mt-2 justify-between"
+                      >
+                        {(() => {
+                          const selected = allPlayers.find(p => p.player_id === editPlayerId);
+                          return selected
+                            ? `${selected.name} (${selected.position} - ${selected.team_name || 'No Team'})`
+                            : "Select player";
+                        })()}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search player..."
+                          value={playerSearch}
+                          onValueChange={v => {
+                            setPlayerSearch(v);
+                            setUserSelectedPlayer(false);
+                          }}
+                        />
+                        <CommandList className="max-h-80 overflow-y-auto">
+                          <CommandEmpty>No player found.</CommandEmpty>
+                          <CommandGroup>
+                            {filteredPlayers.map(p => (
+                              <CommandItem
+                                key={p.player_id}
+                                value={p.player_id.toString()}
+                                onSelect={() => {
+                                  setEditPlayerId(p.player_id);
+                                  setUserSelectedPlayer(true);
+                                  setPlayerSelectOpen(false);
+                                  // When player changes, update editTeamId to match the player's team
+                                  const selected = allPlayers.find(pl => pl.player_id === p.player_id);
+                                  if (selected) setEditTeamId(selected.team_id);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", editPlayerId === p.player_id ? "opacity-100" : "opacity-0")} />
+                                {p.name} ({p.position} - {p.team_name || 'No Team'})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                          <CommandGroup>
+                            <CommandItem
+                              value="__add_new__"
+                              onSelect={e => {
+                                setShowAddPlayer(true);
+                                setPlayerSelectOpen(false);
+                              }}
+                            >
+                              + Add new player
+                            </CommandItem>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 {showAddPlayer && (
                   <form className="mt-3 p-3 bg-gray-50 rounded-lg border flex flex-col gap-2" onSubmit={handleAddPlayer}>
@@ -551,40 +590,106 @@ export default function AwardsPage() {
               <form onSubmit={handleAddHonor} className="space-y-4">
                 <div>
                   <label className="block mb-1 font-medium">Player</label>
-                  <Select value={newHonor.player_id} onValueChange={v => setNewHonor(h => ({ ...h, player_id: v }))}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select player" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userTeamPlayers.map(p => (
-                        <SelectItem key={p.player_id} value={p.player_id.toString()}>{p.name} ({p.team_name})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={addHonorPlayerPopoverOpen} onOpenChange={setAddHonorPlayerPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={addHonorPlayerPopoverOpen}
+                        className="w-full justify-between"
+                      >
+                        {(() => {
+                          const selected = userTeamPlayers.find(p => p.player_id.toString() === newHonor.player_id);
+                          return selected
+                            ? `${selected.name} (${selected.team_name})`
+                            : "Select player";
+                        })()}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search player..."
+                          value={addHonorPlayerSearch}
+                          onValueChange={v => setAddHonorPlayerSearch(v)}
+                        />
+                        <CommandList className="max-h-80 overflow-y-auto">
+                          <CommandEmpty>No player found.</CommandEmpty>
+                          <CommandGroup>
+                            {filteredHonorPlayers.map(p => (
+                              <CommandItem
+                                key={p.player_id}
+                                value={p.player_id.toString()}
+                                onSelect={() => {
+                                  setNewHonor(h => ({ ...h, player_id: p.player_id.toString() }));
+                                  setAddHonorPlayerPopoverOpen(false);
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", newHonor.player_id === p.player_id.toString() ? "opacity-100" : "opacity-0")} />
+                                {p.name} ({p.team_name})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <label className="block mb-1 font-medium">Honor Type</label>
-                  <Select value={newHonor.honor_id} onValueChange={v => {
-                    setNewHonor(h => ({ ...h, honor_id: v }));
-                    checkHonorWeekRequirement(v);
-                  }}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select honor type" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-96 overflow-y-auto">
-                      {filteredHonorTypes.map(honor => {
-                        const isWeeklyHonor = honor.name.includes("Player of the Week");
-                        return (
-                          <SelectItem key={honor.honor_id} value={honor.honor_id.toString()}>
-                            {honor.name}
-                            {honor.side && ` (${honor.side})`}
-                            {honor.conference_name && ` - ${honor.conference_name}`}
-                            {isWeeklyHonor && " (Weekly)"}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={addHonorTypePopoverOpen} onOpenChange={setAddHonorTypePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={addHonorTypePopoverOpen}
+                        className="w-full justify-between"
+                      >
+                        {(() => {
+                          const selected = filteredHonorTypesForDropdown.find(h => h.honor_id.toString() === newHonor.honor_id);
+                          return selected
+                            ? `${selected.name}${selected.side ? ` (${selected.side})` : ''}${selected.conference_name ? ` - ${selected.conference_name}` : ''}${selected.name.includes('Player of the Week') ? ' (Weekly)' : ''}`
+                            : "Select honor type";
+                        })()}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search honor type..."
+                          value={addHonorTypeSearch}
+                          onValueChange={v => setAddHonorTypeSearch(v)}
+                        />
+                        <CommandList className="max-h-80 overflow-y-auto">
+                          <CommandEmpty>No honor type found.</CommandEmpty>
+                          <CommandGroup>
+                            {filteredHonorTypesForDropdown.map(honor => {
+                              const isWeeklyHonor = honor.name.includes("Player of the Week");
+                              return (
+                                <CommandItem
+                                  key={honor.honor_id}
+                                  value={honor.honor_id.toString()}
+                                  onSelect={() => {
+                                    setNewHonor(h => ({ ...h, honor_id: honor.honor_id.toString() }));
+                                    setAddHonorTypePopoverOpen(false);
+                                    checkHonorWeekRequirement(honor.honor_id.toString());
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", newHonor.honor_id === honor.honor_id.toString() ? "opacity-100" : "opacity-0")} />
+                                  {honor.name}
+                                  {honor.side && ` (${honor.side})`}
+                                  {honor.conference_name && ` - ${honor.conference_name}`}
+                                  {isWeeklyHonor && " (Weekly)"}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 {selectedHonorRequiresWeek && (
                   <div>

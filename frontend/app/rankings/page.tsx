@@ -11,10 +11,11 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-ki
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import SortableTeamRow from "@/components/sortable-team-row"
 import type { Team, Conference } from "@/types"
-import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command"
+import { Command, CommandInput, CommandList, CommandItem, CommandEmpty, CommandGroup } from "@/components/ui/command"
 import { useSeason } from "@/context/SeasonContext"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Image from "next/image"
+import { Button } from "@/components/ui/button"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api"
 
@@ -32,6 +33,10 @@ export default function RankingsPage() {
   const [allSeasonTeams, setAllSeasonTeams] = useState<Team[]>([])
   const [selectedConference, setSelectedConference] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Conference selection popover state
+  const [conferencePopoverOpen, setConferencePopoverOpen] = useState(false);
+  const [conferenceSearch, setConferenceSearch] = useState("");
 
   useEffect(() => {
     if (!selectedSeason) return
@@ -157,6 +162,13 @@ export default function RankingsPage() {
     const userTeam = allSeasonTeams.find(t => t.team_id === teamId)
     return userTeam && (userTeam as any).is_user_controlled
   }
+
+  // Filter conferences for the popover search
+  const filteredConferences = useMemo(() => {
+    return conferences.filter(conf =>
+      conf.name.toLowerCase().includes(conferenceSearch.toLowerCase())
+    );
+  }, [conferences, conferenceSearch]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -346,21 +358,48 @@ export default function RankingsPage() {
                   Conference Standings
                 </CardTitle>
                 <div className="w-64">
-                  <Select
-                    value={selectedConference?.toString()}
-                    onValueChange={(value) => setSelectedConference(Number(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Conference" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {conferences.map((conf) => (
-                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()}>
-                          {conf.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={conferencePopoverOpen} onOpenChange={setConferencePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={conferencePopoverOpen}
+                        className="w-full justify-between"
+                      >
+                        {(() => {
+                          const selected = conferences.find(conf => conf.conference_id === selectedConference);
+                          return selected ? selected.name : "Select Conference";
+                        })()}
+                        <svg className="ml-2 h-4 w-4 shrink-0 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" /></svg>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search conference..."
+                          value={conferenceSearch}
+                          onValueChange={v => setConferenceSearch(v)}
+                        />
+                        <CommandList className="max-h-80 overflow-y-auto">
+                          <CommandEmpty>No conference found.</CommandEmpty>
+                          <CommandGroup>
+                            {filteredConferences.map(conf => (
+                              <CommandItem
+                                key={conf.conference_id}
+                                value={conf.conference_id.toString()}
+                                onSelect={() => {
+                                  setSelectedConference(conf.conference_id);
+                                  setConferencePopoverOpen(false);
+                                }}
+                              >
+                                {conf.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             </CardHeader>

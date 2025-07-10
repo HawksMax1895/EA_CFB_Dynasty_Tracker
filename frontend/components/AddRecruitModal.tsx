@@ -32,8 +32,7 @@ interface AddRecruitModalProps {
 }
 
 const positions = [
-  "QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT",
-  "LE", "RE", "DT", "LOLB", "MLB", "ROLB", "CB", "FS", "SS", "K", "P"
+  "QB", "RB", "FB", "WR", "TE", "RT", "RG", "C", "LG", "LT", "LEDG", "REDG", "DT", "SAM", "MIKE", "WILL", "CB", "FS", "SS", "K", "P"
 ];
 
 const states = [
@@ -94,6 +93,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
   const [isOpen, setIsOpen] = useState(false);
   const [positionOpen, setPositionOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
+  const [devTraitOpen, setDevTraitOpen] = useState(false);
 
   // Parse height into feet and inches for easier input
   const parseHeight = (height: string) => {
@@ -187,7 +187,7 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
                   <PopoverContent className="w-full p-0">
                     <Command>
                       <CommandInput placeholder="Search position..." />
-                      <CommandList>
+                      <CommandList className="max-h-80 overflow-y-auto">
                         <CommandEmpty>No position found.</CommandEmpty>
                         <CommandGroup>
                           {positions.map((position) => (
@@ -233,21 +233,64 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dev_trait" className="font-medium">Dev Trait</Label>
-                <Select value={form.dev_trait || "None"} onValueChange={(value) => {
-                  const event = { target: { name: 'dev_trait', value: value === "None" ? "" : value } } as React.ChangeEvent<HTMLInputElement>;
-                  onFormChange(event);
-                }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select dev trait" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="None">None</SelectItem>
-                    <SelectItem value="Elite">Elite</SelectItem>
-                    <SelectItem value="Star">Star</SelectItem>
-                    <SelectItem value="Impact">Impact</SelectItem>
-                    <SelectItem value="Normal">Normal</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Popover open={devTraitOpen} onOpenChange={setDevTraitOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={devTraitOpen} className="w-full justify-between">
+                      {form.dev_trait || "Select dev trait"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search dev trait..." />
+                      <CommandList className="max-h-80 overflow-y-auto">
+                        <CommandEmpty>No dev trait found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem value="None" onSelect={() => {
+                            const event = { target: { name: 'dev_trait', value: "None" } } as React.ChangeEvent<HTMLInputElement>;
+                            onFormChange(event);
+                            setDevTraitOpen(false);
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", form.dev_trait === "None" ? "opacity-100" : "opacity-0")} />
+                            None
+                          </CommandItem>
+                          <CommandItem value="Elite" onSelect={() => {
+                            const event = { target: { name: 'dev_trait', value: "Elite" } } as React.ChangeEvent<HTMLInputElement>;
+                            onFormChange(event);
+                            setDevTraitOpen(false);
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", form.dev_trait === "Elite" ? "opacity-100" : "opacity-0")} />
+                            Elite
+                          </CommandItem>
+                          <CommandItem value="Star" onSelect={() => {
+                            const event = { target: { name: 'dev_trait', value: "Star" } } as React.ChangeEvent<HTMLInputElement>;
+                            onFormChange(event);
+                            setDevTraitOpen(false);
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", form.dev_trait === "Star" ? "opacity-100" : "opacity-0")} />
+                            Star
+                          </CommandItem>
+                          <CommandItem value="Impact" onSelect={() => {
+                            const event = { target: { name: 'dev_trait', value: "Impact" } } as React.ChangeEvent<HTMLInputElement>;
+                            onFormChange(event);
+                            setDevTraitOpen(false);
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", form.dev_trait === "Impact" ? "opacity-100" : "opacity-0")} />
+                            Impact
+                          </CommandItem>
+                          <CommandItem value="Normal" onSelect={() => {
+                            const event = { target: { name: 'dev_trait', value: "Normal" } } as React.ChangeEvent<HTMLInputElement>;
+                            onFormChange(event);
+                            setDevTraitOpen(false);
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", form.dev_trait === "Normal" ? "opacity-100" : "opacity-0")} />
+                            Normal
+                          </CommandItem>
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             <div className="space-y-2">
@@ -275,11 +318,15 @@ export function AddRecruitModal({ form, onFormChange, onFormSubmit, loading, err
                 <PopoverContent className="w-full p-0">
                   <Command>
                     <CommandInput placeholder="Search state..." />
-                    <CommandList>
+                    <CommandList className="max-h-80 overflow-y-auto">
                       <CommandEmpty>No state found.</CommandEmpty>
                       <CommandGroup>
                         {states.map((state) => (
-                          <CommandItem key={state.value} value={state.value} onSelect={() => handleStateSelect(state.value)}>
+                          <CommandItem key={state.value} value={state.value} onSelect={() => {
+                            const event = { target: { name: 'state', value: state.value } } as React.ChangeEvent<HTMLInputElement>;
+                            onFormChange(event);
+                            setStateOpen(false);
+                          }}>
                             <Check className={cn("mr-2 h-4 w-4", form.state === state.value ? "opacity-100" : "opacity-0")} />
                             {state.value} - {state.label}
                           </CommandItem>

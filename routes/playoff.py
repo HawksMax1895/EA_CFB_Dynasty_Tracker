@@ -502,6 +502,49 @@ def manual_seed_bracket(season_id: int) -> Response:
         .order_by(Game.week.asc(), Game.game_id.asc())
         .all()
     )
+    
+    # If bracket structure doesn't exist, create it
+    if len(games) != 11:
+        logger.debug(f"Creating playoff bracket structure for season {season_id}")
+        # Create the 11-game bracket structure
+        playoff_games = [
+            # First Round (week 17)
+            {"week": 17, "playoff_round": "First Round"},
+            {"week": 17, "playoff_round": "First Round"},
+            {"week": 17, "playoff_round": "First Round"},
+            {"week": 17, "playoff_round": "First Round"},
+            # Quarterfinals (week 18)
+            {"week": 18, "playoff_round": "Quarterfinals"},
+            {"week": 18, "playoff_round": "Quarterfinals"},
+            {"week": 18, "playoff_round": "Quarterfinals"},
+            {"week": 18, "playoff_round": "Quarterfinals"},
+            # Semifinals (week 19)
+            {"week": 19, "playoff_round": "Semifinals"},
+            {"week": 19, "playoff_round": "Semifinals"},
+            # Championship (week 20)
+            {"week": 20, "playoff_round": "Championship"},
+        ]
+        
+        for g_info in playoff_games:
+            game = Game(
+                season_id=season_id,
+                week=g_info["week"],
+                home_team_id=None,
+                away_team_id=None,
+                game_type="Playoff",
+                playoff_round=g_info["playoff_round"]
+            )
+            db.session.add(game)
+        db.session.commit()
+        
+        # Refresh the games list
+        games = (
+            Game.query.filter_by(season_id=season_id, game_type="Playoff")
+            .order_by(Game.week.asc(), Game.game_id.asc())
+            .all()
+        )
+        logger.debug(f"Created {len(games)} playoff games for season {season_id}")
+    
     if len(games) != 11:
         return jsonify({"error": "Bracket structure is incomplete"}), 400
     # Assign teams to games according to 12-team bracket

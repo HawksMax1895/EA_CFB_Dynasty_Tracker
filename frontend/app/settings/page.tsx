@@ -25,7 +25,9 @@ import {
   Loader2,
   Plus,
   Search,
-  Filter
+  Filter,
+  ChevronsUpDown,
+  Check
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { fetchSeasons, createSeason, fetchTeamsBySeason, deleteSeason, fetchTeams, setUserControlledTeam, API_BASE_URL, fetchAwards, createAward, updateAward, deleteAward, fetchHonorTypes, createHonorType, updateHonorType, deleteHonorType } from "@/lib/api";
@@ -36,6 +38,8 @@ import { useMemo } from "react";
 import { Tabs as SubTabs, TabsList as SubTabsList, TabsTrigger as SubTabsTrigger, TabsContent as SubTabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import Image from "next/image";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 
 // Add a helper for ordinal
 function ordinal(n: number | null | undefined) {
@@ -83,6 +87,15 @@ export default function SettingsPage() {
     const [addForm, setAddForm] = useState<any>({ type: '', name: '', description: '', side: 'none', conference_id: 'none' });
     const [adding, setAdding] = useState(false);
     const [addError, setAddError] = useState<string | null>(null);
+
+    const [teamPopoverOpen, setTeamPopoverOpen] = useState(false);
+    const [filterTypePopoverOpen, setFilterTypePopoverOpen] = useState(false);
+    const [selectedConferencePopoverOpen, setSelectedConferencePopoverOpen] = useState(false);
+    const [addTypePopoverOpen, setAddTypePopoverOpen] = useState(false);
+    const [addSidePopoverOpen, setAddSidePopoverOpen] = useState(false);
+    const [addConferencePopoverOpen, setAddConferencePopoverOpen] = useState(false);
+    const [editSidePopoverOpen, setEditSidePopoverOpen] = useState(false);
+    const [editConferencePopoverOpen, setEditConferencePopoverOpen] = useState(false);
 
     useEffect(() => {
         setLoadingTeams(true);
@@ -273,6 +286,37 @@ export default function SettingsPage() {
       }
     };
 
+    const handleDeleteAward = async (awardId: number) => {
+        if (!window.confirm("Are you sure you want to delete this award? This cannot be undone.")) return;
+        setLoadingAwards(true);
+        setAwardError(null);
+        try {
+            await deleteAward(awardId);
+            const awardsData = await fetchAwards();
+            setAwards(awardsData);
+        } catch (err: any) {
+            setAwardError(err.message);
+        } finally {
+            setLoadingAwards(false);
+        }
+    };
+
+    // Add this handler for deleting honor types
+    const handleDeleteHonorType = async (honorId: number) => {
+        if (!window.confirm("Are you sure you want to delete this honor type? This cannot be undone.")) return;
+        setLoadingHonorTypes(true);
+        setHonorTypeError(null);
+        try {
+            await deleteHonorType(honorId);
+            const honorTypesData = await fetchHonorTypes();
+            setHonorTypes(honorTypesData);
+        } catch (err: any) {
+            setHonorTypeError(err.message);
+        } finally {
+            setLoadingHonorTypes(false);
+        }
+    };
+
     return (
         <>
             {/* Standardized Header */}
@@ -309,23 +353,55 @@ export default function SettingsPage() {
                                         Loading teams...
                                     </div>
                                 ) : (
-                                    <Select value={selectedTeam?.toString() || ""} onValueChange={handleChange} disabled={saving}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select your team" />
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-96">
-                                            {teams.map((team) => (
-                                                <SelectItem key={team.team_id} value={team.team_id.toString()}>
+                                    <Popover open={teamPopoverOpen} onOpenChange={setTeamPopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button 
+                                                variant="outline" 
+                                                role="combobox" 
+                                                className="w-full justify-between"
+                                                disabled={saving}
+                                            >
+                                                {selectedTeam ? (
                                                     <div className="flex items-center gap-2">
-                                                        {team.logo_url && (
-                                                            <Image src={team.logo_url} alt={team.name} width={24} height={24} className="w-6 h-6 rounded" />
+                                                        {teams.find(t => t.team_id === selectedTeam)?.logo_url && (
+                                                            <Image src={teams.find(t => t.team_id === selectedTeam)?.logo_url || ''} alt={teams.find(t => t.team_id === selectedTeam)?.name || ''} width={24} height={24} className="w-6 h-6 rounded" />
                                                         )}
-                                                        {team.name}
+                                                        {teams.find(t => t.team_id === selectedTeam)?.name}
                                                     </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                                ) : (
+                                                    "Select your team"
+                                                )}
+                                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-full p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Search teams..." />
+                                                <CommandList className="max-h-80 overflow-y-auto">
+                                                    <CommandEmpty>No teams found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {teams.map((team) => (
+                                                            <CommandItem
+                                                                key={team.team_id}
+                                                                value={team.team_id.toString()}
+                                                                onSelect={() => {
+                                                                    setSelectedTeam(team.team_id);
+                                                                    setTeamPopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    {team.logo_url && (
+                                                                        <Image src={team.logo_url} alt={team.name} width={24} height={24} className="w-6 h-6 rounded" />
+                                                                    )}
+                                                                    {team.name}
+                                                                </div>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 )}
                                 {saving && (
                                     <div className="flex items-center gap-2 text-primary">
@@ -374,30 +450,106 @@ export default function SettingsPage() {
                                         />
                                     </div>
                                     <div className="flex gap-2">
-                                        <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                                            <SelectTrigger className="w-40">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all" className="pl-8">All</SelectItem>
-                                                <SelectItem value="teams" className="pl-8">Teams Only</SelectItem>
-                                                <SelectItem value="conferences" className="pl-8">Conferences Only</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <Popover open={filterTypePopoverOpen} onOpenChange={setFilterTypePopoverOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button 
+                                                    variant="outline" 
+                                                    role="combobox" 
+                                                    className="w-40 justify-between"
+                                                    disabled={saving}
+                                                >
+                                                    {filterType === "all" ? "All" : filterType === "teams" ? "Teams Only" : "Conferences Only"}
+                                                    <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-full p-0">
+                                                <Command>
+                                                    <CommandInput placeholder="Filter by..." />
+                                                    <CommandList className="max-h-80 overflow-y-auto">
+                                                        <CommandEmpty>No filter found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            <CommandItem
+                                                                value="all"
+                                                                onSelect={() => {
+                                                                    setFilterType("all");
+                                                                    setFilterTypePopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className="mr-2 h-4 w-4" />
+                                                                All
+                                                            </CommandItem>
+                                                            <CommandItem
+                                                                value="teams"
+                                                                onSelect={() => {
+                                                                    setFilterType("teams");
+                                                                    setFilterTypePopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className="mr-2 h-4 w-4" />
+                                                                Teams Only
+                                                            </CommandItem>
+                                                            <CommandItem
+                                                                value="conferences"
+                                                                onSelect={() => {
+                                                                    setFilterType("conferences");
+                                                                    setFilterTypePopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className="mr-2 h-4 w-4" />
+                                                                Conferences Only
+                                                            </CommandItem>
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                         {filterType !== "conferences" && (
-                                            <Select value={selectedConference} onValueChange={setSelectedConference}>
-                                                <SelectTrigger className="w-48">
-                                                    <SelectValue placeholder="Filter by conference" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all" className="pl-8">All Conferences</SelectItem>
-                                                    {conferences.map((conf) => (
-                                                        <SelectItem key={conf.conference_id} value={conf.conference_id.toString()} className="pl-8">
-                                                            {conf.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <Popover open={selectedConferencePopoverOpen} onOpenChange={setSelectedConferencePopoverOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        role="combobox" 
+                                                        className="w-48 justify-between"
+                                                        disabled={saving}
+                                                    >
+                                                        {selectedConference === "all" ? "All Conferences" : filteredConferences.find(conf => conf.conference_id.toString() === selectedConference)?.name || "Select conference"}
+                                                        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-full p-0">
+                                                    <Command>
+                                                        <CommandInput placeholder="Filter by conference..." />
+                                                        <CommandList className="max-h-80 overflow-y-auto">
+                                                            <CommandEmpty>No conference found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                <CommandItem
+                                                                    value="all"
+                                                                    onSelect={() => {
+                                                                        setSelectedConference("all");
+                                                                        setSelectedConferencePopoverOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check className="mr-2 h-4 w-4" />
+                                                                    All Conferences
+                                                                </CommandItem>
+                                                                {filteredConferences.map((conf) => (
+                                                                    <CommandItem
+                                                                        key={conf.conference_id}
+                                                                        value={conf.conference_id.toString()}
+                                                                        onSelect={() => {
+                                                                            setSelectedConference(conf.conference_id.toString());
+                                                                            setSelectedConferencePopoverOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check className="mr-2 h-4 w-4" />
+                                                                        {conf.name}
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
                                         )}
                                     </div>
                                 </div>
@@ -496,6 +648,16 @@ export default function SettingsPage() {
                                         )}
                                       </div>
                                       <Button size="sm" variant="outline" onClick={() => handleEdit(item)}>Edit</Button>
+                                      {item.type === 'Honor' && (
+                                        <Button size="sm" variant="destructive" onClick={() => handleDeleteHonorType(item.honor_id)}>
+                                          Delete
+                                        </Button>
+                                      )}
+                                      {item.type === 'Award' && (
+                                        <Button size="sm" variant="destructive" onClick={() => handleDeleteAward(item.award_id)}>
+                                          Delete
+                                        </Button>
+                                      )}
                                     </div>
                                   ))}
                                 {/* Add Award/Honor Modal */}
@@ -507,15 +669,49 @@ export default function SettingsPage() {
                                         <form onSubmit={handleAdd} className="space-y-4">
                                             <div>
                                                 <label className="block mb-1 font-medium">Type</label>
-                                                <Select value={addForm.type} onValueChange={v => setAddForm((f: any) => ({ ...f, type: v }))} required>
-                                                    <SelectTrigger className="w-full">
-                                                        <SelectValue placeholder="Type" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Award">Award</SelectItem>
-                                                        <SelectItem value="Honor">Honor</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <Popover open={addTypePopoverOpen} onOpenChange={setAddTypePopoverOpen}>
+                                                    <PopoverTrigger asChild>
+                                                        <Button 
+                                                            variant="outline" 
+                                                            role="combobox" 
+                                                            className="w-full justify-between"
+                                                            disabled={adding}
+                                                        >
+                                                            {addForm.type === 'Award' ? 'Award' : 'Honor'}
+                                                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-full p-0">
+                                                        <Command>
+                                                            <CommandInput placeholder="Type..." />
+                                                            <CommandList className="max-h-80 overflow-y-auto">
+                                                                <CommandEmpty>No type found.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    <CommandItem
+                                                                        value="Award"
+                                                                        onSelect={() => {
+                                                                            setAddForm((f: any) => ({ ...f, type: 'Award' }));
+                                                                            setAddTypePopoverOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check className="mr-2 h-4 w-4" />
+                                                                        Award
+                                                                    </CommandItem>
+                                                                    <CommandItem
+                                                                        value="Honor"
+                                                                        onSelect={() => {
+                                                                            setAddForm((f: any) => ({ ...f, type: 'Honor' }));
+                                                                            setAddTypePopoverOpen(false);
+                                                                        }}
+                                                                    >
+                                                                        <Check className="mr-2 h-4 w-4" />
+                                                                        Honor
+                                                                    </CommandItem>
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
                                             </div>
                                             <div>
                                                 <label className="block mb-1 font-medium">Name</label>
@@ -531,30 +727,108 @@ export default function SettingsPage() {
                                                 <>
                                                     <div>
                                                         <label className="block mb-1 font-medium">Side</label>
-                                                        <Select value={addForm.side} onValueChange={v => setAddForm((f: any) => ({ ...f, side: v }))}>
-                                                            <SelectTrigger className="w-full">
-                                                                <SelectValue placeholder="Side" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="none">None</SelectItem>
-                                                                <SelectItem value="offense">Offense</SelectItem>
-                                                                <SelectItem value="defense">Defense</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
+                                                        <Popover open={addSidePopoverOpen} onOpenChange={setAddSidePopoverOpen}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    role="combobox" 
+                                                                    className="w-full justify-between"
+                                                                    disabled={adding}
+                                                                >
+                                                                    {addForm.side === 'none' ? 'None' : addForm.side === 'offense' ? 'Offense' : 'Defense'}
+                                                                    <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-full p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Side..." />
+                                                                    <CommandList className="max-h-80 overflow-y-auto">
+                                                                        <CommandEmpty>No side found.</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            <CommandItem
+                                                                                value="none"
+                                                                                onSelect={() => {
+                                                                                    setAddForm((f: any) => ({ ...f, side: 'none' }));
+                                                                                    setAddSidePopoverOpen(false);
+                                                                                }}
+                                                                            >
+                                                                                <Check className="mr-2 h-4 w-4" />
+                                                                                None
+                                                                            </CommandItem>
+                                                                            <CommandItem
+                                                                                value="offense"
+                                                                                onSelect={() => {
+                                                                                    setAddForm((f: any) => ({ ...f, side: 'offense' }));
+                                                                                    setAddSidePopoverOpen(false);
+                                                                                }}
+                                                                            >
+                                                                                <Check className="mr-2 h-4 w-4" />
+                                                                                Offense
+                                                                            </CommandItem>
+                                                                            <CommandItem
+                                                                                value="defense"
+                                                                                onSelect={() => {
+                                                                                    setAddForm((f: any) => ({ ...f, side: 'defense' }));
+                                                                                    setAddSidePopoverOpen(false);
+                                                                                }}
+                                                                            >
+                                                                                <Check className="mr-2 h-4 w-4" />
+                                                                                Defense
+                                                                            </CommandItem>
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
                                                     </div>
                                                     <div>
                                                         <label className="block mb-1 font-medium">Conference</label>
-                                                        <Select value={addForm.conference_id} onValueChange={v => setAddForm((f: any) => ({ ...f, conference_id: v }))}>
-                                                            <SelectTrigger className="w-full">
-                                                                <SelectValue placeholder="Conference" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="none">None</SelectItem>
-                                                                {conferences.map((conf: any) => (
-                                                                    <SelectItem key={conf.conference_id} value={conf.conference_id.toString()} className="pl-8">{conf.name}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                        <Popover open={addConferencePopoverOpen} onOpenChange={setAddConferencePopoverOpen}>
+                                                            <PopoverTrigger asChild>
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    role="combobox" 
+                                                                    className="w-full justify-between"
+                                                                    disabled={adding}
+                                                                >
+                                                                    {addForm.conference_id === 'none' ? 'None' : conferences.find(conf => conf.conference_id.toString() === addForm.conference_id)?.name || 'Select conference'}
+                                                                    <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-full p-0">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Conference..." />
+                                                                    <CommandList className="max-h-80 overflow-y-auto">
+                                                                        <CommandEmpty>No conference found.</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            <CommandItem
+                                                                                value="none"
+                                                                                onSelect={() => {
+                                                                                    setAddForm((f: any) => ({ ...f, conference_id: 'none' }));
+                                                                                    setAddConferencePopoverOpen(false);
+                                                                                }}
+                                                                            >
+                                                                                <Check className="mr-2 h-4 w-4" />
+                                                                                None
+                                                                            </CommandItem>
+                                                                            {conferences.map((conf: any) => (
+                                                                                <CommandItem
+                                                                                    key={conf.conference_id}
+                                                                                    value={conf.conference_id.toString()}
+                                                                                    onSelect={() => {
+                                                                                        setAddForm((f: any) => ({ ...f, conference_id: conf.conference_id.toString() }));
+                                                                                        setAddConferencePopoverOpen(false);
+                                                                                    }}
+                                                                                >
+                                                                                    <Check className="mr-2 h-4 w-4" />
+                                                                                    {conf.name}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
                                                     </div>
                                                 </>
                                             )}
@@ -662,30 +936,108 @@ export default function SettingsPage() {
                             <>
                                 <div>
                                     <label className="block mb-1 font-medium">Side</label>
-                                    <Select value={editForm.side} onValueChange={v => setEditForm((f: any) => ({ ...f, side: v }))}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Side" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
-                                            <SelectItem value="offense">Offense</SelectItem>
-                                            <SelectItem value="defense">Defense</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover open={editSidePopoverOpen} onOpenChange={setEditSidePopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button 
+                                                variant="outline" 
+                                                role="combobox" 
+                                                className="w-full justify-between"
+                                                disabled={savingEdit}
+                                            >
+                                                {editForm.side === 'none' ? 'None' : editForm.side === 'offense' ? 'Offense' : 'Defense'}
+                                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-full p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Side..." />
+                                                <CommandList className="max-h-80 overflow-y-auto">
+                                                    <CommandEmpty>No side found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandItem
+                                                            value="none"
+                                                            onSelect={() => {
+                                                                setEditForm((f: any) => ({ ...f, side: 'none' }));
+                                                                setEditSidePopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            <Check className="mr-2 h-4 w-4" />
+                                                            None
+                                                        </CommandItem>
+                                                        <CommandItem
+                                                            value="offense"
+                                                            onSelect={() => {
+                                                                setEditForm((f: any) => ({ ...f, side: 'offense' }));
+                                                                setEditSidePopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            <Check className="mr-2 h-4 w-4" />
+                                                            Offense
+                                                        </CommandItem>
+                                                        <CommandItem
+                                                            value="defense"
+                                                            onSelect={() => {
+                                                                setEditForm((f: any) => ({ ...f, side: 'defense' }));
+                                                                setEditSidePopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            <Check className="mr-2 h-4 w-4" />
+                                                            Defense
+                                                        </CommandItem>
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 <div>
                                     <label className="block mb-1 font-medium">Conference</label>
-                                    <Select value={editForm.conference_id} onValueChange={v => setEditForm((f: any) => ({ ...f, conference_id: v }))}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Conference" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">None</SelectItem>
-                                            {conferences.map((conf: any) => (
-                                                <SelectItem key={conf.conference_id} value={conf.conference_id.toString()} className="pl-8">{conf.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <Popover open={editConferencePopoverOpen} onOpenChange={setEditConferencePopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button 
+                                                variant="outline" 
+                                                role="combobox" 
+                                                className="w-full justify-between"
+                                                disabled={savingEdit}
+                                            >
+                                                {editForm.conference_id === 'none' ? 'None' : conferences.find(conf => conf.conference_id.toString() === editForm.conference_id)?.name || 'Select conference'}
+                                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-full p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Conference..." />
+                                                <CommandList className="max-h-80 overflow-y-auto">
+                                                    <CommandEmpty>No conference found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandItem
+                                                            value="none"
+                                                            onSelect={() => {
+                                                                setEditForm((f: any) => ({ ...f, conference_id: 'none' }));
+                                                                setEditConferencePopoverOpen(false);
+                                                            }}
+                                                        >
+                                                            <Check className="mr-2 h-4 w-4" />
+                                                            None
+                                                        </CommandItem>
+                                                        {conferences.map((conf: any) => (
+                                                            <CommandItem
+                                                                key={conf.conference_id}
+                                                                value={conf.conference_id.toString()}
+                                                                onSelect={() => {
+                                                                    setEditForm((f: any) => ({ ...f, conference_id: conf.conference_id.toString() }));
+                                                                    setEditConferencePopoverOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check className="mr-2 h-4 w-4" />
+                                                                {conf.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                             </>
                         )}

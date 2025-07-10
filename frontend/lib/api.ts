@@ -302,12 +302,12 @@ export async function updateAward(awardId: number, data: AwardData): Promise<Awa
   return response.json()
 }
 
-export async function deleteAward(awardId: number) {
+export async function deleteAward(awardId: number): Promise<any> {
   const response = await fetch(`${API_BASE_URL}/awards/${awardId}`, {
     method: "DELETE"
-  })
-  if (!response.ok) throw new Error("Failed to delete award")
-  return response.json()
+  });
+  if (!response.ok) throw new Error("Failed to delete award");
+  return response.json();
 }
 
 export async function fetchAwardWinnersBySeason(seasonId: number) {
@@ -482,5 +482,14 @@ export async function fetchPlayerHonors(playerId: number) {
 export async function fetchPlayerRatingDevelopment(playerId: number) {
   const response = await fetch(`${API_BASE_URL}/players/${playerId}/rating-development`);
   if (!response.ok) throw new Error("Failed to fetch player rating development");
+  return response.json();
+}
+
+// Mark a player as leaving (will leave team after this season)
+export async function setPlayerLeaving(playerId: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/leave`, {
+    method: "POST"
+  });
+  if (!response.ok) throw new Error("Failed to mark player as leaving");
   return response.json();
 }

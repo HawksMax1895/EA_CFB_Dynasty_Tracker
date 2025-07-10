@@ -35,8 +35,7 @@ interface AddTransferModalProps {
 }
 
 const positions = [
-  "QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT",
-  "LE", "RE", "DT", "LOLB", "MLB", "ROLB", "CB", "FS", "SS", "K", "P"
+  "QB", "RB", "FB", "WR", "TE", "RT", "RG", "C", "LG", "LT", "LEDG", "REDG", "DT", "SAM", "MIKE", "WILL", "CB", "FS", "SS", "K", "P"
 ];
 
 const states = [
@@ -96,8 +95,10 @@ const states = [
 export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, error }: AddTransferModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [positionOpen, setPositionOpen] = useState(false);
-  const [schoolOpen, setSchoolOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
+  const [devTraitOpen, setDevTraitOpen] = useState(false);
+  const [schoolOpen, setSchoolOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [schools, setSchools] = useState<Array<{ id: number; name: string; abbreviation?: string }>>([]);
   const [schoolsLoading, setSchoolsLoading] = useState(false);
 
@@ -232,7 +233,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
                   <PopoverContent className="w-full p-0">
                     <Command>
                       <CommandInput placeholder="Search position..." />
-                      <CommandList>
+                      <CommandList className="max-h-80 overflow-y-auto">
                         <CommandEmpty>No position found.</CommandEmpty>
                         <CommandGroup>
                           {positions.map((position) => (
@@ -275,7 +276,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
                 <PopoverContent className="w-full p-0">
                   <Command>
                     <CommandInput placeholder="Search school..." />
-                    <CommandList>
+                    <CommandList className="max-h-80 overflow-y-auto">
                       <CommandEmpty>No school found.</CommandEmpty>
                       <CommandGroup>
                         {schools.map((school) => (
@@ -371,26 +372,74 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
             </div>
             <div className="space-y-2">
               <Label htmlFor="transfer_dev_trait">Dev Trait</Label>
-              <Select 
-                value={form.dev_trait || "None"} 
-                onValueChange={(value) => {
-                  const event = {
-                    target: { name: 'dev_trait', value: value === "None" ? "" : value }
-                  } as React.ChangeEvent<HTMLInputElement>;
-                  onFormChange(event);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select dev trait" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="Elite">Elite</SelectItem>
-                  <SelectItem value="Star">Star</SelectItem>
-                  <SelectItem value="Impact">Impact</SelectItem>
-                  <SelectItem value="Normal">Normal</SelectItem>
-                </SelectContent>
-              </Select>
+              <Popover open={devTraitOpen} onOpenChange={setDevTraitOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={devTraitOpen}
+                    className="w-full justify-between"
+                  >
+                    {form.dev_trait || "Select dev trait..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search dev trait..." />
+                    <CommandList className="max-h-80 overflow-y-auto">
+                      <CommandEmpty>No dev trait found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="None" onSelect={() => handleStateSelect("None")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.dev_trait === "None" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          None
+                        </CommandItem>
+                        <CommandItem value="Elite" onSelect={() => handleStateSelect("Elite")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.dev_trait === "Elite" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          Elite
+                        </CommandItem>
+                        <CommandItem value="Star" onSelect={() => handleStateSelect("Star")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.dev_trait === "Star" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          Star
+                        </CommandItem>
+                        <CommandItem value="Impact" onSelect={() => handleStateSelect("Impact")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.dev_trait === "Impact" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          Impact
+                        </CommandItem>
+                        <CommandItem value="Normal" onSelect={() => handleStateSelect("Normal")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.dev_trait === "Normal" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          Normal
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
@@ -454,7 +503,7 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
                   <PopoverContent className="w-full p-0">
                     <Command>
                       <CommandInput placeholder="Search state..." />
-                      <CommandList>
+                      <CommandList className="max-h-80 overflow-y-auto">
                         <CommandEmpty>No state found.</CommandEmpty>
                         <CommandGroup>
                           {states.map((state) => (
@@ -481,24 +530,56 @@ export function AddTransferModal({ form, onFormChange, onFormSubmit, loading, er
             </div>
             <div className="space-y-2">
               <Label htmlFor="current_status">Current Status</Label>
-              <Select 
-                value={form.current_status} 
-                onValueChange={(value) => {
-                  const event = {
-                    target: { name: 'current_status', value }
-                  } as React.ChangeEvent<HTMLInputElement>;
-                  onFormChange(event);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FR">FR (Freshman)</SelectItem>
-                  <SelectItem value="SO">SO (Sophomore)</SelectItem>
-                  <SelectItem value="JR">JR (Junior)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={statusOpen}
+                    className="w-full justify-between"
+                  >
+                    {form.current_status || "Select status..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search status..." />
+                    <CommandList className="max-h-80 overflow-y-auto">
+                      <CommandEmpty>No status found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="FR" onSelect={() => handleStateSelect("FR")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.current_status === "FR" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          FR (Freshman)
+                        </CommandItem>
+                        <CommandItem value="SO" onSelect={() => handleStateSelect("SO")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.current_status === "SO" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          SO (Sophomore)
+                        </CommandItem>
+                        <CommandItem value="JR" onSelect={() => handleStateSelect("JR")}>
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              form.current_status === "JR" ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          JR (Junior)
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           {error && <p className="text-destructive text-sm mt-4 mb-0 text-center">{error}</p>}

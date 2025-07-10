@@ -764,3 +764,14 @@ def get_player_rating_development(player_id: int) -> Response:
         "player_name": player.name,
         "chart_data": chart_data
     }) 
+
+@players_bp.route('/players/<int:player_id>/leave', methods=['POST'])
+def set_player_leaving(player_id: int):
+    """
+    Mark a player as leaving (will leave team after this season).
+    """
+    player = Player.query.get_or_404(player_id)
+    player.leaving = True
+    from extensions import db
+    db.session.commit()
+    return jsonify({'message': f'Player {player_id} marked as leaving.'}) 

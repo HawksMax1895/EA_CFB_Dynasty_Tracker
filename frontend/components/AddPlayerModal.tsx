@@ -11,14 +11,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Star } from "lucide-react";
 import { addPlayer } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // --- AddRecruitModal-style recruit fields ---
 interface RecruitForm {
   name: string;
   position: string;
   recruit_stars: number;
-  recruit_rank_nat: number;
-  recruit_rank_pos: number;
   speed: string;
   dev_trait: string;
   height: string;
@@ -26,19 +28,28 @@ interface RecruitForm {
   state: string;
   ovr_rating: number;
   redshirt_used: boolean;
+  current_year: string; // 'FR', 'SO', 'JR', or 'SR'
 }
 
-const recruitPositions = [
-  "QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT",
-  "LE", "RE", "DT", "LOLB", "MLB", "ROLB", "CB", "FS", "SS", "K", "P"
+// Use the same positions array as AddRecruitModal
+const positions = [
+  "QB", "RB", "FB", "WR", "TE", "RT", "RG", "C", "LG", "LT", "LEDG", "REDG", "DT", "SAM", "MIKE", "WILL", "CB", "FS", "SS", "K", "P"
 ];
 
-const recruitStates = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+const states = [
+  { value: "AL", label: "Alabama" }, { value: "AK", label: "Alaska" }, { value: "AZ", label: "Arizona" }, { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" }, { value: "CO", label: "Colorado" }, { value: "CT", label: "Connecticut" }, { value: "DE", label: "Delaware" },
+  { value: "FL", label: "Florida" }, { value: "GA", label: "Georgia" }, { value: "HI", label: "Hawaii" }, { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" }, { value: "IN", label: "Indiana" }, { value: "IA", label: "Iowa" }, { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" }, { value: "LA", label: "Louisiana" }, { value: "ME", label: "Maine" }, { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" }, { value: "MI", label: "Michigan" }, { value: "MN", label: "Minnesota" }, { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" }, { value: "MT", label: "Montana" }, { value: "NE", label: "Nebraska" }, { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" }, { value: "NJ", label: "New Jersey" }, { value: "NM", label: "New Mexico" }, { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" }, { value: "ND", label: "North Dakota" }, { value: "OH", label: "Ohio" }, { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" }, { value: "PA", label: "Pennsylvania" }, { value: "RI", label: "Rhode Island" }, { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" }, { value: "TN", label: "Tennessee" }, { value: "TX", label: "Texas" }, { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" }, { value: "VA", label: "Virginia" }, { value: "WA", label: "Washington" }, { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" }, { value: "WY", label: "Wyoming" }, { value: "DC", label: "District of Columbia" }
 ];
 
 const devTraits = [
@@ -57,8 +68,6 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     name: "",
     position: "",
     recruit_stars: 3,
-    recruit_rank_nat: 0,
-    recruit_rank_pos: 0,
     speed: "",
     dev_trait: "",
     height: "",
@@ -66,6 +75,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     state: "",
     ovr_rating: 70,
     redshirt_used: false,
+    current_year: "FR",
   });
 
   const handleFormChange = (field: keyof RecruitForm, value: string | number | boolean) => {
@@ -77,7 +87,6 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
   };
 
   const handleHeightChange = (type: 'feet' | 'inches', value: string) => {
-    // Parse and update height as 6'2" format
     const match = form.height.match(/(\d+)'(\d+)?/);
     let feet = match ? match[1] : '';
     let inches = match ? match[2] : '';
@@ -105,13 +114,12 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
         ovr_rating: Number(form.ovr_rating),
         team_id: userTeam?.team_id || 1,
         season_id: selectedSeason || 1,
+        current_year: form.current_year,
       });
       setForm({
         name: "",
         position: "",
         recruit_stars: 3,
-        recruit_rank_nat: 0,
-        recruit_rank_pos: 0,
         speed: "",
         dev_trait: "",
         height: "",
@@ -119,6 +127,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
         state: "",
         ovr_rating: 70,
         redshirt_used: false,
+        current_year: "FR",
       });
       setOpen(false);
       onPlayerAdded();
@@ -144,7 +153,6 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="font-semibold mb-4">Recruit Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>
@@ -152,16 +160,63 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="position">Position</Label>
-                  <Select value={form.position} onValueChange={value => handleFormChange("position", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select position" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {recruitPositions.map(pos => (
-                        <SelectItem key={pos} value={pos}>{pos}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between">
+                        {form.position || "Select position..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search position..." />
+                        <CommandList>
+                          <CommandEmpty>No position found.</CommandEmpty>
+                          <CommandGroup>
+                            {positions.map((position) => (
+                              <CommandItem key={position} value={position} onSelect={() => handleFormChange("position", position)}>
+                                <Check className={cn("mr-2 h-4 w-4", form.position === position ? "opacity-100" : "opacity-0")} />
+                                {position}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="flex gap-4 items-end">
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="current_year">Class</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                          {form.current_year || "Select class..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search class..." />
+                          <CommandList>
+                            <CommandEmpty>No class found.</CommandEmpty>
+                            <CommandGroup>
+                              {['FR', 'SO', 'JR', 'SR'].map(cls => (
+                                <CommandItem key={cls} value={cls} onSelect={() => handleFormChange("current_year", cls)}>
+                                  <Check className={cn("mr-2 h-4 w-4", form.current_year === cls ? "opacity-100" : "opacity-0")} />
+                                  {cls}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="flex items-center gap-2 pt-6">
+                    <Checkbox id="redshirt_used" checked={form.redshirt_used} onCheckedChange={checked => handleFormChange("redshirt_used", !!checked)} />
+                    <Label htmlFor="redshirt_used" className="text-sm">RS&nbsp;Used</Label>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ovr_rating">Overall Rating (OVR)</Label>
@@ -177,23 +232,13 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Stars</Label>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Button key={star} type="button" variant={form.recruit_stars === star ? "default" : "outline"} size="icon" onClick={() => handleStarClick(star)}>
-                        <Star className={form.recruit_stars >= star ? "text-yellow-400" : "text-gray-300"} />
-                      </Button>
+                  <Label htmlFor="recruit_stars" className="font-medium">Stars</Label>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <button type="button" key={i} onClick={() => handleFormChange('recruit_stars', i + 1)} aria-label={`Set ${i + 1} stars`}>
+                        <Star className={`h-5 w-5 ${i < (form.recruit_stars || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
+                      </button>
                     ))}
-                  </div>
-                </div>
-                <div className="flex gap-4 items-start">
-                  <div className="space-y-2 flex-1">
-                    <Label htmlFor="recruit_rank_nat">National Rank</Label>
-                    <Input id="recruit_rank_nat" type="number" value={form.recruit_rank_nat} onChange={e => handleFormChange("recruit_rank_nat", e.target.value)} placeholder="National Rank" />
-                  </div>
-                  <div className="space-y-2 flex-1">
-                    <Label htmlFor="recruit_rank_pos">Positional Rank</Label>
-                    <Input id="recruit_rank_pos" type="number" value={form.recruit_rank_pos} onChange={e => handleFormChange("recruit_rank_pos", e.target.value)} placeholder="Positional Rank" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -202,16 +247,30 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dev_trait">Dev Trait</Label>
-                  <Select value={form.dev_trait} onValueChange={value => handleFormChange("dev_trait", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select dev trait" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {devTraits.map(trait => (
-                        <SelectItem key={trait.value} value={trait.value}>{trait.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between">
+                        {form.dev_trait || "Select dev trait..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search dev trait..." />
+                        <CommandList>
+                          <CommandEmpty>No dev trait found.</CommandEmpty>
+                          <CommandGroup>
+                            {devTraits.map(trait => (
+                              <CommandItem key={trait.value} value={trait.value} onSelect={() => handleFormChange("dev_trait", trait.value)}>
+                                <Check className={cn("mr-2 h-4 w-4", form.dev_trait === trait.value ? "opacity-100" : "opacity-0")} />
+                                {trait.label}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="mt-6 mb-2 font-semibold text-foreground">Physical Attributes</div>
@@ -260,20 +319,32 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
               </div>
               <div className="mt-6 space-y-2">
                 <Label htmlFor="state">State</Label>
-                <Select value={form.state} onValueChange={value => handleFormChange("state", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select state..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {recruitStates.map(state => (
-                      <SelectItem key={state} value={state}>{state}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2 mt-4">
-                <Checkbox id="redshirt_used" checked={form.redshirt_used} onCheckedChange={checked => handleFormChange("redshirt_used", !!checked)} />
-                <Label htmlFor="redshirt_used" className="text-sm">Redshirt Already Used</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" className="w-full justify-between">
+                      {form.state
+                        ? `${form.state} - ${states.find(s => s.value === form.state)?.label ?? ''}`
+                        : "Select state..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search state..." />
+                      <CommandList>
+                        <CommandEmpty>No state found.</CommandEmpty>
+                        <CommandGroup>
+                          {states.map((state) => (
+                            <CommandItem key={state.value} value={state.value} onSelect={() => handleFormChange("state", state.value)}>
+                              <Check className={cn("mr-2 h-4 w-4", form.state === state.value ? "opacity-100" : "opacity-0")} />
+                              {state.value} - {state.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </CardContent>
           </Card>

@@ -9,6 +9,8 @@ import { fetchPlayoffEligibleTeams, manualSeedBracket, fetchBracket } from '@/li
 import { API_BASE_URL } from '@/lib/api';
 import { Pencil } from 'lucide-react';
 import type { BracketData, PlayoffEligibleTeam, Game } from '@/types';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 interface BracketProps {
   seasonId: number;
@@ -252,37 +254,57 @@ const Bracket = ({ seasonId }: BracketProps) => {
           <CardTitle>Seed Bracket</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
-            {Array.from({ length: 12 }, (_, i) => (
-              <div key={i} className="space-y-2">
-                <label className="text-sm font-medium">Seed {i + 1}</label>
-                <Select
-                  value={selectedTeams[i]?.toString() || ''}
-                  onValueChange={(value) => {
-                    const newTeams = [...selectedTeams];
-                    newTeams[i] = value ? Number(value) : null;
-                    setSelectedTeams(newTeams);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {eligibleTeams.map((team) => {
-                      // Disable if already selected in another seed
-                      const isSelected = selectedTeams.includes(team.team_id) && selectedTeams[i] !== team.team_id;
-                      return (
-                        <SelectItem key={team.team_id} value={team.team_id.toString()} disabled={isSelected}>
-                          {team.team_name} {team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
-          <Button onClick={handleSeedBracket} disabled={seeding}>
+          {eligibleTeams.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">Loading teams...</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+              {Array.from({ length: 12 }, (_, i) => (
+                <div key={i} className="space-y-2">
+                  <label className="text-sm font-medium">Seed {i + 1}</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" role="combobox" className="w-full justify-between">
+                        {(() => {
+                          const team = eligibleTeams.find(t => t.team_id === selectedTeams[i]);
+                          return team ? `${team.team_name} ${team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}` : 'Select team';
+                        })()}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search team..." />
+                        <CommandList>
+                          <CommandEmpty>No team found.</CommandEmpty>
+                          <CommandGroup>
+                            {eligibleTeams.map((team) => {
+                              const isSelected = selectedTeams.includes(team.team_id) && selectedTeams[i] !== team.team_id;
+                              return (
+                                <CommandItem
+                                  key={team.team_id}
+                                  value={team.team_id.toString()}
+                                  onSelect={() => {
+                                    if (!isSelected) {
+                                      const newTeams = [...selectedTeams];
+                                      newTeams[i] = team.team_id;
+                                      setSelectedTeams(newTeams);
+                                    }
+                                  }}
+                                  disabled={isSelected}
+                                >
+                                  {team.team_name} {team.final_rank && team.final_rank >= 1 && team.final_rank <= 25 ? `#${team.final_rank}` : '#NR'}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button onClick={handleSeedBracket} disabled={seeding || eligibleTeams.length === 0}>
             {seeding ? 'Seeding...' : 'Seed Bracket'}
           </Button>
         </CardContent>

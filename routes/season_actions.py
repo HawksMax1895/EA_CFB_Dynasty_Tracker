@@ -67,13 +67,20 @@ def progress_players_logic(season_id: int) -> dict[str, Any]:
         # Skip if a PlayerSeason already exists for this player in the next season
         if player.player_id in existing_next_season_ps:
             continue
-        
+
         # Get the current season's PlayerSeason to determine progression
         current_ps = PlayerSeason.query.filter_by(player_id=player.player_id, season_id=season_id).first()
         if not current_ps:
             logger.debug(f'Skipping player {player.player_id} ({player.name}): no PlayerSeason for previous season {season_id}')
             continue
-        
+
+        # LEAVING LOGIC: If player is marked as leaving, remove from team and do not progress
+        if getattr(player, 'leaving', False):
+            player.team_id = None
+            player.leaving = False  # Reset flag for future seasons
+            logger.info(f'Player {player.player_id} ({player.name}) is leaving, setting team_id=None and skipping progression')
+            continue
+
         # Skip players with no team (e.g., graduated)
         if current_ps.team_id is None or player.team_id is None:
             logger.debug(f'Skipping player {player.player_id} ({player.name}): no team (current_ps.team_id={current_ps.team_id}, player.team_id={player.team_id})')
