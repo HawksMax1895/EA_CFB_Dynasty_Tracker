@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Star } from "lucide-react";
 import { addPlayer } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
@@ -24,6 +25,7 @@ interface RecruitForm {
   weight: string;
   state: string;
   ovr_rating: number;
+  redshirt_used: boolean;
 }
 
 const recruitPositions = [
@@ -63,9 +65,10 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     weight: "",
     state: "",
     ovr_rating: 70,
+    redshirt_used: false,
   });
 
-  const handleFormChange = (field: keyof RecruitForm, value: string | number) => {
+  const handleFormChange = (field: keyof RecruitForm, value: string | number | boolean) => {
     setForm({ ...form, [field]: value });
   };
 
@@ -115,6 +118,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
         weight: "",
         state: "",
         ovr_rating: 70,
+        redshirt_used: false,
       });
       setOpen(false);
       onPlayerAdded();
@@ -266,6 +270,10 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex items-center gap-2 mt-4">
+                <Checkbox id="redshirt_used" checked={form.redshirt_used} onCheckedChange={checked => handleFormChange("redshirt_used", !!checked)} />
+                <Label htmlFor="redshirt_used" className="text-sm">Redshirt Already Used</Label>
               </div>
             </CardContent>
           </Card>

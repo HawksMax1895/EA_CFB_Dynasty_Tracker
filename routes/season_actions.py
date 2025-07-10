@@ -54,26 +54,12 @@ def progress_players_logic(season_id: int) -> dict[str, Any]:
             db.session.add(current_ps)
             db.session.flush()
         
-        # Determine if the player used their redshirt in a prior season
-        redshirted_before = (
-            PlayerSeason.query.filter(
-                PlayerSeason.player_id == player.player_id,
-                PlayerSeason.redshirted == True,
-                PlayerSeason.season_id < season_id,
-            ).count()
-            > 0
-        )
-
-        # Store the old class and redshirt status before progression
         old_class = current_ps.current_year or current_ps.player_class or 'FR'
-        just_redshirted = current_ps.redshirted and not redshirted_before
 
-        # Progression logic
-        if just_redshirted:
+        if current_ps.redshirted:
             redshirted.append(player.player_id)
-            # Redshirted players do not progress class this year
+            player.redshirt_used = True
         elif old_class in PROGRESSION_MAP:
-            new_class = PROGRESSION_MAP[old_class]
             progressed.append(player.player_id)
 
     # Second pass: create PlayerSeason records for the next season
@@ -93,27 +79,15 @@ def progress_players_logic(season_id: int) -> dict[str, Any]:
             logger.debug(f'Skipping player {player.player_id} ({player.name}): no team (current_ps.team_id={current_ps.team_id}, player.team_id={player.team_id})')
             continue
         
-        # Determine prior redshirt usage
-        redshirted_before = (
-            PlayerSeason.query.filter(
-                PlayerSeason.player_id == player.player_id,
-                PlayerSeason.redshirted == True,
-                PlayerSeason.season_id < season_id,
-            ).count()
-            > 0
-        )
-        just_redshirted = current_ps.redshirted and not redshirted_before
-        has_ever_redshirted = redshirted_before or current_ps.redshirted
-
-        # Determine the new class for the next season
-        if just_redshirted:
-            # Just redshirted: stay in the same class
-            new_class = current_ps.current_year or current_ps.player_class or 'FR'
-            logger.debug(f'Player {player.player_id} ({player.name}) was just redshirted, staying in class {new_class}')
+        old_class = current_ps.current_year or current_ps.player_class or 'FR'
+        if current_ps.redshirted:
+            new_class = old_class
+            player.redshirt_used = True
         elif current_ps.current_year in PROGRESSION_MAP:
             new_class = PROGRESSION_MAP[current_ps.current_year]
         else:
-            new_class = current_ps.current_year or current_ps.player_class or 'FR'
+            new_class = old_class
+        has_ever_redshirted = player.redshirt_used or current_ps.redshirted
 
         # Graduated players should not appear on future rosters
         if new_class == "GR":
@@ -126,8 +100,8 @@ def progress_players_logic(season_id: int) -> dict[str, Any]:
             logger.debug(f'FINAL SAFEGUARD: Skipping player {player.player_id} ({player.name}) - would create PlayerSeason with team_id=None')
             continue
 
-        # Carry redshirted status forward if ever redshirted
-        next_redshirted = has_ever_redshirted
+        # Carry redshirted status does not persist season to season
+        next_redshirted = False
 
         # Create PlayerSeason for next season
         new_player_season = PlayerSeason(
