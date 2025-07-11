@@ -169,6 +169,14 @@ To populate the database with initial data:
 python populate_db.py
 ```
 
+### Database Migration
+
+If you previously populated the database before the switch to a 17‑week season,
+run the migration script to create the missing weeks:
+```bash
+python migrations/add_weeks.py
+```
+
 ## API Endpoints
 
 The Flask backend provides RESTful API endpoints for all major features:

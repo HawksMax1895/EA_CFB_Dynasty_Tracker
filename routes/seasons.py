@@ -85,9 +85,10 @@ def create_season() -> Response:
     db.session.commit()
 
     # --- NEW: Generate bye-week schedule for all teams ---
-    REGULAR_SEASON_WEEKS = 12
+    # Use a 17-week calendar (weeks 0-16)
+    TOTAL_SEASON_WEEKS = 16
     bye_games = []
-    for week in range(1, REGULAR_SEASON_WEEKS + 1):
+    for week in range(TOTAL_SEASON_WEEKS + 1):
         for team in teams:
             bye_games.append(Game(
                 season_id=new_season.season_id,
@@ -98,7 +99,7 @@ def create_season() -> Response:
             ))
     db.session.add_all(bye_games)
     db.session.commit()
-    print(f"Created bye-week schedule for new season: {len(bye_games)} games across {REGULAR_SEASON_WEEKS} weeks.")
+    print(f"Created bye-week schedule for new season: {len(bye_games)} games across {TOTAL_SEASON_WEEKS + 1} weeks.")
     
     # --- NEW: Automatically progress players from the previous season ---
     prev_season = Season.query.filter(Season.season_id < new_season.season_id).order_by(Season.season_id.desc()).first()
