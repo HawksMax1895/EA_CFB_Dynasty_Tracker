@@ -362,12 +362,13 @@ with app.app_context():
     # -------------------------
     # Initialize schedule with bye weeks for the user-controlled team only
     # -------------------------
-    REGULAR_SEASON_WEEKS = 12  # Typical number of regular-season weeks prior to playoffs
+    # Use 17 total weeks (0-16) for the schedule
+    REGULAR_SEASON_WEEKS = 16
     user_team = next((team for team in all_teams if team.is_user_controlled), None)
     
     if user_team:
         bye_games = []
-        for week in range(1, REGULAR_SEASON_WEEKS + 1):
+        for week in range(REGULAR_SEASON_WEEKS + 1):
             bye_games.append(Game(
                 season_id=season.season_id,
                 week=week,
@@ -377,7 +378,7 @@ with app.app_context():
             ))
         db.session.add_all(bye_games)
         db.session.commit()
-        print(f"Created bye-week schedule for {user_team.name}: {len(bye_games)} games across {REGULAR_SEASON_WEEKS} weeks.")
+        print(f"Created bye-week schedule for {user_team.name}: {len(bye_games)} games across {REGULAR_SEASON_WEEKS + 1} weeks.")
     else:
         print("Warning: No user-controlled team found for schedule creation.")
 
