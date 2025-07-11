@@ -77,6 +77,8 @@ export interface Player {
   height?: string;
   /** Recorded weight in pounds */
   weight?: number;
+  /** Speed rating */
+  speed?: number;
   recruit_stars?: number;
   recruit_rank_nat?: number;
   state?: string;

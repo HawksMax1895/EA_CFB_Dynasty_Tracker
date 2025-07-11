@@ -461,6 +461,16 @@ export async function updatePlayerProfile(playerId: number, data: UpdatePlayerDa
   return response.json()
 }
 
+export async function updatePlayerComprehensive(playerId: number, data: any): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/comprehensive`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  })
+  if (!response.ok) throw new Error("Failed to update player comprehensive data")
+  return response.json()
+}
+
 export async function fetchAllPlayersBySeason(seasonId: number) {
   const response = await fetch(`${API_BASE_URL}/seasons/${seasonId}/players`);
   if (!response.ok) throw new Error("Failed to fetch all players for season");
@@ -491,5 +501,14 @@ export async function setPlayerLeaving(playerId: number): Promise<any> {
     method: "POST"
   });
   if (!response.ok) throw new Error("Failed to mark player as leaving");
+  return response.json();
+}
+
+// Delete a player from the system
+export async function deletePlayer(playerId: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) throw new Error("Failed to delete player");
   return response.json();
 }

@@ -45,6 +45,7 @@ def get_player(player_id: int) -> Response:
         'dev_trait': current_ps.dev_trait if current_ps else None,
         'height': current_ps.height if current_ps else None,
         'weight': current_ps.weight if current_ps else None,
+        'speed': current_ps.speed if current_ps else None,
         'state': player.state,
         'recruit_stars': player.recruit_stars,
         'awards': current_ps.awards if current_ps else None,
@@ -201,10 +202,18 @@ def delete_player(player_id: int) -> Response:
         404: If player is not found
         
     Note:
-        This will also delete all related PlayerSeason records due to
-        foreign key constraints.
+        This will also delete all related PlayerSeason, AwardWinner, and HonorWinner records.
     """
+    from models import PlayerSeason, AwardWinner, HonorWinner
+    
     player = Player.query.get_or_404(player_id)
+    
+    # Delete related records first
+    PlayerSeason.query.filter_by(player_id=player_id).delete()
+    AwardWinner.query.filter_by(player_id=player_id).delete()
+    HonorWinner.query.filter_by(player_id=player_id).delete()
+    
+    # Now delete the player
     db.session.delete(player)
     db.session.commit()
     return jsonify({'message': 'Player deleted'})
@@ -775,3 +784,73 @@ def set_player_leaving(player_id: int):
     from extensions import db
     db.session.commit()
     return jsonify({'message': f'Player {player_id} marked as leaving.'}) 
+
+@players_bp.route('/players/<int:player_id>/comprehensive', methods=['PUT'])
+def update_player_comprehensive(player_id: int) -> Response:
+    """
+    Update comprehensive player information including both Player and PlayerSeason data.
+    
+    Args:
+        player_id (int): ID of the player to update
+        
+    Expected JSON payload (all fields optional):
+        # Player table fields
+        name (str): Player name
+        position (str): Player position
+        recruit_stars (int): Recruit star rating
+        recruit_rank_nat (int): National ranking
+        state (str): State abbreviation
+        
+        # PlayerSeason table fields (for current season)
+        ovr_rating (int): Overall rating
+        current_year (str): Class year (FR, SO, JR, SR)
+        redshirted (bool): Whether player is redshirted
+        speed (int): Speed rating
+        dev_trait (str): Development trait
+        height (str): Height (e.g., 6'2")
+        weight (int): Weight in pounds
+        
+    Returns:
+        Response: JSON object with success message on completion,
+        or error message with appropriate status code on failure.
+        
+    Raises:
+        404: If player is not found or no current season exists
+        400: If no valid fields are provided to update
+    """
+    player = Player.query.get_or_404(player_id)
+    data = request.json
+    
+    # Find the most recent season for this player
+    current_season = Season.query.order_by(Season.year.desc()).first()
+    if not current_season:
+        return jsonify({'error': 'No current season found'}), 404
+    
+    ps = PlayerSeason.query.filter_by(player_id=player_id, season_id=current_season.season_id).first()
+    if not ps:
+        return jsonify({'error': 'PlayerSeason not found for current season'}), 404
+    
+    updated = False
+    
+    # Update Player table fields
+    player_fields = ['name', 'position', 'recruit_stars', 'recruit_rank_nat', 'state']
+    for field in player_fields:
+        if field in data:
+            setattr(player, field, data[field])
+            updated = True
+    
+    # Update PlayerSeason table fields
+    season_fields = [
+        'ovr_rating', 'current_year', 'redshirted', 'speed', 'dev_trait', 
+        'height', 'weight'
+    ]
+    for field in season_fields:
+        if field in data:
+            setattr(ps, field, data[field])
+            updated = True
+    
+    if updated:
+        db.session.commit()
+        return jsonify({'message': 'Player updated successfully'})
+    else:
+        return jsonify({'error': 'No valid fields to update'}), 400 

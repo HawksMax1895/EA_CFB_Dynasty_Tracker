@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Activity, BarChart3, Save, X } from "lucide-react";
-import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors, setPlayerLeaving } from "@/lib/api";
+import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Activity, BarChart3, Save, X, Trash2 } from "lucide-react";
+import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors, setPlayerLeaving, deletePlayer } from "@/lib/api";
 import { PlayerRatingChart } from "@/components/PlayerRatingChart";
+import { AddPlayerModal } from "@/components/AddPlayerModal";
 
 // Stat column definitions
 const QB_STATS = [
@@ -55,38 +56,38 @@ function getStatColumns(position: string) {
 // Position-specific styling
 const getPositionStyle = (position: string) => {
   const styles: Record<string, { bg: string; icon: string; color: string; border: string }> = {
-    QB:    { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-600", border: "border-blue-200" },
-    RB:    { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-600", border: "border-green-200" },
-    FB:    { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-600", border: "border-emerald-200" },
-    WR:    { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-600", border: "border-purple-200" },
-    TE:    { bg: "from-indigo-500 to-indigo-600", icon: "🎯", color: "text-indigo-600", border: "border-indigo-200" },
-    RT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    RG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    C:     { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    LG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    LT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    LEDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
-    REDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
-    DT:    { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600", border: "border-red-200" },
-    SAM:   { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
-    MIKE:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
-    WILL:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
-    CB:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
-    FS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
-    SS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
-    K:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600", border: "border-gray-200" },
-    P:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600", border: "border-gray-200" },
+    QB:    { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-400", border: "border-blue-700" },
+    RB:    { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-400", border: "border-green-700" },
+    FB:    { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-400", border: "border-emerald-700" },
+    WR:    { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-400", border: "border-purple-700" },
+    TE:    { bg: "from-indigo-500 to-indigo-600", icon: "🎯", color: "text-indigo-400", border: "border-indigo-700" },
+    RT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
+    RG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
+    C:     { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
+    LG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
+    LT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
+    LEDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-400", border: "border-red-700" },
+    REDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-400", border: "border-red-700" },
+    DT:    { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-400", border: "border-red-700" },
+    SAM:   { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-400", border: "border-yellow-700" },
+    MIKE:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-400", border: "border-yellow-700" },
+    WILL:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-400", border: "border-yellow-700" },
+    CB:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-400", border: "border-yellow-700" },
+    FS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-400", border: "border-yellow-700" },
+    SS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-400", border: "border-yellow-700" },
+    K:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-400", border: "border-gray-700" },
+    P:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-400", border: "border-gray-700" },
   };
-  return styles[position] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-600", border: "border-gray-200" };
+  return styles[position] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-400", border: "border-gray-700" };
 };
 
 // Get rating color based on overall rating
 const getRatingColor = (rating: number) => {
-  if (rating >= 90) return "text-purple-600";
-  if (rating >= 80) return "text-blue-600";
-  if (rating >= 70) return "text-green-600";
-  if (rating >= 60) return "text-yellow-600";
-  return "text-gray-600";
+  if (rating >= 90) return "text-purple-400";
+  if (rating >= 80) return "text-blue-400";
+  if (rating >= 70) return "text-green-400";
+  if (rating >= 60) return "text-yellow-400";
+  return "text-gray-400";
 };
 
 // Add the same dev traits and height parsing logic as AddRecruitModal
@@ -115,6 +116,9 @@ export default function PlayerProfilePage() {
   const [awardsLoading, setAwardsLoading] = useState(false);
   const [honorsLoading, setHonorsLoading] = useState(false);
   const [leavingStatus, setLeavingStatus] = useState<string | null>(null);
+  const [deletingPlayer, setDeletingPlayer] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
     if (!playerId) return;
@@ -179,50 +183,20 @@ export default function PlayerProfilePage() {
   };
 
   const handleEditProfile = () => {
-    setEditingProfile(true);
-    setProfileEdits({
-      height: player.height || '',
-      weight: player.weight || '',
-      dev_trait: player.dev_trait || '',
-    });
+    setEditingPlayer(player);
+    setEditModalOpen(true);
   };
-
-  const handleCancelProfile = () => {
-    setEditingProfile(false);
-    setProfileEdits({});
+  const handleCloseEditModal = () => {
+    setEditingPlayer(null);
+    setEditModalOpen(false);
   };
-
-  const handleProfileChange = (field: string, value: string) => {
-    setProfileEdits((prev: Partial<Player>) => ({ ...prev, [field]: value }));
-  };
-
-  const handleHeightChange = (type: 'feet' | 'inches', value: string) => {
-    // Parse and update height as 6'2" format
-    const currentHeight = profileEdits.height || '';
-    const match = currentHeight.match(/(\d+)'(\d+)?/);
-    let feet = match ? match[1] : '';
-    let inches = match ? match[2] : '';
-    if (type === 'feet') feet = value.replace(/\D/g, '');
-    if (type === 'inches') inches = value.replace(/\D/g, '');
-    let heightString = '';
-    if (feet) heightString += `${feet}'`;
-    if (inches) heightString += `${inches}`;
-    if (feet && inches !== '') heightString += '"';
-    setProfileEdits((prev: Partial<Player>) => ({ ...prev, height: heightString }));
-  };
-
-  const handleSaveProfile = async () => {
-    setSavingProfile(true);
-    try {
-      await updatePlayerProfile(player.player_id, profileEdits);
-      // Refresh player data
-      const playerData = await fetch(`${API_BASE_URL}/players/${playerId}`).then(r => r.json());
-      setPlayer(playerData);
-      setEditingProfile(false);
-      setProfileEdits({});
-    } catch (error) {
-      setSavingProfile(false);
-    }
+  const handlePlayerUpdated = async () => {
+    if (!playerId) return;
+    // Refresh player data
+    const playerData = await fetch(`${API_BASE_URL}/players/${playerId}`).then(r => r.json());
+    setPlayer(playerData);
+    setEditingPlayer(null);
+    setEditModalOpen(false);
   };
 
   const handleLeaveTeam = async () => {
@@ -239,19 +213,34 @@ export default function PlayerProfilePage() {
     }
   };
 
+  const handleDeletePlayer = async () => {
+    if (!playerId || !player) return;
+    if (!confirm(`Are you sure you want to delete ${player.name}? This action cannot be undone.`)) {
+      return;
+    }
+    setDeletingPlayer(true);
+    try {
+      await deletePlayer(Number(playerId));
+      router.push('/players');
+    } catch (err) {
+      alert('Failed to delete player');
+      setDeletingPlayer(false);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading player profile...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+        <p className="text-gray-300">Loading player profile...</p>
       </div>
     </div>
   );
   if (!player) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <div className="text-gray-500 text-6xl mb-4">👤</div>
-        <p className="text-gray-500 text-lg">Player not found</p>
+        <div className="text-gray-400 text-6xl mb-4">👤</div>
+        <p className="text-gray-400 text-lg">Player not found</p>
       </div>
     </div>
   );
@@ -274,7 +263,7 @@ export default function PlayerProfilePage() {
             Back to Roster
           </Button>
           <div>
-            <h1 className="text-4xl font-bold text-gray-900">{player.name}</h1>
+            <h1 className="text-4xl font-bold text-gray-100">{player.name}</h1>
             <p className="text-muted-foreground text-lg">Player Profile & Career Stats</p>
           </div>
         </div>
@@ -283,28 +272,28 @@ export default function PlayerProfilePage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Player Info Card */}
         <div className="lg:col-span-1">
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg bg-card border-gray-800">
             <div className="p-6">
               {/* Top Row: Icon, Name, Badges (left) | OVR (right) */}
               <div className="flex items-center justify-between mb-2 gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-2xl flex-shrink-0">{positionStyle.icon}</span>
                   <div className="min-w-0">
-                    <span className="text-base font-bold text-gray-900 leading-tight block truncate">{player.name}</span>
+                    <span className="text-base font-bold text-gray-100 leading-tight block truncate">{player.name}</span>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge variant="outline" className={`${positionStyle.color} border-current text-xs px-2 py-0.5`}>{player.position}</Badge>
                       {player.current_year && (
-                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5">{player.current_year}</Badge>
+                        <Badge variant="secondary" className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5">{player.current_year}</Badge>
                       )}
                       {player.dev_trait && (
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
+                        <Badge variant="outline" className="bg-yellow-900/50 text-yellow-300 border-yellow-700 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
                       )}
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-col items-end min-w-[70px]">
                   <div className="flex items-center gap-1">
-                    <TrendingUp className="h-5 w-5 text-blue-500" />
+                    <TrendingUp className="h-5 w-5 text-blue-400" />
                     <span className={`text-2xl font-bold ${ratingColor}`}>{player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}</span>
                   </div>
                   <span className="text-xs text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
@@ -312,7 +301,7 @@ export default function PlayerProfilePage() {
               </div>
               {/* Player Details: 2x2 grid on left, Edit button on right */}
               <div className="flex w-full mt-4 gap-4 items-stretch">
-                <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-x-4 gap-y-2 text-gray-600 text-sm">
+                <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-x-4 gap-y-2 text-gray-300 text-sm">
                   <div className="flex items-center gap-1 min-w-0">
                     <User className="h-4 w-4" />
                     <span>{player.height || '-'}</span>
@@ -322,7 +311,7 @@ export default function PlayerProfilePage() {
                     <span>{player.weight ? `${player.weight} lbs` : '-'}</span>
                   </div>
                   <div className="flex items-center gap-1 min-w-0">
-                    <Star className="h-4 w-4 text-yellow-500" />
+                    <Star className="h-4 w-4 text-yellow-400" />
                     <span>{player.recruit_stars ? `${player.recruit_stars}★` : '-'}</span>
                   </div>
                   <div className="flex items-center gap-1 min-w-0">
@@ -351,8 +340,18 @@ export default function PlayerProfilePage() {
                       {player.leaving ? "Leaving after season" : "Leave Team after Season"}
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-10 px-6"
+                    onClick={handleDeletePlayer}
+                    disabled={deletingPlayer}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {deletingPlayer ? "Deleting..." : "Delete Player"}
+                  </Button>
                   {leavingStatus && (
-                    <span className="text-xs text-destructive text-center mt-1">{leavingStatus}</span>
+                    <span className="text-xs text-red-400 text-center mt-1">{leavingStatus}</span>
                   )}
                 </div>
               </div>
@@ -362,25 +361,25 @@ export default function PlayerProfilePage() {
           {/* Awards & Honors */}
           <div className="mt-6 space-y-6">
             {/* Awards */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <Card className="border-0 shadow-lg bg-card border-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-yellow-500" />
+                  <Award className="h-5 w-5 text-yellow-400" />
                   Awards
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {awardsLoading ? (
                   <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto"></div>
                   </div>
                 ) : playerAwards.length > 0 ? (
                   <div className="space-y-2">
                     {playerAwards.map((award, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-yellow-50 rounded-lg">
-                        <Trophy className="h-4 w-4 text-yellow-500" />
-                        <span className="text-sm font-medium">{award.award_name}</span>
-                        <Badge variant="secondary" className="ml-auto text-xs">
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800/50">
+                        <Trophy className="h-4 w-4 text-yellow-400" />
+                        <span className="text-sm font-medium text-gray-200">{award.award_name}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs bg-gray-800 text-gray-300">
                           {award.season_year}
                         </Badge>
                       </div>
@@ -393,25 +392,25 @@ export default function PlayerProfilePage() {
             </Card>
 
             {/* Honors */}
-            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <Card className="border-0 shadow-lg bg-card border-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-purple-500" />
+                  <Star className="h-5 w-5 text-purple-400" />
                   Honors
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {honorsLoading ? (
                   <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto"></div>
                   </div>
                 ) : playerHonors.length > 0 ? (
                   <div className="space-y-2">
                     {playerHonors.map((honor, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
-                        <Star className="h-4 w-4 text-purple-500" />
-                        <span className="text-sm font-medium">{honor.honor_name}</span>
-                        <Badge variant="secondary" className="ml-auto text-xs">
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-purple-900/20 rounded-lg border border-purple-800/50">
+                        <Star className="h-4 w-4 text-purple-400" />
+                        <span className="text-sm font-medium text-gray-200">{honor.honor_name}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs bg-gray-800 text-gray-300">
                           {honor.season_year}
                         </Badge>
                       </div>
@@ -427,10 +426,10 @@ export default function PlayerProfilePage() {
 
         {/* Career Stats */}
         <div className="lg:col-span-2">
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <Card className="border-0 shadow-lg bg-card border-gray-800">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-500" />
+                <BarChart3 className="h-5 w-5 text-blue-400" />
                 Career Statistics
               </CardTitle>
             </CardHeader>
@@ -442,9 +441,9 @@ export default function PlayerProfilePage() {
                     const statColumns = getStatColumns(player.position);
                     
                     return (
-                      <div key={season.season_id || idx} className="border rounded-lg p-4">
+                      <div key={season.season_id || idx} className="rounded-lg p-4">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold">{season.season_year} Season</h3>
+                          <h3 className="text-lg font-semibold text-gray-100">{season.year ? `${season.year} Season` : 'Season'}</h3>
                           {!isEditing ? (
                             <Button
                               variant="outline"
@@ -482,10 +481,10 @@ export default function PlayerProfilePage() {
                                   type="number"
                                   value={editingStats[stat.key] || ''}
                                   onChange={(e) => handleStatChange(stat.key, e.target.value)}
-                                  className="text-center h-8 text-sm"
+                                  className="text-center h-8 text-sm bg-gray-800 border-gray-600 text-gray-100"
                                 />
                               ) : (
-                                <div className="font-semibold">
+                                <div className="font-semibold text-gray-200">
                                   {season[stat.key] !== null && season[stat.key] !== undefined 
                                     ? season[stat.key] 
                                     : '-'}
@@ -500,7 +499,7 @@ export default function PlayerProfilePage() {
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <Activity className="h-12 w-12 text-gray-500 mx-auto mb-4" />
                   <p className="text-muted-foreground">No career statistics available</p>
                 </div>
               )}
@@ -515,96 +514,13 @@ export default function PlayerProfilePage() {
       </div>
 
       {/* Edit Profile Modal */}
-      {editingProfile && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Edit Player Profile</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCancelProfile}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Height</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Input
-                    type="number"
-                    min="4"
-                    max="7"
-                    value={(profileEdits.height?.match(/(\d+)'/)?.[1] || '')}
-                    onChange={(e) => handleHeightChange('feet', e.target.value)}
-                    placeholder="Feet"
-                    className="w-20"
-                  />
-                  <span>ft</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="11"
-                    value={(profileEdits.height?.match(/(\d+)'(\d+)?/)?.[2] || '')}
-                    onChange={(e) => handleHeightChange('inches', e.target.value)}
-                    placeholder="Inches"
-                    className="w-20"
-                  />
-                  <span>in</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Weight (lbs)</label>
-                <Input
-                  type="number"
-                  value={profileEdits.weight || ''}
-                  onChange={(e) => handleProfileChange('weight', e.target.value)}
-                  placeholder="Weight"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Development Trait</label>
-                <Select
-                  value={profileEdits.dev_trait || ''}
-                  onValueChange={(value) => handleProfileChange('dev_trait', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select trait" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {devTraits.map(trait => (
-                      <SelectItem key={trait.value} value={trait.value}>
-                        {trait.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="flex gap-2 mt-6">
-              <Button
-                onClick={handleSaveProfile}
-                disabled={savingProfile}
-                className="flex-1"
-              >
-                {savingProfile ? 'Saving...' : 'Save Changes'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleCancelProfile}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AddPlayerModal
+        onPlayerAdded={() => {}}
+        editingPlayer={editingPlayer}
+        onPlayerUpdated={handlePlayerUpdated}
+        open={editModalOpen}
+        onOpenChange={(open) => { if (!open) handleCloseEditModal(); }}
+      />
     </>
   );
 }

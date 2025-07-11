@@ -5,9 +5,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Star, TrendingUp, User, Target, Shield, ArrowRight, Zap } from "lucide-react"
+import { Search, Star, TrendingUp, User, Target, Shield, ArrowRight, Zap, Trash2 } from "lucide-react"
 import React, { useEffect, useState, useRef } from "react"
-import { setPlayerRedshirt, fetchPlayersBySeason, API_BASE_URL, updatePlayerProfile } from "@/lib/api"
+import { setPlayerRedshirt, fetchPlayersBySeason, API_BASE_URL, deletePlayer } from "@/lib/api"
 import { useSeason } from "@/context/SeasonContext";
 import { AddPlayerModal } from "@/components/AddPlayerModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -75,9 +75,9 @@ export default function PlayersPage() {
   const [editingOvr, setEditingOvr] = useState<{ [playerId: number]: boolean }>({});
   const [ovrInputs, setOvrInputs] = useState<{ [playerId: number]: number | undefined }>({});
   const inputRefs = useRef<{ [playerId: number]: HTMLInputElement | null }>({});
-  const [editingPlayer, setEditingPlayer] = useState<number | null>(null);
-  const [editFields, setEditFields] = useState<Partial<Player>>({});
-  const [savingEdit, setSavingEdit] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deletingPlayer, setDeletingPlayer] = useState<number | null>(null);
 
   useEffect(() => {
     if (!selectedSeason || !teamId) return;
@@ -90,6 +90,13 @@ export default function PlayersPage() {
   }, [teamId, selectedSeason])
 
   const handlePlayerAdded = async () => {
+    if (teamId && selectedSeason) {
+      const data = await fetchPlayersBySeason(selectedSeason, teamId)
+      setPlayers(data)
+    }
+  }
+
+  const handlePlayerUpdated = async () => {
     if (teamId && selectedSeason) {
       const data = await fetchPlayersBySeason(selectedSeason, teamId)
       setPlayers(data)
@@ -156,51 +163,31 @@ export default function PlayersPage() {
   };
 
   const handleEditPlayer = (player: Player) => {
-    setEditingPlayer(player.player_id);
-    setEditFields({
-      height: player.height || '',
-      weight: player.weight || '',
-      dev_trait: player.dev_trait || '',
-    });
+    setEditingPlayer(player);
+    setEditModalOpen(true);
   };
 
-  const handleEditFieldChange = (field: string, value: string) => {
-    setEditFields((prev: Partial<Player>) => ({ ...prev, [field]: value }));
-  };
-
-  const handleEditHeightChange = (type: 'feet' | 'inches', value: string) => {
-    const currentHeight = editFields.height || '';
-    const match = currentHeight.match(/(\d+)'(\d+)?/);
-    let feet = match ? match[1] : '';
-    let inches = match ? match[2] : '';
-    if (type === 'feet') feet = value.replace(/\D/g, '');
-    if (type === 'inches') inches = value.replace(/\D/g, '');
-    let heightString = '';
-    if (feet) heightString += `${feet}'`;
-    if (inches) heightString += `${inches}`;
-    if (feet && inches !== '') heightString += '"';
-    setEditFields((prev: Partial<Player>) => ({ ...prev, height: heightString }));
-  };
-
-  const handleCancelEdit = () => {
+  const handleCloseEditModal = () => {
     setEditingPlayer(null);
-    setEditFields({});
+    setEditModalOpen(false);
   };
 
-  const handleSaveEdit = async (playerId: number) => {
-    setSavingEdit(true);
+  const handleDeletePlayer = async (playerId: number, playerName: string) => {
+    if (!confirm(`Are you sure you want to delete ${playerName}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setDeletingPlayer(playerId);
     try {
-      await updatePlayerProfile(playerId, editFields);
+      await deletePlayer(playerId);
       if (teamId && selectedSeason) {
         const data = await fetchPlayersBySeason(selectedSeason, teamId);
         setPlayers(data);
       }
-      setEditingPlayer(null);
-      setEditFields({});
     } catch (err) {
-      alert('Failed to update player');
+      alert('Failed to delete player');
     } finally {
-      setSavingEdit(false);
+      setDeletingPlayer(null);
     }
   };
 
@@ -215,251 +202,180 @@ export default function PlayersPage() {
 
   return (
     <>
-      {/* Standardized Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold text-foreground">Current Roster</h1>
-          <p className="text-muted-foreground text-lg">View current season players and their performance</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            💡 Recruits and transfers from the previous season will automatically join the roster when you progress to the next season.
-          </p>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Roster</h1>
+            <p className="text-muted-foreground">
+              Manage your team's roster for the {selectedSeason} season.
+            </p>
+          </div>
+          <AddPlayerModal onPlayerAdded={handlePlayerAdded} />
         </div>
-      </div>
 
-      {/* Add Player Modal */}
-      <div className="mb-6">
-        <AddPlayerModal onPlayerAdded={handlePlayerAdded} />
-      </div>
-
-      {/* Filters */}
-      <Card className="mb-6 border-0 shadow-md bg-card">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search players..."
-                  className="pl-10"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full md:w-48 justify-between">
-                  {selectedPositions.length === 0 || selectedPositions.length === POSITION_OPTIONS.length
-                    ? "All Positions"
-                    : selectedPositions.length <= 3
-                      ? selectedPositions.join(", ")
-                      : `${selectedPositions.length} positions selected`}
-                  <Check className="ml-2 h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-sm text-foreground">Filter by Position</span>
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="px-2 py-1 text-xs"
-                    onClick={() => setSelectedPositions(POSITION_OPTIONS)}
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="px-2 py-1 text-xs"
-                    onClick={() => setSelectedPositions([])}
-                  >
-                    Deselect All
-                  </Button>
-                </div>
-                <div className="border-b my-2" />
-                <div className="max-h-48 overflow-y-auto space-y-1">
-                  {POSITION_OPTIONS.map((pos) => (
-                    <div key={pos} className="flex items-center gap-2 py-1 px-1 rounded hover:bg-accent transition-colors">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search players..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Shield className="mr-2 h-4 w-4" />
+                {selectedPositions.length === 0 ? "All Positions" : `${selectedPositions.length} Selected`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full sm:w-80 p-0" align="end">
+              <div className="p-4">
+                <h4 className="font-medium mb-2">Filter by Position</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {POSITION_OPTIONS.map((position) => (
+                    <div key={position} className="flex items-center space-x-2">
                       <Checkbox
-                        id={`pos-${pos}`}
-                        checked={selectedPositions.includes(pos)}
+                        id={position}
+                        checked={selectedPositions.includes(position)}
                         onCheckedChange={(checked) => {
-                          setSelectedPositions((prev) =>
-                            checked
-                              ? [...prev, pos]
-                              : prev.filter((p) => p !== pos)
-                          );
+                          if (checked) {
+                            setSelectedPositions([...selectedPositions, position]);
+                          } else {
+                            setSelectedPositions(selectedPositions.filter(p => p !== position));
+                          }
                         }}
                       />
-                      <label htmlFor={`pos-${pos}`} className="text-sm cursor-pointer select-none w-10 text-foreground/80">{pos}</label>
+                      <label htmlFor={position} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {position}
+                      </label>
                     </div>
                   ))}
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
 
-      {/* Player Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredPlayers.map((player, index) => {
-          const positionStyle = getPositionStyle(player.position);
-          const ratingColor = getRatingColor(player.ovr_rating || 0);
-          
-          return (
-            <Card key={player.player_id || index} className="hover:shadow-lg transition-all duration-200 border bg-card overflow-hidden p-3 text-sm">
-              <CardHeader className="pb-2 px-2 pt-2">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xl">{positionStyle.icon}</span>
-                      <div>
-                        <CardTitle className="text-base font-bold text-foreground mb-0">{player.name}</CardTitle>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Badge variant="outline" className={`${positionStyle.color} border-current text-xs px-2 py-0.5`}>{player.position}</Badge>
-                          <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs px-2 py-0.5">{player.current_year}{(player.redshirted || player.has_ever_redshirted) ? ' (RS)' : ''}</Badge>
-                          {player.dev_trait && (
-                            <Badge variant="outline" className="bg-yellow-200 text-yellow-800 border-yellow-300 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
-                          )}
-                        </div>
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {filteredPlayers.map((player) => {
+            const posStyle = getPositionStyle(player.position);
+            const ratingColor = getRatingColor(player.ovr_rating || 0);
+            return (
+              <Card className="rounded-xl border border-border bg-card/80 shadow-md flex flex-col justify-between h-full" key={player.player_id}>
+                <div className="p-4 pb-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg {posStyle.color}">{posStyle.icon}</span>
+                        <span className="font-bold text-lg truncate">{player.name}</span>
                       </div>
-                    </div>
-                    
-                    {/* Player Details */}
-                    {editingPlayer === player.player_id ? (
-                      <div className="flex flex-wrap gap-4 items-center justify-center bg-gray-50 rounded-md p-4 my-2">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span className="text-foreground/80">Height:</span>
-                          <Input className="w-16 h-6 text-sm" value={(editFields.height.match(/(\d+)'/)?.[1] || '')} onChange={e => handleEditHeightChange('feet', e.target.value)} placeholder="Feet" type="number" min="4" max="7" />
-                          <span className="ml-1 mr-2 text-foreground/80">ft</span>
-                          <Input className="w-16 h-6 text-sm" value={(editFields.height.match(/(\d+)'(\d+)?/)?.[2] || '')} onChange={e => handleEditHeightChange('inches', e.target.value)} placeholder="Inches" type="number" min="0" max="11" />
-                          <span className="ml-1 text-foreground/80">in</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Target className="h-3 w-3" />
-                          <span className="text-foreground/80">Weight:</span>
-                          <Input className="w-20 h-6 text-sm" value={editFields.weight} onChange={e => handleEditFieldChange('weight', e.target.value)} placeholder="Weight" type="number" />
-                          <span className="text-foreground/80">lbs</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Zap className="h-3 w-3" />
-                          <span className="text-foreground/80">Dev:</span>
-                          <Select value={editFields.dev_trait} onValueChange={v => handleEditFieldChange('dev_trait', v)}>
-                            <SelectTrigger className="w-24 h-7">
-                              <SelectValue placeholder="Dev Trait" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {devTraits.map(trait => (
-                                <SelectItem key={trait.value} value={trait.value}>{trait.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleSaveEdit(player.player_id)} disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save'}</Button>
-                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex w-full justify-between items-center gap-2 mt-3 text-foreground/80">
-                        <div className="flex items-center gap-1 min-w-0">
-                          <User className="h-3 w-3" />
-                          <span>{player.height || '-'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <Target className="h-3 w-3" />
-                          <span>{player.weight ? `${player.weight} lbs` : '-'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <Star className="h-3 w-3 text-yellow-500" />
-                          <span>{player.recruit_stars ? `${player.recruit_stars}★` : '-'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <Shield className="h-3 w-3" />
-                          <span>{player.state || '-'}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="text-right ml-4">
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5 text-primary" />
-                        {editingOvr[player.player_id] ? (
-                          <input
-                            ref={el => (inputRefs.current[player.player_id] = el)}
-                            type="number"
-                            min={0}
-                            max={99}
-                            className="text-3xl font-bold text-primary bg-white border border-primary rounded px-2 w-16 text-right focus:outline-none focus:ring"
-                            value={ovrInputs[player.player_id] ?? player.ovr_rating ?? ""}
-                            onChange={e => handleOvrChange(player.player_id, e.target.value)}
-                            onBlur={() => saveOvr(player.player_id, selectedSeason, teamId)}
-                            onKeyDown={e => {
-                              if (e.key === "Enter") {
-                                saveOvr(player.player_id, selectedSeason, teamId);
-                              }
-                            }}
-                          />
-                        ) : (
-                          <span
-                            className={`text-3xl font-bold ${ratingColor} cursor-pointer hover:underline`}
-                            title="Click to edit OVR"
-                            onClick={() => handleOvrEdit(player.player_id, player.ovr_rating)}
-                          >
-                            {player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}
-                          </span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="secondary" className={`${posStyle.color} ${posStyle.border}`}>{player.position}</Badge>
+                        <Badge variant="outline">{player.current_year || 'N/A'}</Badge>
+                        {player.dev_trait && (
+                          <Badge variant="secondary" className="bg-yellow-200 text-yellow-800 border-yellow-300">{player.dev_trait}</Badge>
                         )}
                       </div>
+                      <div className="flex items-center gap-x-3 mb-1 mt-1">
+                        {player.height && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded px-2 py-0.5"><User className="h-3 w-3" />{player.height}</span>
+                        )}
+                        {player.weight && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded px-2 py-0.5 min-w-[70px] whitespace-nowrap"><Target className="h-3 w-3" />{player.weight} lbs</span>
+                        )}
+                        {player.state && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded px-2 py-0.5"><Shield className="h-3 w-3" />{player.state}</span>
+                        )}
+                        {player.recruit_stars && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted rounded px-2 py-0.5"><Star className="h-3 w-3 text-yellow-400" />{player.recruit_stars}★</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end min-w-[70px] ml-2">
+                      <TrendingUp className="h-5 w-5 text-primary mb-1" />
+                      <span className={`text-2xl font-bold ${ratingColor}`}>{player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : '-'}</span>
                       <span className="text-xs text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
                     </div>
                   </div>
                 </div>
-              </CardHeader>
-              
-              <CardContent className="pt-0">
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 group hover:bg-primary/5 hover:border-primary transition-colors"
-                    onClick={() => router.push(`/players/${player.player_id}`)}
-                  >
-                    <User className="h-4 w-4 mr-2 group-hover:text-primary" />
-                    View Profile
-                    <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                  <Button
-                    variant={player.redshirted ? "secondary" : "outline"}
-                    disabled={redshirting === player.player_id || player.has_ever_redshirted}
-                    onClick={() => handleRedshirt(player.player_id, player.redshirted)}
-                    className="hover:bg-orange-50 hover:border-orange-300 h-10"
-                    size="sm"
-                  >
-                    {redshirting === player.player_id
-                      ? "Updating..."
-                      : player.has_ever_redshirted
-                      ? "Redshirt Used"
-                      : player.redshirted
-                      ? "Remove Redshirt"
-                      : "Redshirt"}
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-10" onClick={() => handleEditPlayer(player)}>
-                    Edit
-                  </Button>
+                <div className="border-t border-border bg-muted/40 px-4 py-3 flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => router.push(`/players/${player.player_id}`)}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      View Profile
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      disabled={redshirting === player.player_id || (player.has_ever_redshirted && !player.redshirted)}
+                      onClick={() => {
+                        if (!player.has_ever_redshirted || player.redshirted) handleRedshirt(player.player_id, player.redshirted);
+                      }}
+                      variant={
+                        player.has_ever_redshirted && !player.redshirted
+                          ? 'outline'
+                          : player.redshirted
+                            ? 'default'
+                            : 'outline'
+                      }
+                    >
+                      {redshirting === player.player_id
+                        ? 'Updating...'
+                        : player.has_ever_redshirted && !player.redshirted
+                          ? 'Redshirt Used'
+                          : player.redshirted
+                            ? 'Redshirted'
+                            : 'Redshirt'}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleEditPlayer(player)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => handleDeletePlayer(player.player_id, player.name)}
+                      disabled={deletingPlayer === player.player_id}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      {deletingPlayer === player.player_id ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })}
+        </div>
       </div>
+      
+      {editingPlayer && (
+        <AddPlayerModal
+          onPlayerAdded={handlePlayerAdded}
+          editingPlayer={editingPlayer}
+          onPlayerUpdated={() => {
+            handlePlayerUpdated();
+            handleCloseEditModal();
+          }}
+          open={editModalOpen}
+          onOpenChange={(open) => {
+            if (!open) handleCloseEditModal();
+          }}
+        />
+      )}
     </>
   )
 }

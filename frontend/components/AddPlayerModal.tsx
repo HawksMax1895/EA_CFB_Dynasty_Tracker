@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Star } from "lucide-react";
-import { addPlayer } from "@/lib/api";
+import { Plus, Star, Edit } from "lucide-react";
+import { addPlayer, updatePlayerComprehensive } from "@/lib/api";
 import { useSeason } from "@/context/SeasonContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -29,6 +29,14 @@ interface RecruitForm {
   ovr_rating: number;
   redshirt_used: boolean;
   current_year: string; // 'FR', 'SO', 'JR', or 'SR'
+}
+
+export interface AddPlayerModalProps {
+  onPlayerAdded: () => void;
+  editingPlayer?: Player | null;
+  onPlayerUpdated?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // Use the same positions array as AddRecruitModal
@@ -59,9 +67,9 @@ const devTraits = [
   { value: "Elite", label: "Elite" },
 ];
 
-export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void }) {
+export function AddPlayerModal({ onPlayerAdded, editingPlayer, onPlayerUpdated, open, onOpenChange }: AddPlayerModalProps) {
   const { selectedSeason, userTeam } = useSeason();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<RecruitForm>({
@@ -77,6 +85,39 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     redshirt_used: false,
     current_year: "FR",
   });
+
+  // Update form when editingPlayer changes
+  useEffect(() => {
+    if (editingPlayer) {
+      setForm({
+        name: editingPlayer.name || "",
+        position: editingPlayer.position || "",
+        recruit_stars: editingPlayer.recruit_stars || 3,
+        speed: editingPlayer.speed?.toString() || "",
+        dev_trait: editingPlayer.dev_trait || "",
+        height: editingPlayer.height || "",
+        weight: editingPlayer.weight?.toString() || "",
+        state: editingPlayer.state || "",
+        ovr_rating: editingPlayer.ovr_rating || 70,
+        redshirt_used: editingPlayer.redshirted || false,
+        current_year: editingPlayer.current_year || "FR",
+      });
+    } else {
+      setForm({
+        name: "",
+        position: "",
+        recruit_stars: 3,
+        speed: "",
+        dev_trait: "",
+        height: "",
+        weight: "",
+        state: "",
+        ovr_rating: 70,
+        redshirt_used: false,
+        current_year: "FR",
+      });
+    }
+  }, [editingPlayer]);
 
   const handleFormChange = (field: keyof RecruitForm, value: string | number | boolean) => {
     setForm({ ...form, [field]: value });
@@ -108,14 +149,36 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
     try {
-      await addPlayer({
-        ...form,
-        ovr_rating: Number(form.ovr_rating),
-        team_id: userTeam?.team_id || 1,
-        season_id: selectedSeason || 1,
-        current_year: form.current_year,
-      });
+      if (editingPlayer) {
+        // Update existing player
+        await updatePlayerComprehensive(editingPlayer.player_id, {
+          name: form.name,
+          position: form.position,
+          recruit_stars: form.recruit_stars,
+          speed: form.speed ? parseInt(form.speed) : undefined,
+          dev_trait: form.dev_trait,
+          height: form.height,
+          weight: form.weight ? parseInt(form.weight) : undefined,
+          state: form.state,
+          ovr_rating: form.ovr_rating,
+          redshirted: form.redshirt_used,
+          current_year: form.current_year,
+        });
+        onPlayerUpdated?.();
+      } else {
+        // Add new player
+        await addPlayer({
+          ...form,
+          ovr_rating: Number(form.ovr_rating),
+          team_id: userTeam?.team_id || 1,
+          season_id: selectedSeason || 1,
+          current_year: form.current_year,
+        });
+        onPlayerAdded();
+      }
+      
       setForm({
         name: "",
         position: "",
@@ -129,8 +192,7 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
         redshirt_used: false,
         current_year: "FR",
       });
-      setOpen(false);
-      onPlayerAdded();
+      setOpenState(false);
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
@@ -138,17 +200,26 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
     }
   };
 
+  const isEditing = !!editingPlayer;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open || openState} onOpenChange={onOpenChange || setOpenState}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Player
-        </Button>
+        {isEditing ? (
+          <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={() => onOpenChange ? onOpenChange(true) : setOpenState(true)}>
+            <Edit className="h-4 w-4" />
+            Edit Player
+          </Button>
+        ) : (
+          <Button className="flex items-center gap-2" onClick={() => onOpenChange ? onOpenChange(true) : setOpenState(true)}>
+            <Plus className="h-4 w-4" />
+            Add Player
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Player</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit Player' : 'Add New Player'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card>
@@ -349,8 +420,8 @@ export function AddPlayerModal({ onPlayerAdded }: { onPlayerAdded: () => void })
             </CardContent>
           </Card>
           <div className="flex justify-end gap-2">
-            <Button type="submit" disabled={loading}>{loading ? "Adding..." : "Add Player"}</Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={loading}>{loading ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update Player" : "Add Player")}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange ? onOpenChange(false) : setOpenState(false)}>Cancel</Button>
           </div>
           {error && <div className="text-destructive text-sm mt-2">{error}</div>}
         </form>

@@ -649,10 +649,10 @@ export default function GamesPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Points Per Game</span>
                     <div className="flex items-center gap-2">
-                      <span className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm">
+                      <span className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm">
                         {editableStats.off_ppg ?? "-"}
                       </span>
                       <input
@@ -661,14 +661,14 @@ export default function GamesPage() {
                         value={editableStats.off_ppg_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Offensive Yards</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -677,7 +677,7 @@ export default function GamesPage() {
                         value={editableStats.offense_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -685,14 +685,14 @@ export default function GamesPage() {
                         value={editableStats.offense_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Passing Yards</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -701,7 +701,7 @@ export default function GamesPage() {
                         value={editableStats.pass_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -709,14 +709,14 @@ export default function GamesPage() {
                         value={editableStats.pass_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Rushing Yards</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -725,7 +725,7 @@ export default function GamesPage() {
                         value={editableStats.rush_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -733,14 +733,14 @@ export default function GamesPage() {
                         value={editableStats.rush_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Passing TDs</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -749,7 +749,7 @@ export default function GamesPage() {
                         value={editableStats.pass_tds ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -757,14 +757,14 @@ export default function GamesPage() {
                         value={editableStats.pass_tds_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Rushing TDs</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -773,7 +773,7 @@ export default function GamesPage() {
                         value={editableStats.rush_tds ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -781,7 +781,7 @@ export default function GamesPage() {
                         value={editableStats.rush_tds_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
@@ -798,10 +798,10 @@ export default function GamesPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Points Allowed Per Game</span>
                     <div className="flex items-center gap-2">
-                      <span className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm">
+                      <span className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm">
                         {editableStats.def_ppg ?? "-"}
                       </span>
                       <input
@@ -810,14 +810,14 @@ export default function GamesPage() {
                         value={editableStats.def_ppg_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Defensive Yards</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -826,7 +826,7 @@ export default function GamesPage() {
                         value={editableStats.defense_yards ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -834,14 +834,14 @@ export default function GamesPage() {
                         value={editableStats.defense_yards_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Total Sacks</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -850,7 +850,7 @@ export default function GamesPage() {
                         value={editableStats.sacks ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -858,14 +858,14 @@ export default function GamesPage() {
                         value={editableStats.sacks_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg bg-muted/60 border border-muted p-3">
+                  <div className="flex items-center justify-between rounded-lg bg-card border border-border p-3">
                     <span className="font-medium text-base">Interceptions</span>
                     <div className="flex items-center gap-2">
                       <input
@@ -874,7 +874,7 @@ export default function GamesPage() {
                         value={editableStats.interceptions ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-24 text-right font-bold text-lg bg-white rounded-md p-1 text-foreground shadow-sm"
+                        className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm"
                       />
                       <input
                         type="number"
@@ -882,7 +882,7 @@ export default function GamesPage() {
                         value={editableStats.interceptions_rank ?? ""}
                         onChange={handleStatChange}
                         onBlur={handleStatUpdate}
-                        className="w-10 text-xs text-muted-foreground border border-card rounded p-1 ml-2 bg-muted/80 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
+                        className="w-10 text-xs text-muted-foreground border border-border rounded p-1 ml-2 bg-input focus:bg-input focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
                         min={1}
                         max={130}
                         placeholder="#"

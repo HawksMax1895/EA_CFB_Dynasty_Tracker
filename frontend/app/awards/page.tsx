@@ -583,7 +583,7 @@ export default function AwardsPage() {
             <Button onClick={() => setAddHonorOpen(true)} variant="default">+ Add Honor</Button>
           </div>
           <Dialog open={addHonorOpen} onOpenChange={setAddHonorOpen}>
-            <DialogContent className="max-w-lg w-full">
+            <DialogContent className="w-full max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Add Honor</DialogTitle>
               </DialogHeader>
@@ -644,18 +644,26 @@ export default function AwardsPage() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={addHonorTypePopoverOpen}
-                        className="w-full justify-between"
-                      >
-                        {(() => {
+                        className="w-full justify-between truncate"
+                        title={(() => {
                           const selected = filteredHonorTypesForDropdown.find(h => h.honor_id.toString() === newHonor.honor_id);
                           return selected
                             ? `${selected.name}${selected.side ? ` (${selected.side})` : ''}${selected.conference_name ? ` - ${selected.conference_name}` : ''}${selected.name.includes('Player of the Week') ? ' (Weekly)' : ''}`
-                            : "Select honor type";
+                            : 'Select honor type';
                         })()}
+                      >
+                        <span className="truncate block text-left">
+                          {(() => {
+                            const selected = filteredHonorTypesForDropdown.find(h => h.honor_id.toString() === newHonor.honor_id);
+                            return selected
+                              ? `${selected.name}${selected.side ? ` (${selected.side})` : ''}${selected.conference_name ? ` - ${selected.conference_name}` : ''}${selected.name.includes('Player of the Week') ? ' (Weekly)' : ''}`
+                              : 'Select honor type';
+                          })()}
+                        </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+                    <PopoverContent className="w-full p-0 max-w-2xl overflow-x-auto">
                       <Command>
                         <CommandInput
                           placeholder="Search honor type..."
