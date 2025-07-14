@@ -40,7 +40,7 @@ export interface AddPlayerModalProps {
 }
 
 // Use the same positions array as AddRecruitModal
-const positions = [
+export const positions = [
   "QB", "RB", "FB", "WR", "TE", "RT", "RG", "C", "LG", "LT", "LEDG", "REDG", "DT", "SAM", "MIKE", "WILL", "CB", "FS", "SS", "K", "P"
 ];
 

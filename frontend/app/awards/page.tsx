@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { positions } from "@/components/AddPlayerModal";
 
 export default function AwardsPage() {
   const [allAwards, setAllAwards] = useState<AwardWinnerWithDetails[]>([])
@@ -50,6 +51,7 @@ export default function AwardsPage() {
   const [addHonorPlayerSearch, setAddHonorPlayerSearch] = useState("");
   const [addHonorTypePopoverOpen, setAddHonorTypePopoverOpen] = useState(false);
   const [addHonorTypeSearch, setAddHonorTypeSearch] = useState("");
+  const [addHonorPositionFilter, setAddHonorPositionFilter] = useState<string>("");
 
   const filteredPlayers = allPlayers.filter(p => {
     const matchesName = p.name.toLowerCase().includes(playerSearch.toLowerCase());
@@ -68,7 +70,8 @@ export default function AwardsPage() {
   );
 
   const filteredHonorPlayers = userTeamPlayers.filter(p => 
-    p.name.toLowerCase().includes(addHonorPlayerSearch.toLowerCase())
+    p.name.toLowerCase().includes(addHonorPlayerSearch.toLowerCase()) &&
+    (addHonorPositionFilter === "" || p.position === addHonorPositionFilter)
   );
 
   const filteredHonorTypesForDropdown = filteredHonorTypes.filter(honor => 
@@ -588,53 +591,83 @@ export default function AwardsPage() {
                 <DialogTitle>Add Honor</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddHonor} className="space-y-4">
-                <div>
-                  <label className="block mb-1 font-medium">Player</label>
-                  <Popover open={addHonorPlayerPopoverOpen} onOpenChange={setAddHonorPlayerPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={addHonorPlayerPopoverOpen}
-                        className="w-full justify-between"
-                      >
-                        {(() => {
-                          const selected = userTeamPlayers.find(p => p.player_id.toString() === newHonor.player_id);
-                          return selected
-                            ? `${selected.name} (${selected.team_name})`
-                            : "Select player";
-                        })()}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput
-                          placeholder="Search player..."
-                          value={addHonorPlayerSearch}
-                          onValueChange={v => setAddHonorPlayerSearch(v)}
-                        />
-                        <CommandList className="max-h-80 overflow-y-auto">
-                          <CommandEmpty>No player found.</CommandEmpty>
-                          <CommandGroup>
-                            {filteredHonorPlayers.map(p => (
-                              <CommandItem
-                                key={p.player_id}
-                                value={p.player_id.toString()}
-                                onSelect={() => {
-                                  setNewHonor(h => ({ ...h, player_id: p.player_id.toString() }));
-                                  setAddHonorPlayerPopoverOpen(false);
-                                }}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", newHonor.player_id === p.player_id.toString() ? "opacity-100" : "opacity-0")} />
-                                {p.name} ({p.team_name})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block mb-1 font-medium">Player</label>
+                    <Popover open={addHonorPlayerPopoverOpen} onOpenChange={setAddHonorPlayerPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={addHonorPlayerPopoverOpen}
+                          className="w-full justify-between"
+                        >
+                          {(() => {
+                            const selected = userTeamPlayers.find(p => p.player_id.toString() === newHonor.player_id);
+                            return selected
+                              ? `${selected.name} (${selected.team_name})`
+                              : "Select player";
+                          })()}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput
+                            placeholder="Search player..."
+                            value={addHonorPlayerSearch}
+                            onValueChange={v => setAddHonorPlayerSearch(v)}
+                          />
+                          <CommandList className="max-h-80 overflow-y-auto">
+                            <CommandEmpty>No player found.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredHonorPlayers.map(p => (
+                                <CommandItem
+                                  key={p.player_id}
+                                  value={p.player_id.toString()}
+                                  onSelect={() => {
+                                    setNewHonor(h => ({ ...h, player_id: p.player_id.toString() }));
+                                    setAddHonorPlayerPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", newHonor.player_id === p.player_id.toString() ? "opacity-100" : "opacity-0")} />
+                                  {p.name} ({p.team_name}) - {p.position}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="w-48">
+                    <label className="block mb-1 font-medium">Position Filter</label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" className="w-full justify-between">
+                          {addHonorPositionFilter || "All Positions"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <Command>
+                          <CommandInput placeholder="Search position..." />
+                          <CommandList>
+                            <CommandEmpty>No position found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem value="" onSelect={() => setAddHonorPositionFilter("")}>All Positions</CommandItem>
+                              {positions.map(position => (
+                                <CommandItem key={position} value={position} onSelect={() => setAddHonorPositionFilter(position)}>
+                                  <Check className={cn("mr-2 h-4 w-4", addHonorPositionFilter === position ? "opacity-100" : "opacity-0")} />
+                                  {position}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div>
                   <label className="block mb-1 font-medium">Honor Type</label>

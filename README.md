@@ -57,7 +57,7 @@ ea_cfb_dynasty_tracker/
 ├── pyproject.toml        # Python project configuration
 ├── populate_db.py        # Database seeding script
 ├── instance/
-│   └── dynasty.db        # SQLite database
+│   └── dynasty_season1.db        # SQLite database
 ├── routes/               # Flask API blueprints
 │   ├── seasons.py        # Season management
 │   ├── teams.py          # Team management

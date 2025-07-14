@@ -84,22 +84,25 @@ def create_season() -> Response:
         db.session.add(ts)
     db.session.commit()
 
-    # --- NEW: Generate bye-week schedule for all teams ---
+    # --- NEW: Generate bye-week schedule for user-controlled team only ---
     # Use a 17-week calendar (weeks 0-16)
     TOTAL_SEASON_WEEKS = 16
+    user_team = next((team for team in teams if getattr(team, 'is_user_controlled', False)), None)
     bye_games = []
-    for week in range(TOTAL_SEASON_WEEKS + 1):
-        for team in teams:
+    if user_team:
+        for week in range(TOTAL_SEASON_WEEKS + 1):
             bye_games.append(Game(
                 season_id=new_season.season_id,
                 week=week,
-                home_team_id=team.team_id,
+                home_team_id=user_team.team_id,
                 away_team_id=None,
                 game_type="Bye Week"
             ))
-    db.session.add_all(bye_games)
-    db.session.commit()
-    print(f"Created bye-week schedule for new season: {len(bye_games)} games across {TOTAL_SEASON_WEEKS + 1} weeks.")
+        db.session.add_all(bye_games)
+        db.session.commit()
+        print(f"Created bye-week schedule for user-controlled team {user_team.name}: {len(bye_games)} games across {TOTAL_SEASON_WEEKS + 1} weeks.")
+    else:
+        print("No user-controlled team found. No bye weeks created.")
     
     # --- NEW: Automatically progress players from the previous season ---
     prev_season = Season.query.filter(Season.season_id < new_season.season_id).order_by(Season.season_id.desc()).first()

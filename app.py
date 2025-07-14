@@ -19,7 +19,7 @@ from routes.conferences import conferences_bp
 from routes.season_actions import season_actions_bp
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dynasty.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dynasty_season1.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 cors.init_app(app)
