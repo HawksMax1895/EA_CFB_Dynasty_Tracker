@@ -504,6 +504,15 @@ export async function setPlayerLeaving(playerId: number): Promise<any> {
   return response.json();
 }
 
+// Cancel a player's 'leaving after season' status
+export async function cancelPlayerLeaving(playerId: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/players/${playerId}/leave`, {
+    method: "DELETE"
+  });
+  if (!response.ok) throw new Error("Failed to cancel player leaving");
+  return response.json();
+}
+
 // Delete a player from the system
 export async function deletePlayer(playerId: number): Promise<any> {
   const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {

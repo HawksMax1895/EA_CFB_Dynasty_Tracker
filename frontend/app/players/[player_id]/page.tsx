@@ -7,9 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Award, ArrowLeft, Star, TrendingUp, User, Target, Shield, Trophy, Activity, BarChart3, Save, X, Trash2 } from "lucide-react";
-import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors, setPlayerLeaving, deletePlayer } from "@/lib/api";
+import { API_BASE_URL, updatePlayerSeasonStats, updatePlayerProfile, fetchPlayerAwards, fetchPlayerHonors, setPlayerLeaving, deletePlayer, cancelPlayerLeaving } from "@/lib/api";
+import type { Player, PlayerSeason, AwardWinner, HonorWinner, AwardWinnerWithDetails } from "@/types";
 import { PlayerRatingChart } from "@/components/PlayerRatingChart";
 import { AddPlayerModal } from "@/components/AddPlayerModal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 // Stat column definitions
 const QB_STATS = [
@@ -53,33 +63,54 @@ function getStatColumns(position: string) {
   return DEF_STATS;
 }
 
-// Position-specific styling
-const getPositionStyle = (position: string) => {
-  const styles: Record<string, { bg: string; icon: string; color: string; border: string }> = {
-    QB:    { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-400", border: "border-blue-700" },
-    RB:    { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-400", border: "border-green-700" },
-    FB:    { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-400", border: "border-emerald-700" },
-    WR:    { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-400", border: "border-purple-700" },
-    TE:    { bg: "from-indigo-500 to-indigo-600", icon: "🎯", color: "text-indigo-400", border: "border-indigo-700" },
-    RT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
-    RG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
-    C:     { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
-    LG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
-    LT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-400", border: "border-orange-700" },
-    LEDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-400", border: "border-red-700" },
-    REDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-400", border: "border-red-700" },
-    DT:    { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-400", border: "border-red-700" },
-    SAM:   { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-400", border: "border-yellow-700" },
-    MIKE:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-400", border: "border-yellow-700" },
-    WILL:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-400", border: "border-yellow-700" },
-    CB:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-400", border: "border-yellow-700" },
-    FS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-400", border: "border-yellow-700" },
-    SS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-400", border: "border-yellow-700" },
-    K:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-400", border: "border-gray-700" },
-    P:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-400", border: "border-gray-700" },
-  };
-  return styles[position] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-400", border: "border-gray-700" };
+type PositionStyle = {
+  bg: string;
+  icon: string;
+  color: string;
+  border: string;
 };
+
+export const getPositionStyle = (position: string): PositionStyle => {
+  const shared: Record<string, PositionStyle> = {
+    OL:  { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    EDGE: { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
+    DL:  { bg: "from-rose-500 to-rose-600", icon: "⚔️", color: "text-rose-600", border: "border-rose-200" },
+    LB:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
+    DB:  { bg: "from-cyan-500 to-cyan-600", icon: "🛡️", color: "text-cyan-600", border: "border-cyan-200" },
+    K:   { bg: "from-gray-500 to-gray-600", icon: "🦵", color: "text-gray-600", border: "border-gray-200" },
+  };
+
+  const styles: Record<string, PositionStyle> = {
+    // Offense
+    QB: { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-600", border: "border-blue-200" },
+    RB: { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-600", border: "border-green-200" },
+    FB: { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-600", border: "border-emerald-200" },
+    WR: { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-600", border: "border-purple-200" },
+    TE: { bg: "from-indigo-500 to-indigo-600", icon: "✋", color: "text-indigo-600", border: "border-indigo-200" },
+
+    // Offensive Line
+    ...["RT", "RG", "C", "LG", "LT"].reduce((acc, pos) => ({ ...acc, [pos]: shared.OL }), {}),
+
+    // Defensive Line / Edge
+    ...["LEDG", "REDG"].reduce((acc, pos) => ({ ...acc, [pos]: shared.EDGE }), {}),
+    DT: shared.DL,
+
+    // Linebackers
+    ...["SAM", "MIKE", "WILL"].reduce((acc, pos) => ({ ...acc, [pos]: shared.LB }), {}),
+
+    // Defensive Backs (more differentiation)
+    CB:  { bg: "from-teal-500 to-teal-600", icon: "🦊", color: "text-teal-600", border: "border-teal-200" },
+    FS:  { bg: "from-cyan-500 to-cyan-600", icon: "👁️", color: "text-cyan-600", border: "border-cyan-200" },
+    SS:  { bg: "from-sky-500 to-sky-600", icon: "🛡️", color: "text-sky-600", border: "border-sky-200" },
+
+    // Special Teams
+    K: shared.K,
+    P: shared.K,
+  };
+
+  return styles[position] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-600", border: "border-gray-200" };
+};
+
 
 // Get rating color based on overall rating
 const getRatingColor = (rating: number) => {
@@ -98,12 +129,45 @@ const devTraits = [
   { value: "Elite", label: "Elite" },
 ];
 
+// Add this helper for year badge
+const getYearStyle = (year: string) => {
+  switch (year) {
+    case "FR": return { color: "bg-blue-600 text-white", label: "Freshman" };
+    case "SO": return { color: "bg-indigo-600 text-white", label: "Sophomore" };
+    case "JR": return { color: "bg-purple-600 text-white", label: "Junior" };
+    case "SR": return { color: "bg-red-600 text-white", label: "Senior" };
+    default: return { color: "bg-gray-500 text-white", label: year };
+  }
+};
+
+const getDevStyle = (trait: string) => {
+  switch (trait) {
+    case "Impact":
+      return "bg-yellow-500 text-black font-semibold";
+    case "Star":
+      return "bg-sky-500 text-white font-bold";
+    case "Elite":
+      return "bg-fuchsia-600 text-white font-extrabold tracking-wide shadow-md";
+    default:
+      return "bg-gray-600 text-white";
+  }
+};
+
+const getDevIcon = (trait: string) => {
+  switch (trait) {
+    case "Impact": return "🔥";
+    case "Star": return "⭐";
+    case "Elite": return "🦅";
+    default: return null;
+  }
+};
+
 export default function PlayerProfilePage() {
   const params = useParams();
   const router = useRouter();
   const playerId = params?.player_id;
   const [player, setPlayer] = useState<Player | null>(null);
-  const [career, setCareer] = useState<PlayerSeason[] | null>(null);
+  const [career, setCareer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editingSeason, setEditingSeason] = useState<number | null>(null);
   const [editingStats, setEditingStats] = useState<Partial<PlayerSeason>>({});
@@ -111,7 +175,7 @@ export default function PlayerProfilePage() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileEdits, setProfileEdits] = useState<Partial<Player>>({});
   const [savingProfile, setSavingProfile] = useState(false);
-  const [playerAwards, setPlayerAwards] = useState<AwardWinner[]>([]);
+  const [playerAwards, setPlayerAwards] = useState<AwardWinnerWithDetails[]>([]);
   const [playerHonors, setPlayerHonors] = useState<HonorWinner[]>([]);
   const [awardsLoading, setAwardsLoading] = useState(false);
   const [honorsLoading, setHonorsLoading] = useState(false);
@@ -213,6 +277,19 @@ export default function PlayerProfilePage() {
     }
   };
 
+  const handleCancelLeaveTeam = async () => {
+    if (!playerId) return;
+    try {
+      await cancelPlayerLeaving(Number(playerId));
+      setLeavingStatus(null);
+      // Optionally, refetch player data
+      const playerData = await fetch(`${API_BASE_URL}/players/${playerId}`).then(r => r.json());
+      setPlayer(playerData);
+    } catch (err) {
+      setLeavingStatus("Failed to cancel leave status.");
+    }
+  };
+
   const handleDeletePlayer = async () => {
     if (!playerId || !player) return;
     if (!confirm(`Are you sure you want to delete ${player.name}? This action cannot be undone.`)) {
@@ -263,8 +340,8 @@ export default function PlayerProfilePage() {
             Back to Roster
           </Button>
           <div>
-            <h1 className="text-4xl font-bold text-gray-100">{player.name}</h1>
-            <p className="text-muted-foreground text-lg">Player Profile & Career Stats</p>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">{player.name}</h1>
+            <p className="text-gray-700 dark:text-muted-foreground text-lg">Player Profile & Career Stats</p>
           </div>
         </div>
       </div>
@@ -272,78 +349,101 @@ export default function PlayerProfilePage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Player Info Card */}
         <div className="lg:col-span-1">
-          <Card className="border-0 shadow-lg bg-card border-gray-800">
+          <Card className="border border-gray-200 dark:border-gray-800 shadow-lg bg-white dark:bg-card">
             <div className="p-6">
               {/* Top Row: Icon, Name, Badges (left) | OVR (right) */}
-              <div className="flex items-center justify-between mb-2 gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-2xl flex-shrink-0">{positionStyle.icon}</span>
+              <div className="flex items-center justify-between mb-4 gap-4">
+                <div className="flex items-center gap-4 min-w-0">
+                  <span className="text-3xl flex-shrink-0">{positionStyle.icon}</span>
                   <div className="min-w-0">
-                    <span className="text-base font-bold text-gray-100 leading-tight block truncate">{player.name}</span>
+                    <span className="text-xl font-extrabold text-gray-900 dark:text-gray-100 leading-tight block truncate">{player.name}</span>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge variant="outline" className={`${positionStyle.color} border-current text-xs px-2 py-0.5`}>{player.position}</Badge>
-                      {player.current_year && (
-                        <Badge variant="secondary" className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5">{player.current_year}</Badge>
-                      )}
+                      {/* Year badge with tooltip */}
+                      {player.current_year && (() => {
+                        const yearStyle = getYearStyle(player.current_year);
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className={yearStyle.color + " text-xs px-2 py-0.5"}>{player.current_year}</Badge>
+                              </TooltipTrigger>
+                              <TooltipContent>{yearStyle.label}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
+                      {/* Dev trait badge with icon */}
                       {player.dev_trait && (
-                        <Badge variant="outline" className="bg-yellow-900/50 text-yellow-300 border-yellow-700 text-xs px-2 py-0.5">{player.dev_trait}</Badge>
+                        <Badge variant="secondary" className={getDevStyle(player.dev_trait) + " text-xs px-2 py-0.5"}>
+                          {getDevIcon(player.dev_trait) && <span className="mr-1">{getDevIcon(player.dev_trait)}</span>}
+                          {player.dev_trait}
+                        </Badge>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end min-w-[70px]">
+                <div className="flex flex-col items-end min-w-[80px]">
                   <div className="flex items-center gap-1">
-                    <TrendingUp className="h-5 w-5 text-blue-400" />
-                    <span className={`text-2xl font-bold ${ratingColor}`}>{player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}</span>
+                    <TrendingUp className="h-6 w-6 text-blue-400" />
+                    <span className={`text-3xl font-extrabold ${ratingColor}`}>{player.ovr_rating !== undefined && player.ovr_rating !== null ? player.ovr_rating : "-"}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
+                  <span className="text-xs text-gray-700 dark:text-muted-foreground font-semibold tracking-wide uppercase">OVR</span>
                 </div>
               </div>
-              {/* Player Details: 2x2 grid on left, Edit button on right */}
-              <div className="flex w-full mt-4 gap-4 items-stretch">
-                <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-x-4 gap-y-2 text-gray-300 text-sm">
-                  <div className="flex items-center gap-1 min-w-0">
-                    <User className="h-4 w-4" />
+              {/* Player Details: 2x2 grid on left, Edit/Action buttons on right */}
+              <div className="flex w-full mt-6 gap-6 items-stretch">
+                <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-x-6 gap-y-3 text-gray-800 dark:text-gray-300 text-base">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="h-5 w-5" />
                     <span>{player.height || '-'}</span>
                   </div>
-                  <div className="flex items-center gap-1 min-w-0">
-                    <Target className="h-4 w-4" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Target className="h-5 w-5" />
                     <span>{player.weight ? `${player.weight} lbs` : '-'}</span>
                   </div>
-                  <div className="flex items-center gap-1 min-w-0">
-                    <Star className="h-4 w-4 text-yellow-400" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Star className="h-5 w-5 text-yellow-400" />
                     <span>{player.recruit_stars ? `${player.recruit_stars}★` : '-'}</span>
                   </div>
-                  <div className="flex items-center gap-1 min-w-0">
-                    <Shield className="h-4 w-4" />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Shield className="h-5 w-5" />
                     <span>{player.state || '-'}</span>
                   </div>
                 </div>
-                <div className="flex flex-col justify-center items-end w-28 gap-2">
+                <div className="flex flex-col justify-center items-end w-32 gap-3 min-w-[140px]">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-10 px-6"
+                    className="h-10 px-6 w-full font-semibold shadow-sm"
                     onClick={handleEditProfile}
                     disabled={editingProfile}
                   >
                     Edit
                   </Button>
-                  {player?.team_id && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-10 px-6 w-full font-semibold shadow-sm"
+                    onClick={handleLeaveTeam}
+                    disabled={leavingStatus === 'Player will leave the team after this season.'}
+                  >
+                    Leave After Season
+                  </Button>
+                  {leavingStatus === 'Player will leave the team after this season.' && (
                     <Button
                       size="sm"
-                      variant="destructive"
-                      className="h-10 px-6"
-                      onClick={handleLeaveTeam}
-                      disabled={!!player.leaving}
+                      variant="outline"
+                      className="h-10 px-6 w-full font-semibold shadow-sm"
+                      onClick={handleCancelLeaveTeam}
                     >
-                      {player.leaving ? "Leaving after season" : "Leave Team after Season"}
+                      Cancel Leave
                     </Button>
                   )}
                   <Button
                     size="sm"
                     variant="destructive"
-                    className="h-10 px-6"
+                    className="h-10 px-6 w-full font-semibold shadow-sm whitespace-normal break-words"
                     onClick={handleDeletePlayer}
                     disabled={deletingPlayer}
                   >
@@ -351,7 +451,7 @@ export default function PlayerProfilePage() {
                     {deletingPlayer ? "Deleting..." : "Delete Player"}
                   </Button>
                   {leavingStatus && (
-                    <span className="text-xs text-red-400 text-center mt-1">{leavingStatus}</span>
+                    <span className="text-xs text-red-400 text-center mt-1 w-full block">{leavingStatus}</span>
                   )}
                 </div>
               </div>
@@ -376,11 +476,14 @@ export default function PlayerProfilePage() {
                 ) : playerAwards.length > 0 ? (
                   <div className="space-y-2">
                     {playerAwards.map((award, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-yellow-900/20 rounded-lg border border-yellow-800/50">
-                        <Trophy className="h-4 w-4 text-yellow-400" />
-                        <span className="text-sm font-medium text-gray-200">{award.award_name}</span>
-                        <Badge variant="secondary" className="ml-auto text-xs bg-gray-800 text-gray-300">
-                          {award.season_year}
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg border border-yellow-300 dark:border-yellow-800/50"
+                      >
+                        <Trophy className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        <span className="text-sm font-medium text-yellow-900 dark:text-gray-200">{award.award_name ?? 'Award'}</span>
+                        <Badge variant="secondary" className="ml-auto text-xs bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-300">
+                          {award.season_year ?? ''}
                         </Badge>
                       </div>
                     ))}
@@ -407,12 +510,20 @@ export default function PlayerProfilePage() {
                 ) : playerHonors.length > 0 ? (
                   <div className="space-y-2">
                     {playerHonors.map((honor, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-purple-900/20 rounded-lg border border-purple-800/50">
-                        <Star className="h-4 w-4 text-purple-400" />
-                        <span className="text-sm font-medium text-gray-200">{honor.honor_name}</span>
-                        <Badge variant="secondary" className="ml-auto text-xs bg-gray-800 text-gray-300">
-                          {honor.season_year}
-                        </Badge>
+                      <div
+                        key={idx}
+                        className="flex flex-col gap-1 p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg border border-purple-300 dark:border-purple-800/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-purple-700 dark:text-purple-400" />
+                          <span className="text-sm font-medium text-purple-900 dark:text-gray-200">{honor.honor_name || 'Honor'}</span>
+                          <Badge variant="secondary" className="ml-auto text-xs bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-300">
+                            {honor.season_year ?? ''}
+                          </Badge>
+                        </div>
+                        {honor.week !== undefined && honor.week !== null && (
+                          <div className="pl-8 text-xs text-purple-900 dark:text-gray-300">Week {honor.week}</div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -435,15 +546,14 @@ export default function PlayerProfilePage() {
             </CardHeader>
             <CardContent>
               {career && career.seasons && career.seasons.length > 0 ? (
-                <div className="space-y-4">
-                  {career.seasons.map((season: any, idx: number) => {
+                <div className="space-y-8">
+                  {career.seasons.map((season: PlayerSeason, idx: number) => {
                     const isEditing = editingSeason === season.season_id;
                     const statColumns = getStatColumns(player.position);
-                    
                     return (
-                      <div key={season.season_id || idx} className="rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-lg font-semibold text-gray-100">{season.year ? `${season.year} Season` : 'Season'}</h3>
+                      <div key={season.season_id || idx} className="rounded-lg bg-muted/30 p-4 shadow-sm mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-base font-semibold text-muted-foreground">{season.current_year ? `${season.current_year} Season` : season.season_id ? `Season ${season.season_id}` : 'Season'}</h3>
                           {!isEditing ? (
                             <Button
                               variant="outline"
@@ -471,28 +581,39 @@ export default function PlayerProfilePage() {
                             </div>
                           )}
                         </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                          {statColumns.map((stat) => (
-                            <div key={stat.key} className="text-center">
-                              <div className="text-xs text-muted-foreground mb-1">{stat.label}</div>
-                              {isEditing ? (
-                                <Input
-                                  type="number"
-                                  value={editingStats[stat.key] || ''}
-                                  onChange={(e) => handleStatChange(stat.key, e.target.value)}
-                                  className="text-center h-8 text-sm bg-gray-800 border-gray-600 text-gray-100"
-                                />
-                              ) : (
-                                <div className="font-semibold text-gray-200">
-                                  {season[stat.key] !== null && season[stat.key] !== undefined 
-                                    ? season[stat.key] 
-                                    : '-'}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {statColumns.map((stat) => (
+                                <TableHead key={stat.key} className="text-center text-xs font-semibold text-muted-foreground bg-muted/50">
+                                  {stat.label}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            <TableRow>
+                              {statColumns.map((stat) => (
+                                <TableCell key={stat.key} className="text-center align-middle px-2 py-2">
+                                  {isEditing ? (
+                                    <Input
+                                      type="number"
+                                      value={(editingStats as any)[stat.key] ?? ''}
+                                      onChange={(e) => handleStatChange(stat.key, e.target.value)}
+                                      className="text-center h-8 text-sm bg-background border border-input rounded-md shadow-sm focus:ring-2 focus:ring-primary"
+                                    />
+                                  ) : (
+                                    <span className="font-semibold text-foreground">
+                                      {(season as any)[stat.key] !== null && (season as any)[stat.key] !== undefined 
+                                        ? (season as any)[stat.key] 
+                                        : '-'}
+                                    </span>
+                                  )}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          </TableBody>
+                        </Table>
                       </div>
                     );
                   })}

@@ -108,7 +108,7 @@ export function AddPlayerModal({ onPlayerAdded, editingPlayer, onPlayerUpdated, 
         position: "",
         recruit_stars: 3,
         speed: "",
-        dev_trait: "",
+        dev_trait: "Normal", // Default to 'Normal' dev trait
         height: "",
         weight: "",
         state: "",

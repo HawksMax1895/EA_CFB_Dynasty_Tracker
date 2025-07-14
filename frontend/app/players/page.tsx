@@ -5,18 +5,27 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Star, TrendingUp, User, Target, Shield, ArrowRight, Zap, Trash2 } from "lucide-react"
+import { Search, Star, TrendingUp, User, Target, Shield, ArrowRight, Zap, Trash2, ChevronsUpDown, Check } from "lucide-react"
 import React, { useEffect, useState, useRef } from "react"
 import { setPlayerRedshirt, fetchPlayersBySeason, API_BASE_URL, deletePlayer } from "@/lib/api"
 import { useSeason } from "@/context/SeasonContext";
 import { AddPlayerModal } from "@/components/AddPlayerModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Check } from "lucide-react";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRouter } from "next/navigation";
 
 const POSITION_OPTIONS = [
   "QB", "RB", "FB", "WR", "TE", "RT", "RG", "C", "LG", "LT", "LEDG", "REDG", "DT", "SAM", "MIKE", "WILL", "CB", "FS", "SS", "K", "P"
+];
+
+const YEAR_OPTIONS = [
+  { value: "FR", label: "Freshman" },
+  { value: "SO", label: "Sophomore" },
+  { value: "JR", label: "Junior" },
+  { value: "SR", label: "Senior" },
 ];
 
 const devTraits = [
@@ -25,34 +34,54 @@ const devTraits = [
   { value: "Star", label: "Star" },
   { value: "Elite", label: "Elite" },
 ];
+type PositionStyle = {
+  bg: string;
+  icon: string;
+  color: string;
+  border: string;
+};
 
-// Position-specific styling (copied from player profile page)
-const getPositionStyle = (position: string) => {
-  const styles: Record<string, { bg: string; icon: string; color: string; border: string }> = {
-    QB:    { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-600", border: "border-blue-200" },
-    RB:    { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-600", border: "border-green-200" },
-    FB:    { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-600", border: "border-emerald-200" },
-    WR:    { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-600", border: "border-purple-200" },
-    TE:    { bg: "from-indigo-500 to-indigo-600", icon: "🎯", color: "text-indigo-600", border: "border-indigo-200" },
-    RT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    RG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    C:     { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    LG:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    LT:    { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
-    LEDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
-    REDG:  { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
-    DT:    { bg: "from-red-500 to-red-600", icon: "⚔️", color: "text-red-600", border: "border-red-200" },
-    SAM:   { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
-    MIKE:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
-    WILL:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
-    CB:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
-    FS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
-    SS:    { bg: "from-yellow-500 to-yellow-600", icon: "🛡️", color: "text-yellow-600", border: "border-yellow-200" },
-    K:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600", border: "border-gray-200" },
-    P:     { bg: "from-gray-500 to-gray-600", icon: "⚽", color: "text-gray-600", border: "border-gray-200" },
+export const getPositionStyle = (position: string): PositionStyle => {
+  const shared: Record<string, PositionStyle> = {
+    OL:  { bg: "from-orange-500 to-orange-600", icon: "🛡️", color: "text-orange-600", border: "border-orange-200" },
+    EDGE: { bg: "from-red-500 to-red-600", icon: "🦾", color: "text-red-600", border: "border-red-200" },
+    DL:  { bg: "from-rose-500 to-rose-600", icon: "⚔️", color: "text-rose-600", border: "border-rose-200" },
+    LB:  { bg: "from-yellow-500 to-yellow-600", icon: "🦸", color: "text-yellow-600", border: "border-yellow-200" },
+    DB:  { bg: "from-cyan-500 to-cyan-600", icon: "🛡️", color: "text-cyan-600", border: "border-cyan-200" },
+    K:   { bg: "from-gray-500 to-gray-600", icon: "🦵", color: "text-gray-600", border: "border-gray-200" },
   };
+
+  const styles: Record<string, PositionStyle> = {
+    // Offense
+    QB: { bg: "from-blue-500 to-blue-600", icon: "🎯", color: "text-blue-600", border: "border-blue-200" },
+    RB: { bg: "from-green-500 to-green-600", icon: "🏃", color: "text-green-600", border: "border-green-200" },
+    FB: { bg: "from-emerald-500 to-emerald-600", icon: "🛡️", color: "text-emerald-600", border: "border-emerald-200" },
+    WR: { bg: "from-purple-500 to-purple-600", icon: "⚡", color: "text-purple-600", border: "border-purple-200" },
+    TE: { bg: "from-indigo-500 to-indigo-600", icon: "✋", color: "text-indigo-600", border: "border-indigo-200" },
+
+    // Offensive Line
+    ...["RT", "RG", "C", "LG", "LT"].reduce((acc, pos) => ({ ...acc, [pos]: shared.OL }), {}),
+
+    // Defensive Line / Edge
+    ...["LEDG", "REDG"].reduce((acc, pos) => ({ ...acc, [pos]: shared.EDGE }), {}),
+    DT: shared.DL,
+
+    // Linebackers
+    ...["SAM", "MIKE", "WILL"].reduce((acc, pos) => ({ ...acc, [pos]: shared.LB }), {}),
+
+    // Defensive Backs (more differentiation)
+    CB:  { bg: "from-teal-500 to-teal-600", icon: "🦊", color: "text-teal-600", border: "border-teal-200" },
+    FS:  { bg: "from-cyan-500 to-cyan-600", icon: "👁️", color: "text-cyan-600", border: "border-cyan-200" },
+    SS:  { bg: "from-sky-500 to-sky-600", icon: "🛡️", color: "text-sky-600", border: "border-sky-200" },
+
+    // Special Teams
+    K: shared.K,
+    P: shared.K,
+  };
+
   return styles[position] || { bg: "from-gray-500 to-gray-600", icon: "👤", color: "text-gray-600", border: "border-gray-200" };
 };
+
 
 // Get rating color based on overall rating
 const getRatingColor = (rating: number) => {
@@ -63,6 +92,51 @@ const getRatingColor = (rating: number) => {
   return "text-gray-600";
 };
 
+// Add this helper for year badge
+const getYearStyle = (year: string) => {
+  switch (year) {
+    case "FR": return { color: "bg-blue-600 text-white", label: "Freshman" };
+    case "SO": return { color: "bg-indigo-600 text-white", label: "Sophomore" };
+    case "JR": return { color: "bg-purple-600 text-white", label: "Junior" };
+    case "SR": return { color: "bg-red-600 text-white", label: "Senior" };
+    default: return { color: "bg-gray-500 text-white", label: year };
+  }
+};
+
+const getDevStyle = (trait: string) => {
+  switch (trait) {
+    case "Impact":
+      return "bg-yellow-500 text-black font-semibold";
+    case "Star":
+      return "bg-sky-500 text-white font-bold";
+    case "Elite":
+      return "bg-fuchsia-600 text-white font-extrabold tracking-wide shadow-md";
+    default:
+      return "bg-gray-600 text-white";
+  }
+};
+
+const getDevIcon = (trait: string) => {
+  switch (trait) {
+    case "Impact": return "🔥";
+    case "Star": return "⭐";
+    case "Elite": return "🦅";
+    default: return null;
+  }
+};
+
+const SORT_OPTIONS = [
+  { value: "ovr_desc", label: "OVR (High to Low)" },
+  { value: "ovr_asc", label: "OVR (Low to High)" },
+  { value: "year_asc", label: "Year (Freshman-Senior)" },
+  { value: "year_desc", label: "Year (Senior-Freshman)" },
+  { value: "dev_asc", label: "Dev Trait (Normal-Elite)" },
+  { value: "dev_desc", label: "Dev Trait (Elite-Normal)" },
+];
+
+const YEAR_ORDER = { FR: 1, SO: 2, JR: 3, SR: 4 };
+const DEV_ORDER = { Normal: 1, Impact: 2, Star: 3, Elite: 4 };
+
 export default function PlayersPage() {
   const { selectedSeason, userTeam } = useSeason();
   const teamId = userTeam?.team_id;
@@ -71,6 +145,8 @@ export default function PlayersPage() {
   const [redshirting, setRedshirting] = useState<number | null>(null)
   const [search, setSearch] = useState("");
   const [selectedPositions, setSelectedPositions] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
+  const [selectedDevTraits, setSelectedDevTraits] = useState<string[]>([]);
   const router = useRouter();
   const [editingOvr, setEditingOvr] = useState<{ [playerId: number]: boolean }>({});
   const [ovrInputs, setOvrInputs] = useState<{ [playerId: number]: number | undefined }>({});
@@ -78,6 +154,7 @@ export default function PlayersPage() {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deletingPlayer, setDeletingPlayer] = useState<number | null>(null);
+  const [sortOption, setSortOption] = useState<string>("ovr_desc");
 
   useEffect(() => {
     if (!selectedSeason || !teamId) return;
@@ -123,12 +200,40 @@ export default function PlayersPage() {
     }
   }
 
-  // Filter players by search and multi-select position
-  const filteredPlayers = players.filter(player => {
+  // Filter players by search and multi-select position, year, dev trait
+  let filteredPlayers = players.filter(player => {
     const matchesName = player.name.toLowerCase().includes(search.toLowerCase());
     const matchesPosition =
       selectedPositions.length === 0 || selectedPositions.includes(player.position);
-    return matchesName && matchesPosition;
+    const matchesYear =
+      selectedYears.length === 0 || (player.current_year && selectedYears.includes(player.current_year));
+    const matchesDevTrait =
+      selectedDevTraits.length === 0 || (player.dev_trait && selectedDevTraits.includes(player.dev_trait));
+    return matchesName && matchesPosition && matchesYear && matchesDevTrait;
+  });
+
+  // Sort logic
+  filteredPlayers = [...filteredPlayers].sort((a, b) => {
+    const aYear = (a.current_year && ["FR", "SO", "JR", "SR"].includes(a.current_year)) ? a.current_year as keyof typeof YEAR_ORDER : "FR";
+    const bYear = (b.current_year && ["FR", "SO", "JR", "SR"].includes(b.current_year)) ? b.current_year as keyof typeof YEAR_ORDER : "FR";
+    const aDev = (a.dev_trait && ["Normal", "Impact", "Star", "Elite"].includes(a.dev_trait)) ? a.dev_trait as keyof typeof DEV_ORDER : "Normal";
+    const bDev = (b.dev_trait && ["Normal", "Impact", "Star", "Elite"].includes(b.dev_trait)) ? b.dev_trait as keyof typeof DEV_ORDER : "Normal";
+    switch (sortOption) {
+      case "ovr_asc":
+        return (a.ovr_rating ?? 0) - (b.ovr_rating ?? 0);
+      case "ovr_desc":
+        return (b.ovr_rating ?? 0) - (a.ovr_rating ?? 0);
+      case "year_asc":
+        return YEAR_ORDER[aYear] - YEAR_ORDER[bYear];
+      case "year_desc":
+        return YEAR_ORDER[bYear] - YEAR_ORDER[aYear];
+      case "dev_asc":
+        return DEV_ORDER[aDev] - DEV_ORDER[bDev];
+      case "dev_desc":
+        return DEV_ORDER[bDev] - DEV_ORDER[aDev];
+      default:
+        return 0;
+    }
   });
 
   // PATCH OVR
@@ -223,6 +328,7 @@ export default function PlayersPage() {
               className="pl-8"
             />
           </div>
+          {/* Position Filter */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full sm:w-auto">
@@ -256,6 +362,103 @@ export default function PlayersPage() {
               </div>
             </PopoverContent>
           </Popover>
+          {/* Year Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <User className="mr-2 h-4 w-4" />
+                {selectedYears.length === 0 ? "All Years" : `${selectedYears.length} Selected`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full sm:w-60 p-0" align="end">
+              <div className="p-4">
+                <h4 className="font-medium mb-2">Filter by Year</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {YEAR_OPTIONS.map((year) => (
+                    <div key={year.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={year.value}
+                        checked={selectedYears.includes(year.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedYears([...selectedYears, year.value]);
+                          } else {
+                            setSelectedYears(selectedYears.filter(y => y !== year.value));
+                          }
+                        }}
+                      />
+                      <label htmlFor={year.value} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {year.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          {/* Dev Trait Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Zap className="mr-2 h-4 w-4" />
+                {selectedDevTraits.length === 0 ? "All Dev Traits" : `${selectedDevTraits.length} Selected`}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full sm:w-60 p-0" align="end">
+              <div className="p-4">
+                <h4 className="font-medium mb-2">Filter by Dev Trait</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {devTraits.map((trait) => (
+                    <div key={trait.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={trait.value}
+                        checked={selectedDevTraits.includes(trait.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedDevTraits([...selectedDevTraits, trait.value]);
+                          } else {
+                            setSelectedDevTraits(selectedDevTraits.filter(t => t !== trait.value));
+                          }
+                        }}
+                      />
+                      <label htmlFor={trait.value} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        {trait.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+          {/* Sort Dropdown (searchable popover) */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" className="w-full sm:w-56 justify-between">
+                {SORT_OPTIONS.find(opt => opt.value === sortOption)?.label || "Sort by..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <Command>
+                <CommandInput placeholder="Search sort..." />
+                <CommandList>
+                  <CommandEmpty>No sort found.</CommandEmpty>
+                  <CommandGroup>
+                    {SORT_OPTIONS.map(opt => (
+                      <CommandItem
+                        key={opt.value}
+                        value={opt.value}
+                        onSelect={() => setSortOption(opt.value)}
+                      >
+                        <Check className={cn("mr-2 h-4 w-4", sortOption === opt.value ? "opacity-100" : "opacity-0")} />
+                        {opt.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -273,9 +476,26 @@ export default function PlayersPage() {
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="secondary" className={`${posStyle.color} ${posStyle.border}`}>{player.position}</Badge>
-                        <Badge variant="outline">{player.current_year || 'N/A'}</Badge>
+                        {/* Year badge with tooltip */}
+                        {(() => {
+                          const yearStyle = getYearStyle(player.current_year);
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge variant="secondary" className={yearStyle.color}>{player.current_year}</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>{yearStyle.label}</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        })()}
+                        {/* Dev trait badge with icon */}
                         {player.dev_trait && (
-                          <Badge variant="secondary" className="bg-yellow-200 text-yellow-800 border-yellow-300">{player.dev_trait}</Badge>
+                          <Badge variant="secondary" className={getDevStyle(player.dev_trait)}>
+                            {getDevIcon(player.dev_trait) && <span className="mr-1">{getDevIcon(player.dev_trait)}</span>}
+                            {player.dev_trait}
+                          </Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-x-3 mb-1 mt-1">

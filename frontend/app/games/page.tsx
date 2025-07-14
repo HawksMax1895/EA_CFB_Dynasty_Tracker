@@ -370,8 +370,11 @@ export default function GamesPage() {
                   {/* Top Row: Week, Badges, Controls */}
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-3">
-                      <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-semibold">
-                        Week {game.week}
+                      <div className="flex items-center gap-2">
+                        <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-semibold">
+                          Week {game.week}
+                        </div>
+                        {getUserResultBadge(game)}
                       </div>
                       <Badge variant={game.game_type === 'Conference' ? 'default' : game.game_type === 'Bye Week' ? 'secondary' : 'secondary'} className="text-xs px-2 py-1">
                         {game.game_type ?? 'Regular'}
@@ -414,7 +417,73 @@ export default function GamesPage() {
                         })()
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {userTeamId && game.home_team_id === userTeamId && (
+                        <Popover open={openCombobox[game.game_id] === 'away'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'away' : null }))}>
+                          <PopoverTrigger asChild>
+                            <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'away' })); }}>
+                              Change Opponent
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="p-0 w-60">
+                            <Command>
+                              <CommandInput placeholder="Search team..." />
+                              <CommandList>
+                                {[...teams].sort((a: Team, b: Team) => {
+                                  const nameA = a.team_name || a.name || '';
+                                  const nameB = b.team_name || b.name || '';
+                                  return nameA.localeCompare(nameB);
+                                }).map((t: Team) => (
+                                  <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
+                                    await updateGameResult(game.game_id, {
+                                      home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
+                                      away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
+                                      home_team_id: game.home_team_id,
+                                      away_team_id: t.team_id
+                                    });
+                                    const data = await fetchGamesBySeason(selectedSeason!);
+                                    setGames(data);
+                                    setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
+                                  }}>{t.team_name || t.name}</CommandItem>
+                                ))}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {userTeamId && game.away_team_id === userTeamId && (
+                        <Popover open={openCombobox[game.game_id] === 'home'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'home' : null }))}>
+                          <PopoverTrigger asChild>
+                            <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'home' })); }}>
+                              Change Home Team
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent align="start" className="p-0 w-60">
+                            <Command>
+                              <CommandInput placeholder="Search team..." />
+                              <CommandList>
+                                {[...teams].sort((a: Team, b: Team) => {
+                                  const nameA = a.team_name || a.name || '';
+                                  const nameB = b.team_name || b.name || '';
+                                  return nameA.localeCompare(nameB);
+                                }).map((t: Team) => (
+                                  <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
+                                    await updateGameResult(game.game_id, {
+                                      home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
+                                      away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
+                                      home_team_id: t.team_id,
+                                      away_team_id: game.away_team_id
+                                    });
+                                    const data = await fetchGamesBySeason(selectedSeason!);
+                                    setGames(data);
+                                    setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
+                                  }}>{t.team_name || t.name}</CommandItem>
+                                ))}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      )}
                       {userTeamId && (game.home_team_id === userTeamId || game.away_team_id === userTeamId) && game.game_type !== 'Bye Week' && (
                         <button
                           onClick={() => handleSwapHomeAway(game.game_id)}
@@ -455,9 +524,12 @@ export default function GamesPage() {
                   ) : (
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
                       {/* Matchup Row */}
-                      <div className="flex flex-1 items-center justify-center gap-6 py-2" style={{ padding: 'var(--space-4)' }}>
+                      <div
+                        className="grid grid-cols-[220px_1fr_220px] items-center w-full py-1 px-2 md:px-8"
+                        style={{ padding: 'var(--space-4)' }}
+                      >
                         {/* Away Team */}
-                        <div className="flex items-center gap-2 min-w-[120px] justify-end">
+                        <div className="flex items-center gap-1 w-[220px] justify-end">
                           {(() => {
                             const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
                             if (awayTeam && awayTeam.logo_url) {
@@ -465,72 +537,73 @@ export default function GamesPage() {
                             }
                             return <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-xs text-muted-foreground">?</div>;
                           })()}
-                          <div className="flex flex-col items-end">
-                            <span className="text-sm font-semibold text-foreground">{(() => {
+                          <div className="flex flex-col items-end max-w-[160px] truncate">
+                            <span className="text-sm font-semibold text-foreground truncate">{(() => {
                               const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
                               return awayTeam?.abbreviation || 'TBD';
                             })()}</span>
-                            <span className="text-xs text-muted-foreground">{(() => {
+                            <span className="text-xs text-muted-foreground truncate">{(() => {
                               const awayTeam = teams.find((t: Team) => t.team_id === game.away_team_id);
                               return awayTeam?.team_name || awayTeam?.name || '';
                             })()}</span>
                           </div>
                         </div>
-                        {/* Away Score */}
-                        <input
-                          type="number"
-                          value={resultForms[game.game_id]?.away_score ?? (game.away_score ?? '')}
-                          onChange={e => setResultForms(prev => ({
-                            ...prev,
-                            [game.game_id]: {
-                              ...prev[game.game_id],
-                              away_score: e.target.value,
-                              home_score: prev[game.game_id]?.home_score ?? (game.home_score ?? '')
-                            }
-                          }))}
-                          onBlur={() => {
-                            const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
-                            const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
-                            if (!isNaN(home_score) && !isNaN(away_score)) {
-                              handleUpdateResultInline(game.game_id, home_score, away_score);
-                            }
-                          }}
-                          className={`border-2 border-card rounded-lg px-3 py-2 w-16 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
-                          disabled={resultLoading === game.game_id}
-                          style={{ boxShadow: 'var(--shadow-xs)' }}
-                        />
-                        <span className="text-xl font-bold text-foreground mx-2">-</span>
-                        {/* Home Score */}
-                        <input
-                          type="number"
-                          value={resultForms[game.game_id]?.home_score ?? (game.home_score ?? '')}
-                          onChange={e => setResultForms(prev => ({
-                            ...prev,
-                            [game.game_id]: {
-                              ...prev[game.game_id],
-                              home_score: e.target.value,
-                              away_score: prev[game.game_id]?.away_score ?? (game.away_score ?? '')
-                            }
-                          }))}
-                          onBlur={() => {
-                            const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
-                            const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
-                            if (!isNaN(home_score) && !isNaN(away_score)) {
-                              handleUpdateResultInline(game.game_id, home_score, away_score);
-                            }
-                          }}
-                          className={`border-2 border-card rounded-lg px-3 py-2 w-16 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
-                          disabled={resultLoading === game.game_id}
-                          style={{ boxShadow: 'var(--shadow-xs)' }}
-                        />
+                        {/* Score Block Centered */}
+                        <div className="flex items-center justify-center gap-1">
+                          <input
+                            type="number"
+                            value={resultForms[game.game_id]?.away_score ?? (game.away_score ?? '')}
+                            onChange={e => setResultForms(prev => ({
+                              ...prev,
+                              [game.game_id]: {
+                                ...prev[game.game_id],
+                                away_score: e.target.value,
+                                home_score: prev[game.game_id]?.home_score ?? (game.home_score ?? '')
+                              }
+                            }))}
+                            onBlur={() => {
+                              const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
+                              const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
+                              if (!isNaN(home_score) && !isNaN(away_score)) {
+                                handleUpdateResultInline(game.game_id, home_score, away_score);
+                              }
+                            }}
+                            className={`border-2 border-card rounded-lg px-3 py-2 w-16 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
+                            disabled={resultLoading === game.game_id}
+                            style={{ boxShadow: 'var(--shadow-xs)' }}
+                          />
+                          <span className="text-xl font-bold text-foreground mx-1">-</span>
+                          <input
+                            type="number"
+                            value={resultForms[game.game_id]?.home_score ?? (game.home_score ?? '')}
+                            onChange={e => setResultForms(prev => ({
+                              ...prev,
+                              [game.game_id]: {
+                                ...prev[game.game_id],
+                                home_score: e.target.value,
+                                away_score: prev[game.game_id]?.away_score ?? (game.away_score ?? '')
+                              }
+                            }))}
+                            onBlur={() => {
+                              const home_score = Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0);
+                              const away_score = Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0);
+                              if (!isNaN(home_score) && !isNaN(away_score)) {
+                                handleUpdateResultInline(game.game_id, home_score, away_score);
+                              }
+                            }}
+                            className={`border-2 border-card rounded-lg px-3 py-2 w-16 text-center text-lg font-bold focus:border-primary focus:outline-none transition-colors text-foreground bg-muted ${resultLoading === game.game_id ? 'opacity-50' : ''}`}
+                            disabled={resultLoading === game.game_id}
+                            style={{ boxShadow: 'var(--shadow-xs)' }}
+                          />
+                        </div>
                         {/* Home Team */}
-                        <div className="flex items-center gap-2 min-w-[120px] justify-start">
-                          <div className="flex flex-col items-start">
-                            <span className="text-sm font-semibold text-foreground">{(() => {
+                        <div className="flex items-center gap-1 w-[220px] justify-start">
+                          <div className="flex flex-col items-start max-w-[160px] truncate">
+                            <span className="text-sm font-semibold text-foreground truncate">{(() => {
                               const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
                               return homeTeam?.abbreviation || 'TBD';
                             })()}</span>
-                            <span className="text-xs text-muted-foreground">{(() => {
+                            <span className="text-xs text-muted-foreground truncate">{(() => {
                               const homeTeam = teams.find((t: Team) => t.team_id === game.home_team_id);
                               return homeTeam?.team_name || homeTeam?.name || '';
                             })()}</span>
@@ -543,77 +616,6 @@ export default function GamesPage() {
                             return <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-xs text-muted-foreground">?</div>;
                           })()}
                         </div>
-                        {/* W/L Badge */}
-                        <div className="ml-4">{getUserResultBadge(game)}</div>
-                      </div>
-                      {/* Team Selection Popovers (preserved, but visually secondary) */}
-                      <div className="flex flex-col gap-2 items-end min-w-[180px]">
-                        {userTeamId && game.home_team_id === userTeamId && (
-                          <Popover open={openCombobox[game.game_id] === 'away'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'away' : null }))}>
-                            <PopoverTrigger asChild>
-                              <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'away' })); }}>
-                                Change Opponent
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent align="start" className="p-0 w-60">
-                              <Command>
-                                <CommandInput placeholder="Search team..." />
-                                <CommandList>
-                                  {[...teams].sort((a: Team, b: Team) => {
-                                    const nameA = a.team_name || a.name || '';
-                                    const nameB = b.team_name || b.name || '';
-                                    return nameA.localeCompare(nameB);
-                                  }).map((t: Team) => (
-                                    <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
-                                      await updateGameResult(game.game_id, {
-                                        home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
-                                        away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
-                                        home_team_id: game.home_team_id,
-                                        away_team_id: t.team_id
-                                      });
-                                      const data = await fetchGamesBySeason(selectedSeason!);
-                                      setGames(data);
-                                      setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                    }}>{t.team_name || t.name}</CommandItem>
-                                  ))}
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                        {userTeamId && game.away_team_id === userTeamId && (
-                          <Popover open={openCombobox[game.game_id] === 'home'} onOpenChange={open => setOpenCombobox(prev => ({ ...prev, [game.game_id]: open ? 'home' : null }))}>
-                            <PopoverTrigger asChild>
-                              <button className="font-medium border-2 border-primary/20 rounded-lg px-3 py-1 bg-card hover:bg-primary/5 transition-colors text-foreground" onClick={e => { e.preventDefault(); setOpenCombobox(prev => ({ ...prev, [game.game_id]: 'home' })); }}>
-                                Change Home Team
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent align="start" className="p-0 w-60">
-                              <Command>
-                                <CommandInput placeholder="Search team..." />
-                                <CommandList>
-                                  {[...teams].sort((a: Team, b: Team) => {
-                                    const nameA = a.team_name || a.name || '';
-                                    const nameB = b.team_name || b.name || '';
-                                    return nameA.localeCompare(nameB);
-                                  }).map((t: Team) => (
-                                    <CommandItem key={t.team_id} value={t.team_name || t.name} onSelect={async () => {
-                                      await updateGameResult(game.game_id, {
-                                        home_score: Number(resultForms[game.game_id]?.home_score ?? game.home_score ?? 0),
-                                        away_score: Number(resultForms[game.game_id]?.away_score ?? game.away_score ?? 0),
-                                        home_team_id: t.team_id,
-                                        away_team_id: game.away_team_id
-                                      });
-                                      const data = await fetchGamesBySeason(selectedSeason!);
-                                      setGames(data);
-                                      setOpenCombobox(prev => ({ ...prev, [game.game_id]: null }));
-                                    }}>{t.team_name || t.name}</CommandItem>
-                                  ))}
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        )}
                       </div>
                     </div>
                   )}

@@ -8,6 +8,7 @@ import { fetchDashboard } from "@/lib/api"
 import { useSeason } from "@/context/SeasonContext"
 import { WinsChart } from "@/components/WinsChart"
 import type { DashboardData } from "@/types"
+import Image from "next/image";
 
 export default function Dashboard() {
   const { selectedSeason } = useSeason();
@@ -115,15 +116,64 @@ export default function Dashboard() {
         <CardContent>
           <div className="space-y-4">
             {recent.length === 0 && <div className="text-muted-foreground">No recent activity.</div>}
-            {recent.map((item, idx: number) => (
-              <div className="flex items-center justify-between" key={idx}>
-                <div>
-                  <p className="font-medium text-foreground">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                </div>
-                <Badge variant="secondary">{item.time_ago}</Badge>
-              </div>
-            ))}
+            {(() => {
+              let coloredCompletedShown = false;
+              return recent.map((item, idx) => {
+                // Only color the first completed game (the most recent one)
+                let resultColor = "";
+                if (!coloredCompletedShown && item.status === "completed") {
+                  if (item.description?.toLowerCase().includes("win")) {
+                    resultColor = "text-[hsl(var(--green-600))] border-[hsl(var(--green-600))]";
+                  } else if (item.description?.toLowerCase().includes("loss")) {
+                    resultColor = "text-[hsl(var(--red-600))] border-[hsl(var(--red-600))]";
+                  }
+                  coloredCompletedShown = true;
+                }
+                return (
+                  <div className="flex items-center justify-between" key={idx}>
+                    <div className="flex items-center gap-3">
+                      {/* Opponent Logo or Bye Week Icon */}
+                      {item.status === "bye" ? (
+                        <img
+                          src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNvZmZlZS1pY29uIGx1Y2lkZS1jb2ZmZWUiPjxwYXRoIGQ9Ik0xMCAydjIiLz48cGF0aCBkPSJNMTQgMnYyIi8+PHBhdGggZD0iTTE2IDhhMSAxIDAgMCAxIDEgMXY4YTQgNCAwIDAgMS00IDRIN2E0IDQgMCAwIDEtNC00VjlhMSAxIDAgMCAxIDEtMWgxNGE0IDQgMCAxIDEgMCA4aC0xIi8+PHBhdGggZD0iTTYgMnYyIi8+PC9zdmc+"
+                          alt="Bye Week"
+                          width={36}
+                          height={36}
+                          className="rounded-full border bg-white object-contain"
+                          style={{ minWidth: 36, minHeight: 36 }}
+                        />
+                      ) : item.opponent_logo_url ? (
+                        <Image
+                          src={item.opponent_logo_url.startsWith("/") ? item.opponent_logo_url : `/` + item.opponent_logo_url}
+                          alt="Opponent Logo"
+                          width={36}
+                          height={36}
+                          className="rounded-full border bg-white object-contain"
+                          style={{ minWidth: 36, minHeight: 36 }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/placeholder-logo.png";
+                          }}
+                        />
+                      ) : (
+                        <Image
+                          src="/placeholder-logo.png"
+                          alt="No Logo"
+                          width={36}
+                          height={36}
+                          className="rounded-full border bg-white object-contain"
+                          style={{ minWidth: 36, minHeight: 36 }}
+                        />
+                      )}
+                      <div>
+                        <p className={`font-medium text-foreground ${resultColor}`}>{item.title}</p>
+                        <p className="text-sm text-muted-foreground">{item.description}</p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className={resultColor}>{item.time_ago}</Badge>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </CardContent>
       </Card>

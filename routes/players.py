@@ -390,7 +390,25 @@ def get_player_career(player_id: int) -> Response:
                 'games_played': ps.games_played or 0,
                 'ovr_rating': ps.ovr_rating,
                 'current_year': ps.current_year,
-                'redshirted': ps.redshirted
+                'redshirted': ps.redshirted,
+                # Add all stat fields for frontend table rendering
+                'completions': ps.completions,
+                'attempts': ps.attempts,
+                'completion_pct': (round(safe_div(ps.completions, ps.attempts) * 100, 1) if ps.attempts else 0),
+                'pass_yards': ps.pass_yards,
+                'pass_tds': ps.pass_tds,
+                'interceptions': ps.interceptions,
+                'rush_attempts': ps.rush_attempts,
+                'rush_yards': ps.rush_yards,
+                'rush_tds': ps.rush_tds,
+                'receptions': ps.receptions,
+                'rec_yards': ps.rec_yards,
+                'rec_tds': ps.rec_tds,
+                'tackles': ps.tackles,
+                'tfl': ps.tfl,
+                'sacks': ps.sacks,
+                'forced_fumbles': ps.forced_fumbles,
+                'def_tds': ps.def_tds,
             }
             for ps in seasons
         ]
@@ -783,7 +801,18 @@ def set_player_leaving(player_id: int):
     player.leaving = True
     from extensions import db
     db.session.commit()
-    return jsonify({'message': f'Player {player_id} marked as leaving.'}) 
+    return jsonify({'message': f'Player {player_id} marked as leaving.'})
+
+@players_bp.route('/players/<int:player_id>/leave', methods=['DELETE'])
+def cancel_player_leaving(player_id: int):
+    """
+    Cancel a player's 'leaving after season' status.
+    """
+    player = Player.query.get_or_404(player_id)
+    player.leaving = False
+    from extensions import db
+    db.session.commit()
+    return jsonify({'message': f'Player {player_id} leaving status cancelled.'})
 
 @players_bp.route('/players/<int:player_id>/comprehensive', methods=['PUT'])
 def update_player_comprehensive(player_id: int) -> Response:

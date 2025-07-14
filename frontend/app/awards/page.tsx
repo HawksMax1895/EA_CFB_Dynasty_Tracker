@@ -337,70 +337,74 @@ export default function AwardsPage() {
             )}
           </div>
           <Dialog open={editModal.open} onOpenChange={closeEdit}>
-            <DialogContent className="max-w-md w-full p-lg bg-white rounded-2xl shadow-xl border border-gray-200">
+            <DialogContent
+              className="max-w-2xl w-full p-8 bg-card border border-border rounded-2xl dark:bg-card dark:text-card-foreground"
+            >
               <DialogHeader>
                 <DialogTitle>Edit Award Winner</DialogTitle>
               </DialogHeader>
-              <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
-                  <Input
-                    placeholder="Search player name..."
-                    value={playerSearch}
-                    onChange={e => {
-                      setPlayerSearch(e.target.value);
-                      setUserSelectedPlayer(false);
-                    }}
-                    className="flex-1 min-w-0"
-                  />
-                  <Popover open={teamPopoverOpen} onOpenChange={setTeamPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={teamPopoverOpen}
-                        className="w-full md:w-56 justify-between"
-                      >
-                        {playerTeamFilter == null
-                          ? "All Teams"
-                          : allTeams.find(t => t.team_id === playerTeamFilter)?.name || allTeams.find(t => t.team_id === playerTeamFilter)?.team_name || "Select team..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 p-0">
-                      <Command>
-                        <CommandInput placeholder="Search team..." />
-                        <CommandList>
-                          <CommandEmpty>No team found.</CommandEmpty>
-                          <CommandGroup>
-                            <CommandItem
-                              key="all"
-                              value="all"
-                              onSelect={() => {
-                                setPlayerTeamFilter(null);
-                                setTeamPopoverOpen(false);
-                              }}
-                            >
-                              <Check className={cn("mr-2 h-4 w-4", playerTeamFilter == null ? "opacity-100" : "opacity-0")} />
-                              All Teams
-                            </CommandItem>
-                            {allTeams.map(t => (
+              <div className="space-y-8">
+                <div className="flex flex-col md:flex-row md:items-end gap-4">
+                  <div className="flex w-full gap-4">
+                    <Input
+                      placeholder="Search player name..."
+                      value={playerSearch}
+                      onChange={e => {
+                        setPlayerSearch(e.target.value);
+                        setUserSelectedPlayer(false);
+                      }}
+                      className="w-full bg-background text-foreground placeholder:text-muted-foreground border border-input shadow-sm focus:ring-2 focus:ring-primary"
+                    />
+                    <Popover open={teamPopoverOpen} onOpenChange={setTeamPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={teamPopoverOpen}
+                          className="w-full max-w-xs min-w-[180px] md:min-w-[220px] md:max-w-[260px] justify-between bg-background text-foreground border border-input shadow-sm"
+                        >
+                          {playerTeamFilter == null
+                            ? "All Teams"
+                            : allTeams.find(t => t.team_id === playerTeamFilter)?.name || allTeams.find(t => t.team_id === playerTeamFilter)?.team_name || "Select team..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full max-w-xs min-w-[180px] md:min-w-[220px] md:max-w-[260px] p-0 bg-popover text-popover-foreground border border-border shadow-md">
+                        <Command>
+                          <CommandInput placeholder="Search team..." />
+                          <CommandList>
+                            <CommandEmpty>No team found.</CommandEmpty>
+                            <CommandGroup>
                               <CommandItem
-                                key={t.team_id}
-                                value={t.name || t.team_name}
+                                key="all"
+                                value="all"
                                 onSelect={() => {
-                                  setPlayerTeamFilter(t.team_id);
+                                  setPlayerTeamFilter(null);
                                   setTeamPopoverOpen(false);
                                 }}
                               >
-                                <Check className={cn("mr-2 h-4 w-4", playerTeamFilter === t.team_id ? "opacity-100" : "opacity-0")} />
-                                {t.name || t.team_name}
+                                <Check className={cn("mr-2 h-4 w-4", playerTeamFilter == null ? "opacity-100" : "opacity-0")} />
+                                All Teams
                               </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                              {allTeams.map(t => (
+                                <CommandItem
+                                  key={t.team_id}
+                                  value={t.name || t.team_name}
+                                  onSelect={() => {
+                                    setPlayerTeamFilter(t.team_id);
+                                    setTeamPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", playerTeamFilter === t.team_id ? "opacity-100" : "opacity-0")} />
+                                  {t.name || t.team_name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
                 <div>
                   <Popover open={playerSelectOpen} onOpenChange={setPlayerSelectOpen}>
@@ -409,7 +413,7 @@ export default function AwardsPage() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={playerSelectOpen}
-                        className="w-full mt-2 justify-between"
+                        className="w-full mt-2 justify-between bg-background text-foreground border border-input shadow-sm"
                       >
                         {(() => {
                           const selected = allPlayers.find(p => p.player_id === editPlayerId);
@@ -420,7 +424,7 @@ export default function AwardsPage() {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
+                    <PopoverContent className="w-full p-0 bg-popover text-popover-foreground border border-border shadow-md">
                       <Command>
                         <CommandInput
                           placeholder="Search player..."

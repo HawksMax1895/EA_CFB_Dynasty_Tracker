@@ -387,13 +387,13 @@ def dashboard() -> Response:
                 if len(display_games) < 3:
                     display_games.append(game)
 
-    # Prefetch opponent team names in one query to avoid an N+1 pattern
+    # Prefetch opponent team names and logo_urls in one query to avoid an N+1 pattern
     opponent_ids = [
         g.away_team_id if g.home_team_id == team.team_id else g.home_team_id
         for g in display_games
     ]
     opponents = {
-        t.team_id: t.name for t in Team.query.filter(Team.team_id.in_(opponent_ids)).all()
+        t.team_id: {"name": t.name, "logo_url": t.logo_url} for t in Team.query.filter(Team.team_id.in_(opponent_ids)).all()
     }
 
     recent_activity = []
@@ -411,7 +411,9 @@ def dashboard() -> Response:
             })
             continue
         opponent_id = game.away_team_id if game.home_team_id == team.team_id else game.home_team_id
-        opponent_name = opponents.get(opponent_id, f"Team {opponent_id}")
+        opponent_info = opponents.get(opponent_id, {"name": f"Team {opponent_id}", "logo_url": None})
+        opponent_name = opponent_info["name"]
+        opponent_logo_url = opponent_info["logo_url"]
         if game.home_team_id == team.team_id:
             prefix = "vs"
         else:
@@ -431,7 +433,9 @@ def dashboard() -> Response:
                 "title": f"{title}",
                 "description": f"{result} ({game.home_score}-{game.away_score}) in week {game.week}",
                 "time_ago": f"Week {game.week}",
-                "status": "completed"
+                "status": "completed",
+                "opponent_team_id": opponent_id,
+                "opponent_logo_url": opponent_logo_url
             })
         else:
             # Future game
@@ -439,7 +443,9 @@ def dashboard() -> Response:
                 "title": f"{title}",
                 "description": f"Upcoming game in week {game.week}",
                 "time_ago": f"Week {game.week}",
-                "status": "upcoming"
+                "status": "upcoming",
+                "opponent_team_id": opponent_id,
+                "opponent_logo_url": opponent_logo_url
             })
 
     # Use manual_conference_position if set

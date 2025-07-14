@@ -164,6 +164,8 @@ export interface HonorWinner {
   season_id: number;
   honor_id: number;
   week?: number;
+  honor_name?: string;
+  season_year?: number;
 }
 
 // Form Data Types
@@ -314,6 +316,7 @@ export interface AwardWinnerWithDetails {
   award_name?: string;
   player_name?: string;
   team_name?: string;
+  season_year?: number;
 }
 
 export interface HonorData {
@@ -373,6 +376,9 @@ export interface DashboardData {
     title: string;
     description: string;
     time_ago: string;
+    status?: string;
+    opponent_team_id?: number;
+    opponent_logo_url?: string;
   }>;
 }
 
