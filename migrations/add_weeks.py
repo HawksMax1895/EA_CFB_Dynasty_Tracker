@@ -5,11 +5,11 @@ from app import app
 from extensions import db
 from models import Season, Team, Game
 
-TOTAL_WEEKS = 16  # Final week number (0-16)
+TOTAL_WEEKS = 17  # Final week number (0-17)
 
 
 def add_missing_weeks():
-    """Add bye-week games so every season covers weeks 0-16, but only if a team has no game at all that week."""
+    """Add bye-week games so every season covers weeks 0-17, but only if a team has no game at all that week."""
     added = 0
     with app.app_context():
         seasons = Season.query.all()

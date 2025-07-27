@@ -4,12 +4,12 @@ from models import Season, Conference, Team, TeamSeason, Player, PlayerSeason, G
 import random
 import os
 def backfill_all_season_games(tbd_team_id):
-    """Ensure every season has a full 17-week schedule."""
+    """Ensure every season has a full 18-week schedule."""
     seasons = Season.query.all()
     user_team = Team.query.filter_by(is_user_controlled=True).first()
     if not user_team: return
     for season in seasons:
-        for week in range(17): # Weeks 0-16
+        for week in range(18):  # Weeks 0-17
             game_exists = Game.query.filter_by(season_id=season.season_id, week=week).first()
             if not game_exists:
                 # Create a placeholder game with TBD teams

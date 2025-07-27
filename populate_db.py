@@ -362,8 +362,8 @@ with app.app_context():
     # -------------------------
     # Initialize schedule with bye weeks for the user-controlled team only
     # -------------------------
-    # Use 17 total weeks (0-16) for the schedule
-    REGULAR_SEASON_WEEKS = 16
+    # Use 18 total weeks (0-17) for the schedule
+    REGULAR_SEASON_WEEKS = 17
     user_team = next((team for team in all_teams if team.is_user_controlled), None)
     
     if user_team:
