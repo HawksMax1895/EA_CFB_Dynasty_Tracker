@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Trophy } from "lucide-react"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo } from "react"
 import { updateGameResult, fetchGamesBySeason, fetchTeams, updateTeamSeason, fetchTeamsBySeason } from "@/lib/api"
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Command, CommandInput, CommandList, CommandItem } from "@/components/ui/command"
 import { useSeason } from "@/context/SeasonContext"
-import { Team, Game } from "@/types";
+import { Team, Game, TeamSeason } from "@/types";
 import Bracket from './Bracket';
 import Image from "next/image";
 
@@ -29,9 +29,9 @@ export default function GamesPage() {
   
   const [openCombobox, setOpenCombobox] = useState<{ [gameId: number]: 'home' | 'away' | null }>({})
   const { selectedSeason } = useSeason();
-  const [teamSeasonStats, setTeamSeasonStats] = useState<Team | null>(null);
+  const [teamSeasonStats, setTeamSeasonStats] = useState<TeamSeason | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [editableStats, setEditableStats] = useState<Partial<Team>>({});
+  const [editableStats, setEditableStats] = useState<Partial<TeamSeason>>({});
 
   console.log('GamesPage: selectedSeason', selectedSeason);
 
@@ -43,6 +43,7 @@ export default function GamesPage() {
       .then((data) => {
         setGames(data)
         setLoading(false)
+        console.log('DEBUG: fetched games', data);
       })
       .catch((err) => {
         setError(err.message)
@@ -62,22 +63,19 @@ export default function GamesPage() {
       })
       setTeamMap(map)
       setUserTeamId(userId)
+      console.log('DEBUG: userTeamId set to', userId);
     })
   }, [])
 
   useEffect(() => {
-    if (!selectedSeason) return;
+    if (!selectedSeason || !userTeamId) return;
     setStatsLoading(true);
     fetchTeamsBySeason(selectedSeason)
         .then(teams => {
-            const userTeam = teams.find((t: Team) => t.is_user_controlled);
+            const userTeam = teams.find((t: TeamSeason) => t.team_id === userTeamId);
             setTeamSeasonStats(userTeam || null);
             if (userTeam) {
-              setEditableStats({
-                ...userTeam,
-                offense_yards: userTeam.offense_yards,
-                defense_yards: userTeam.defense_yards
-              });
+              setEditableStats({ ...userTeam });
             }
         })
         .catch(err => {
@@ -86,7 +84,38 @@ export default function GamesPage() {
         .finally(() => {
             setStatsLoading(false);
         });
-  }, [selectedSeason]);
+  }, [selectedSeason, userTeamId]);
+
+  // Calculate PPG and PAPG from games for the current user team and season
+  const { off_ppg, def_ppg } = useMemo(() => {
+    console.log('DEBUG: selectedSeason', selectedSeason, typeof selectedSeason);
+    console.log('DEBUG: userTeamId', userTeamId, typeof userTeamId);
+    console.log('DEBUG: games', games);
+    if (!selectedSeason || !userTeamId) return { off_ppg: undefined, def_ppg: undefined };
+    const userGames = games.filter(
+      (g) => Number(g.home_team_id) === Number(userTeamId) || Number(g.away_team_id) === Number(userTeamId)
+    );
+    let pointsFor = 0;
+    let pointsAgainst = 0;
+    let gamesPlayed = 0;
+    userGames.forEach((g) => {
+      if (typeof g.home_score === 'number' && typeof g.away_score === 'number') {
+        gamesPlayed++;
+        if (Number(g.home_team_id) === Number(userTeamId)) {
+          pointsFor += g.home_score;
+          pointsAgainst += g.away_score;
+        } else {
+          pointsFor += g.away_score;
+          pointsAgainst += g.home_score;
+        }
+      }
+    });
+    console.log('PPG DEBUG:', { userGames, pointsFor, pointsAgainst, gamesPlayed, off_ppg: gamesPlayed > 0 ? Number((pointsFor / gamesPlayed).toFixed(1)) : undefined, def_ppg: gamesPlayed > 0 ? Number((pointsAgainst / gamesPlayed).toFixed(1)) : undefined });
+    return {
+      off_ppg: gamesPlayed > 0 ? Number((pointsFor / gamesPlayed).toFixed(1)) : undefined,
+      def_ppg: gamesPlayed > 0 ? Number((pointsAgainst / gamesPlayed).toFixed(1)) : undefined,
+    };
+  }, [games, selectedSeason, userTeamId]);
 
   // Handlers
   const handleStatChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,35 +126,23 @@ export default function GamesPage() {
   const handleStatUpdate = async (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (!selectedSeason || !userTeamId) return;
-
-    // Allow updates even if teamSeasonStats is null (for initial creation)
     const numericValue = name !== 'prestige' && name !== 'team_rating' ? (value === '' ? null : parseFloat(value)) : value;
-    
-    // Get the original value from the editable state, which reflects the most recent data
-    const originalValue = teamSeasonStats ? teamSeasonStats[name as keyof Team] : null;
-
+    const originalValue = teamSeasonStats ? teamSeasonStats[name as keyof TeamSeason] : null;
     if (String(numericValue) !== String(originalValue)) {
       try {
         await updateTeamSeason(selectedSeason, userTeamId, { [name]: numericValue });
-        // Optimistically update the local state
         const updatedStats = { ...teamSeasonStats, [name]: numericValue, team_id: userTeamId };
-        setTeamSeasonStats(updatedStats as Team);
+        setTeamSeasonStats(updatedStats as TeamSeason);
         setEditableStats(updatedStats);
-        // Background refetch to ensure consistency
         fetchTeamsBySeason(selectedSeason).then(teams => {
-          const userTeam = teams.find((t: Team) => t.is_user_controlled);
+          const userTeam = teams.find((t: TeamSeason) => t.is_user_controlled);
           if (userTeam && (userTeam.offense_yards !== updatedStats.offense_yards || userTeam.defense_yards !== updatedStats.defense_yards)) {
             setTeamSeasonStats(userTeam);
-            setEditableStats({
-              ...userTeam,
-              offense_yards: userTeam.offense_yards,
-              defense_yards: userTeam.defense_yards
-            });
+            setEditableStats({ ...userTeam });
           }
         });
       } catch (error) {
         console.error("Failed to update stat:", error);
-        // Revert on error
         setEditableStats(teamSeasonStats || {});
       }
     }
@@ -340,6 +357,9 @@ export default function GamesPage() {
       </div>
     </div>
   )
+
+  // Add debug log before return
+  console.log('RENDER DEBUG:', { off_ppg, def_ppg, games, userTeamId });
 
   return (
     <>
@@ -655,7 +675,7 @@ export default function GamesPage() {
                     <span className="font-medium text-base">Points Per Game</span>
                     <div className="flex items-center gap-2">
                       <span className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm">
-                        {editableStats.off_ppg ?? "-"}
+                        {typeof off_ppg === "number" ? off_ppg : "-"}
                       </span>
                       <input
                         type="number"
@@ -804,7 +824,7 @@ export default function GamesPage() {
                     <span className="font-medium text-base">Points Allowed Per Game</span>
                     <div className="flex items-center gap-2">
                       <span className="w-24 text-right font-bold text-lg bg-input rounded-md p-1 text-foreground shadow-sm">
-                        {editableStats.def_ppg ?? "-"}
+                        {typeof def_ppg === "number" ? def_ppg : "-"}
                       </span>
                       <input
                         type="number"

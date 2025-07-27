@@ -3,6 +3,7 @@ from extensions import db
 from models import Game, TeamSeason, Conference, Team
 from routes import logger
 from typing import Dict, List, Any, Optional, Union
+from utils import update_teamseason_ppg_for_team
 
 games_bp = Blueprint('games', __name__)
 
@@ -126,6 +127,13 @@ def update_game(game_id: int) -> Response:
         game.overtime = data['overtime']
     
     db.session.commit()
+
+    # Update PPG/PAPG for both teams in this game for the season
+    if game.season_id and game.home_team_id:
+        update_teamseason_ppg_for_team(game.season_id, game.home_team_id)
+    if game.season_id and game.away_team_id:
+        update_teamseason_ppg_for_team(game.season_id, game.away_team_id)
+    
     return jsonify({'message': 'Game updated successfully'})
 
 @games_bp.route('/games/<int:game_id>', methods=['DELETE'])
@@ -328,4 +336,4 @@ def get_all_games() -> Response:
             'overtime': g.overtime
         }
         for g in games
-    ]) 
+    ])

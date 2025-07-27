@@ -614,6 +614,31 @@ def delete_season(season_id: int) -> Response:
     db.session.commit()
     return jsonify({'message': f'Season {season.year} and all related data deleted.'}), 200
 
+@seasons_bp.route('/seasons/<int:season_id>/update_stats', methods=['POST'])
+def update_season_stats(season_id: int) -> Response:
+    """
+    Update all TeamSeason stats for a season, including points, PPG, team rating, and final_rank from rankings API.
+    Returns updated stats for all teams in the season.
+    """
+    from utils_teamseason_stats import update_teamseason_stats_for_season, fetch_top_25_ranks
+    top_25_ranks = fetch_top_25_ranks(season_id)
+    update_teamseason_stats_for_season(season_id, top_25_ranks=top_25_ranks)
+    # Return updated team_season stats for frontend
+    team_seasons = TeamSeason.query.filter_by(season_id=season_id).all()
+    result = []
+    for ts in team_seasons:
+        result.append({
+            'team_id': ts.team_id,
+            'season_id': ts.season_id,
+            'points_for': ts.points_for,
+            'points_against': ts.points_against,
+            'off_ppg': ts.off_ppg,
+            'def_ppg': ts.def_ppg,
+            'team_rating': ts.team_rating,
+            'final_rank': ts.final_rank
+        })
+    return jsonify(result)
+
 # --- Shared helper for conference standings ---
 def get_conference_standings(conference_id: int, season_id: int) -> list[dict[str, Any]]:
     """

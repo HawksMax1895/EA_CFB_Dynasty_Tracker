@@ -69,10 +69,14 @@ export default function AwardsPage() {
     honor.conference_id === userTeam?.primary_conference_id // User team's conference honors
   );
 
-  const filteredHonorPlayers = userTeamPlayers.filter(p => 
-    p.name.toLowerCase().includes(addHonorPlayerSearch.toLowerCase()) &&
-    (addHonorPositionFilter === "" || p.position === addHonorPositionFilter)
-  );
+  // Only use userTeamPlayers for honor search, and search by both name and position
+  const filteredHonorPlayers = userTeamPlayers.filter(p => {
+    const search = addHonorPlayerSearch.trim().toLowerCase();
+    const name = (p.name || '').toLowerCase();
+    const nameMatch = search === "" || name.includes(search);
+    const posMatch = addHonorPositionFilter === "" || p.position === addHonorPositionFilter;
+    return nameMatch && posMatch;
+  });
 
   const filteredHonorTypesForDropdown = filteredHonorTypes.filter(honor => 
     honor.name.toLowerCase().includes(addHonorTypeSearch.toLowerCase())
