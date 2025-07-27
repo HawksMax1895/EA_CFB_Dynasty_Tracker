@@ -85,8 +85,8 @@ def create_season() -> Response:
     db.session.commit()
 
     # --- NEW: Generate bye-week schedule for user-controlled team only ---
-    # Use a 17-week calendar (weeks 0-16)
-    TOTAL_SEASON_WEEKS = 16
+    # Use an 18-week calendar (weeks 0-17)
+    TOTAL_SEASON_WEEKS = 17
     user_team = next((team for team in teams if getattr(team, 'is_user_controlled', False)), None)
     bye_games = []
     if user_team:
